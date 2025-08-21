@@ -1,0 +1,5 @@
+# textdomain: banisters
+
+##[ nodes.lua ]##
+Basic @1 banister=
+Fancy @1 banister=

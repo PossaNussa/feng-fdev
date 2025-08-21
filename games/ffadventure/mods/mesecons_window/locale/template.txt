@@ -1,0 +1,7 @@
+# textdomain: mesecons_window
+Mesecon Window=
+A Mesecon receptor which is opaque when it isn't powered and is fully transparent to light and sunlight when powered.=
+Mesecon Filter Window=
+A Mesecon receptor which is opaque when it isn't powered and is semi-transparent to light when powered.=
+Mesecon Filter Glass=
+A Mesecon receptor which lets light through. When not powered, it is semi-transparent, i.e. it is transparent to light, but filters out sunlight. When powered, it is fully transparent to light and sunlight.=

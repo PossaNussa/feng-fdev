@@ -1,0 +1,94 @@
+
+This mod allows to register "growable" food, which progresses through stages even while the mapblock is not loaded.
+
+register_food(modname, itemname, table_stages)
+
+Example:
+
+local stage = {
+    {
+        stage_name = "modname:nodename", -- required, string, nodename to attach this stage to, must not exist previously
+        next_stages = "modname:same_or_other_nodename" -- required, string or table (see below), if missing last stage is assumed
+            OR 
+        next_stages = { -- required if not last stage, table format
+            {
+                "modname:same_or_other_nodename", -- required, string, target nodename must exist
+                50,  -- optional, number, chance for the node to switch to this target, defaults to 1
+                { can_set = mymod.optional_can_set_function, more_functions = ... }, -- optional, table, callback table of known keys and function values
+                { param1 = 90, param2 = 107, ... } -- optional, table, metadata table of known keys and whatever values they want
+            },
+            { "modname:same_or_other_nodename"}, -- as above, but without any optional fields
+            { "other_modname:their_nodename"} -- as above, but targets a node from different mod
+        },
+        duration = 120, -- required, number, fixed duration of stage in seconds, if missing last stage is assumed
+        tiles = {"modname_nodename_texturename.png", ... }, -- required, table, table of tiles
+        description = "Node description", -- required, string, node description
+        -- Optional "Node definition" aka "Used by minetest.register_node"
+        node_definition = {
+            drawtype = "normal",
+            ...
+        }
+    }
+}
+
+###
+
+Find all node_definitions that have both on_timer and on_construct:
+
+//lua local n = 0 for k,v in pairs(minetest.registered_nodes) do if (v.on_construct and v.on_timer) then n = n + 1 core.chat_send_all(n .. "=" .. dump(k)) end end
+
+Result: 758
+
+Find all node_definitions that have on_construct:
+
+//lua local n = 0 for k,v in pairs(minetest.registered_nodes) do if (v.on_construct) then n = n + 1 core.chat_send_all(n .. "=" .. dump(k)) end end
+
+Result: 1269
+
+Find all node_definitions that have on_timer:
+
+//lua local n = 0 for k,v in pairs(minetest.registered_nodes) do if (v.on_timer) then n = n + 1 core.chat_send_all(n .. "=" .. dump(k)) end end
+
+Result: 916
+
+###
+
+Future update where we have random duration:
+
+-- Preparation for random duration
+function calc_duration(duration)
+
+    assert(duration ~= nil, "ERROR")
+
+    local d_min, d_max
+
+    -- table
+    if type(duration) == "table" then
+        assert(((#duration >= 1) and (#duration <= 2)), "ERROR")
+
+        if #duration == 1 then
+            d_min = duration[1]
+            d_max = duration[1]
+        else
+            d_min = math.min(duration[1], duration[2])
+            d_max = math.max(duration[1], duration[2])
+        end
+
+    elseif type(duration) == "number" then
+        d_min = duration
+        d_max = duration
+    elseif type(duration) == "string" then
+        d_min = tonumber(duration)
+        d_max = tonumber(duration)
+    else
+        return yl_api_nodestages.error
+    end
+
+    assert((d_min >= 0) and (d_max >= 0) and ((d_max >= d_min)), "ERROR")
+
+    return {min = d_min, max = d_max}
+end
+
+function yl_api_nodestages.calc_duration(duration) return
+    calc_duration(duration) end
+

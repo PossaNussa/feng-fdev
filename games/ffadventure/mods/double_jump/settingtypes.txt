@@ -1,0 +1,5 @@
+# This does NOT count the builtin jump.
+double_jump.max_jump (The maximum number of player jumps) int 1
+double_jump.infinite_jumps (Whether to have infinite jumps or not) bool false
+# The default value for builtin jumps equals to 6.5 nodes per second.
+double_jump.max_height (The maximum height of the extra jump) float 6.5

@@ -1,0 +1,2 @@
+# enables pretty-printing latin botanica names in the description field while hovering over a flower
+elysflowers_botanical_descriptions (botanical descriptions) bool true

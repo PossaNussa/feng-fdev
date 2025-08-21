@@ -1,0 +1,5 @@
+copyright awuuwa 2025
+
+Every lua file (.lua) as well as configuration file (.conf) is licensed to you under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. See file gpl-3.0.txt for the text of the license.
+
+Every other file that is not (.lua) or (.conf) is licensed to you under the Free Art License or at your option Licence Art Libre, license text for both licenses found in files LAL.html and FAL.html

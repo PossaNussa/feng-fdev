@@ -1,0 +1,2 @@
+# textdomain: nextgen_compass
+Compass=

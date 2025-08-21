@@ -1,0 +1,9 @@
+# textdomain: armor_woven
+
+
+### init.lua ###
+
+Woven Boots=
+Woven Cap=
+Woven Pants=
+Woven Tunic=

@@ -1,0 +1,3 @@
+The successor to bloodmagic.
+Use your blood to power arcane machinations or brew powerful elixirs.
+Requires MT 5.0.0

@@ -1,0 +1,26 @@
+
+# If enabled new players will spawn in a house
+alone_home_alone (New players get homes) bool false
+
+# If enabled and a supported teleport mod is installed then new player house
+# will have a teleport
+alone_home_teleport (Player homes have a teleport) bool false
+
+# If enabled and a supported waypoint mod is installed then new player house
+# will have a waypoint
+alone_home_waypoint (Player homes have a waypoint) bool false
+
+# The minimum distance, both X and Z, a player will spawn from 0 0 0
+alone_min_dist (Minimum distance a player will spawn from 0 0 0) int 1000 0 10000
+
+# The maximum distance, both X and Z, a player will spawn from 0 0 0
+alone_max_dist (Maximum distance a player will spawn from 0 0 0) int 30000 2000 31000
+
+# The distance a player will spawn away from other player spawns
+alone_player_dist (Distance players spawn from each other) int 500
+
+# The maximum number of times to try and place a player
+alone_spawn_attempts (Number of spawn attempts) int 5000
+
+# If enabled then player spawn positions will be predictable
+alone_predictable_spawns (Predictable spawn positions) bool false

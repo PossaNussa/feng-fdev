@@ -1,0 +1,6 @@
+# Stop clocks from ticking or ringing bell at noon/midnight:
+clocks_are_silent (Clocks don't make sounds) bool false
+# Hovering mouse over the clock display current time in infotext:
+clocks_in_debug_mode (Display time in infotext) bool false
+# When placing a clock it will add a seconds hand:
+display_seconds (Clocks have seconds hand) bool false

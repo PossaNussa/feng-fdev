@@ -1,0 +1,5 @@
+# textdomain: better_fences
+
+##[ .cdb_translation.lua ]##
+Better Fences (1F616EMO Redo)=
+Allow fences to connect to all nodes=

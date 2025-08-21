@@ -1,0 +1,127 @@
+Zombie model derived from the default player model.
+
+Textures Created by me, Nathan
+Kekker
+Limeel
+Wither soul111
+Yoler_Toons
+Pixperfect
+Livelier_Vovalium
+Cutem4n
+CosyRain
+mommyhugs
+Thornsley2
+iMaus
+77ZVV
+Xsquad9755
+Jeeeemer
+NickBlu
+MossyCreeper
+RatatouillePG
+Slingshot429
+shanawazali9211
+restlessskins
+k1n0k0c0w
+Scxrecr0w
+ZaneyK
+DanDeVito
+PhoenixReborn
+LazyGamer847
+Boomlightning76
+VoodooXcd
+Evildictator28
+Octicity
+Voshk
+Rubuen
+abdamit
+bogbogman
+lightninja2004
+HarabelBR
+GoshoHybavetza
+MochisanYT
+Anonymous
+CC by SA 3.0
+
+Lion skins:
+Anonymous
+frozencan1981
+TooMuchInspired
+Kittydoglover3
+Lion sounds by Pixabay!
+SiXinCN
+Lion17
+GuardOscar
+DistortedDG
+Viaven
+
+Hyena:
+Hyena sfx by Pixabay and SPANAC
+GreenHyena
+grimstalker
+ManaCam15
+TimTa***
+TigersForLife115
+FerretWhosNameIsVeil
+
+Cheetah:
+Cheetah SFX by Freesoundeffects.com
+XxOliviaKittyxX
+happyboy549
+joeljowi013
+MightyGoldDragon
+ShadowsInTheNight
+et68575
+
+Golems:
+The GolemCrafter
+Zenc0de
+Creative Wars
+kekker
+Tacoshet
+Sassafrassanid
+Nitgo
+ArthurB
+Vaedak
+Gatlin_
+m0cchi
+Pumpkin
+ElTioDelHarvestMoon
+Adpirin60
+Farworlder
+gumwad
+Karaoke
+FishStacks
+warr_machina
+Skin Nibbler
+
+Badguy skins:
+Pumpkin
+Irish The Boi
+Nitgo
+CacaoHwippy
+hikana
+ended_
+SolarSimonDM
+crwbanman
+Thereal_Atlas
+
+Axolotl:
+Nitgo
+
+Ape:
+Fates
+
+Pig:
+Yoler_Toons
+
+Frogmen:
+CoolishMussel
+DanDeVito
+
+Undead Knights:
+js3413546
+WaffleC0N
+Boomlightning76
+Knoxoro
+
+Code copy/pasted with minor changes from Tenplus1's mob API, licensed as MIT.

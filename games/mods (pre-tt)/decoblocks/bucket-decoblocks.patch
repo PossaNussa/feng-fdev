@@ -1,0 +1,20 @@
+diff -ruN decoblocks.old/nodes.lua decoblocks/nodes.lua
+--- decoblocks.old/nodes.lua	2019-02-17 02:46:44.916000000 -0800
++++ decoblocks/nodes.lua	2019-02-17 02:47:08.616000000 -0800
+@@ -1222,7 +1222,7 @@
+ 	sounds = default.node_sound_stone_defaults(),
+ })
+ 
+-
++if false then
+ minetest.register_node("decoblocks:polar_bear_rug", {
+ 	description = "Polar Bear Rug",
+ 	drawtype = "mesh",
+@@ -1245,6 +1245,7 @@
+ 	groups = {cracky = 2, oddly_breakable_by_hand = 1},
+ 	sounds = default.node_sound_stone_defaults(),
+ })
++end
+ 
+ minetest.register_node("decoblocks:rusty_steel_plating", {
+ 	description = "Rusty Plating",

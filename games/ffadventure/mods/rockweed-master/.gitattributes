@@ -1,0 +1,2 @@
+*.png binary diff=hex
+*.jpg binary diff=hex

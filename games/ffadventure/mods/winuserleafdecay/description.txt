@@ -1,0 +1,1 @@
+With this mod, all trees in Wilhelmines mods have a working leafdecay function.

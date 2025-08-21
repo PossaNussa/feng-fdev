@@ -1,0 +1,6 @@
+The code is licensed under LGPL-2.1-or-later: https://spdx.org/licenses/LGPL-2.1-or-later.html
+
+The art is licensed under CC-BY-SA-4.0: https://spdx.org/licenses/CC-BY-SA-4.0.html
+
+The original version of the flower art is from '2D Simple Grass TileSet' by Gustavo Saraiva, licensed CC0
+https://opengameart.org/content/2d-simple-grass-tileset-0

@@ -1,0 +1,15 @@
+Mod written by Felfa under LGPL 3.0 for code and CC-by-SA 4.0 for models and textures.
+
+Basic models for the banisters and nodeboxes definitions
+were taken from VanessaE's homedecor mod:
+ - https://github.com/mt-mods/homedecor_modpack
+
+The algorithm in the function banister.on_place_side was
+originally implemented by pyrollo in display_modpack:
+ - https://github.com/pyrollo/display_modpack
+
+License for code: LGPL 3.0
+License for media and all other assets:  CC-by-SA 4.0
+
+These licenses apply to all modules and components in this modpack,
+unless otherwise stated.

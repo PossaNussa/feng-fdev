@@ -1,0 +1,2 @@
+name = "Skeleton Buccaneer",
+author = "Slingshot429",

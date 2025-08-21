@@ -1,0 +1,15 @@
+# textdomain: waystone
+
+WayStone=Piedra de Destino
+Owned by: @1=Propiedad de: @1
+You can't dig that waystone, is owned by @1=No puedes romper esa Piedra de Destino,es propiedad de @1
+See how to use it on the Wiki=Consulta cómo usarla en la Wiki
+Scroll=Pergamino
+You have been teleported to the WayStone!=¡Te has teleportado a la Waystone!
+No WayStone position has been recorded!=¡No hay una Waystone vinculada!
+Choose a name to the Scroll :=Elige un nombre para el Pergamino :
+Name=Nome
+Ok=Hecho
+Wiki=Wiki
+Stones With Astral=Piedra con Astral
+Astral=Astral

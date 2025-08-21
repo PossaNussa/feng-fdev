@@ -1,0 +1,11 @@
+[yl_api_nodestages]
+
+# Debug
+# Set this to true to enable debug mode, it will output some more values to log
+# Optional, default is false
+yl_api_nodestages.debug (Debug mode) bool false
+
+# Run Nodetimer Restart LBM
+Set to true to enable the timer restart lbm, set to false to disable it
+# Optional, default is true
+yl_api_nodestages.run_lbm (Run Nodetimer Restart LBM) bool true

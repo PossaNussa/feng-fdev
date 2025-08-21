@@ -1,0 +1,4 @@
+# texture resolution 16 or 256
+rockweed_resolution (texture resolution: 16 or 256) int 16
+# whether to enforce rockweed priv
+rockweed_strict_priv (strict priv enforcement) bool false

@@ -1,0 +1,8 @@
+# Set number of seconds between eating more crops
+eat_crops_delay (Eat crops every [seconds]. Smaller# = more eaten) int 15
+
+# Set number of seconds between attempting to spawn more pests 
+spawn_pests_delay (Attempt to spawn pests every [seconds]. Smaller# = more often) int 950
+
+# Set probability of spawning a pest = 1 in every # of crop nodes.
+spawn_pests_probability (Probability of spawning 1 in every [crop nodes]. Smaller# = more pests ) int 100000

@@ -1,0 +1,9 @@
+#   The policy to use for blueberry blocks. Aliases are registered every time you play so that you will never end up with unknown nodes.
+#   defaultonly: All blueberry blocks will drop default blueberries. This is the default policy.
+#   farmingonly: All blueberry blocks will drop farming blueberries.
+#   both: Two types of blueberry blocks will exist.
+foodblocks_blueberry_policy (Blueberry policy) enum defaultonly defaultonly,farmingonly,both
+
+#   Whether foodblocks will drop themselves, like metal blocks, or their
+#   constituent 9 items, similarly to melons or pumpkins in Mineclone.
+foodblocks_drop_selves (Foodblocks drop themselves) bool false

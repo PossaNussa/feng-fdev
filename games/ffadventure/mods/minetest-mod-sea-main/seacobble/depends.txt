@@ -1,0 +1,7 @@
+default
+dye
+stairs
+clams
+whiteshell?
+colormachine?
+moreblocks?

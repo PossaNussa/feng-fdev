@@ -1,0 +1,8 @@
+[Settings]
+
+# fixed interval of when stone is changed into ore.
+lava_ore_gen.interval (Interval) int 3600
+# random chance of when to change stone into ore.
+lava_ore_gen.chance (Chance) int 86400
+# Make ores random instead of being based on how rare they are.
+lava_ore_gen.random (Random) bool false

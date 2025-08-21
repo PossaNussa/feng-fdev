@@ -1,0 +1,4 @@
+default
+livingdesert?
+livingjungle?
+naturalbiomes?

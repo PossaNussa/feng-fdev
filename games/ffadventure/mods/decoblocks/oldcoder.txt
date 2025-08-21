@@ -1,0 +1,28 @@
+Name:    decoblocks
+Source:  Modified upstream mod - Do not replace
+License: See "license.txt"
+
+----------------------------------------------------------------------
+
+1. This is a  modified version of an upstream mod.  The starting point
+was extracted originally from the following Minetest "_game":
+
+      https://github.com/D00Med/farlands
+
+----------------------------------------------------------------------
+
+2. Changes include:
+
+2a. Applied the following patch file, which is included with this file
+(oldcoder.txt):
+
+      bucket-decoblocks.patch
+
+2b. Added a missing PNG image file, "mapgen_marble.png".
+
+2c. Added the files "00README" and "oldcoder.txt" (this file).
+
+----------------------------------------------------------------------
+
+3. This mod shouldn't be replaced with an upstream version unless cha-
+nges (2a) and (2b) are duplicated in the new copy.

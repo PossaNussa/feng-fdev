@@ -1,0 +1,12 @@
+{
+  "diagnostics.globals": ["core", "xcompat",
+        "vector"],
+  "workspace.library": [
+    "/home/eli/.var/app/org.luanti.luanti/.minetest/mods",
+    "/home/eli/.var/app/org.luanti.luanti/.minetest/games/mineclonia/mods",
+    "/home/eli/.var/app/org.luanti.luanti/.minetest/games/minetest_game/mods",
+    "/home/eli/.var/app/org.luanti.luanti/.minetest/games/mineclonia/mods/ITEMS/mcl_flowers",
+    "/home/eli/.var/app/org.luanti.luanti/.minetest/mods/xcompat/src"
+  ],
+  "diagnostics.disable": ["lowercase-global"]
+}

@@ -1,0 +1,18 @@
+{
+	"type": "MOD",
+	"title": "Alone",
+	"name": "alone",
+	"short_description": "A Luanti mod to disperse players around the world",
+	"dev_state": "WIP",
+	"tags": [
+		"adventure__rpg",
+		"survival"
+	],
+	"license": "GPL-3.0-or-later",
+	"media_license": "GPL-3.0-or-later",
+	"repo": "https://codeberg.org/Codiac/alone",
+	"issue_tracker": "https://codeberg.org/Codiac/alone/issues",
+	"forums": 31801,
+	"website": null,
+	"long_description": "Normally all players share the same default spawn point that is close to {0, 0, 0} or a server defined point. \n\nThis mod changes it so that each player gets their own, random, spawn point.\n\nWhen a player registers they get random X and Y coordinates between 1,000 and 30,000, each of these has a 50% chance to be negative.\n\nThis spawn point is stored in the players meta data and they will spawn here unless they have registered another spawn point.\n\nIf you enable this feature on an existing world the existing registered player's will not be affected. New players will be affected.\n\nIf you disable this feature on an existing world then spawning will revert to the games normal spawn behavior."
+}
