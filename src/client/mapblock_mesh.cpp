@@ -26,6 +26,53 @@
 #include <SMesh.h>
 #include <IMeshBuffer.h>
 #include <CMeshBuffer.h>
+// FlashEng: thread-local far-tint control for LOD shell
+static thread_local bool g_apply_far_tint = false;
+static thread_local video::SColorf g_far_tint = video::SColorf(1.f,1.f,1.f);
+
+static video::SColorf compute_far_tint(MeshMakeData *data, const NodeDefManager *ndef)
+{
+    // Parameters
+    const s32 R = core::clamp(g_settings->getS32("colored_lighting_max_distance"), 0, 8);
+    const s32 samples_max = core::clamp(g_settings->getS32("colored_lighting_samples"), 0, 32);
+    if (R <= 0 || samples_max == 0)
+        return video::SColorf(1.f,1.f,1.f);
+
+    v3s16 center = data->m_blockpos * MAP_BLOCKSIZE + v3s16(MAP_BLOCKSIZE/2, MAP_BLOCKSIZE/2, MAP_BLOCKSIZE/2);
+    double wr = 0.0, wg = 0.0, wb = 0.0, wsum = 0.0;
+    s32 samples = 0;
+    for (s32 dz = -R; dz <= R; ++dz) {
+        for (s32 dy = -R; dy <= R; ++dy) {
+            for (s32 dx = -R; dx <= R; ++dx) {
+                if (samples >= samples_max) break;
+                v3s16 p = center + v3s16(dx,dy,dz);
+                MapNode n = data->m_vmanip.getNodeNoEx(p);
+		const ContentFeatures &cf = ndef->get(n);
+		if (cf.light_source == 0)
+                    continue;
+                // Weight by brightness and distance
+                float L = cf.light_source / 15.f;
+                float dist = sqrtf((float)(dx*dx + dy*dy + dz*dz));
+                float w = L / (1.f + dist);
+                // Convert to linear
+                float r = core::clamp((int)cf.light_colour.getRed(), 0, 255) / 255.f;
+                float g = core::clamp((int)cf.light_colour.getGreen(), 0, 255) / 255.f;
+                float b = core::clamp((int)cf.light_colour.getBlue(), 0, 255) / 255.f;
+                r = powf(r, 2.2f); g = powf(g, 2.2f); b = powf(b, 2.2f);
+                wr += w * r; wg += w * g; wb += w * b; wsum += w;
+                ++samples;
+            }
+        }
+    }
+    if (wsum <= 0.0)
+        return video::SColorf(1.f,1.f,1.f);
+    // Normalize and convert back to gamma space
+    float r = powf((float)(wr / wsum), 1.f/2.2f);
+    float g = powf((float)(wg / wsum), 1.f/2.2f);
+    float b = powf((float)(wb / wsum), 1.f/2.2f);
+    return video::SColorf(r,g,b);
+}
+
 
 /*
 	MeshMakeData
@@ -627,6 +674,13 @@ MapBlockMesh::MapBlockMesh(Client *client, MeshMakeData *data):
 		// set far_away flag
 		if (dist_sq >= threshold_sq)
 			data->m_far_away = true;
+	// FlashEng: enable far tint if configured
+	if (g_settings->getBool("enable_colored_lighting_tint")) {
+		g_apply_far_tint = data->m_far_away;
+		if (g_apply_far_tint)
+			g_far_tint = compute_far_tint(data, data->m_nodedef);
+	}
+
 	}
 
 	for (auto &m : m_mesh)

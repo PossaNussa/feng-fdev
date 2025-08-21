@@ -1,2 +1,0 @@
-#   Use pie quarters when eating instead of slices
-pie.quarters (Pie quarters) bool false

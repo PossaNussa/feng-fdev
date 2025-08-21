@@ -1,1 +1,0 @@
-A mod that adds realistic erosion and degradation of rocks.

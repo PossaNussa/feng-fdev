@@ -1036,6 +1036,15 @@ video::SMaterial ParticleManager::getMaterialForParticle(const Particle *particl
 
 bool ParticleManager::addParticle(std::unique_ptr<Particle> toadd)
 {
+	static u32 s_max_particles = 0;
+	if (s_max_particles == 0) {
+		s_max_particles = (u32)rangelim(g_settings->getS32("max_particles"), 100, 200000);
+	}
+	if (m_particles.size() >= s_max_particles) {
+		// Drop spawn; budget reached
+		return false;
+	}
+
 	MutexAutoLock lock(m_particle_list_lock);
 
 	auto material = getMaterialForParticle(toadd.get());

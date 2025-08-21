@@ -1,0 +1,164 @@
+diff --git src/content/content_features.h src/content/content_features.h
+@@
+     u8 light_source; // 0..15, brightness
++
++    /*
++     * Color tint for artificial light emitted by this node (RGB 0..255).
++     * When light_source > 0 and enable_colored_lighting_tint is enabled,
++     * far-away mapblock meshes will be tinted towards this colour.
++     */
++    u8 light_color_r;
++    u8 light_color_g;
++    u8 light_color_b;
+@@
+     void reset()
+     {
+         // reset existing fields ...
+         light_source = 0;
++        light_color_r = 255;
++        light_color_g = 255;
++        light_color_b = 255;
+     }
+
+diff --git src/script/common/c_content.cpp src/script/common/c_content.cpp
+@@ int read_definition(lua_State *L, int index, ContentFeatures *f)
+ {
+     // existing field parsing ...
++
++    // Read light_color from definition (as "#RRGGBB").
++    lua_getfield(L, index, "light_color");
++    if (lua_isstring(L, -1)) {
++        std::string hex = lua_tostring(L, -1);
++        if (hex.size() == 7 && hex[0] == '#') {
++            unsigned int color = 0;
++            std::stringstream ss;
++            ss << std::hex << hex.substr(1);
++            ss >> color;
++            f->light_color_r = (color >> 16) & 0xff;
++            f->light_color_g = (color >> 8) & 0xff;
++            f->light_color_b = color & 0xff;
++        }
++    }
++    lua_pop(L, 1);
+@@
+ }
+
+diff --git src/defaultsettings.cpp src/defaultsettings.cpp
+@@ void set_default_settings(Settings *settings)
+ {
+     // other defaults ...
++
++    // Coloured lighting tint settings
++    settings->setDefault("enable_colored_lighting_tint", "true");
++    settings->setDefault("colored_lighting_samples", "8");
++    settings->setDefault("colored_lighting_max_distance", "2");
++    settings->setDefault("max_particles", "20000");
+@@
+ }
+
+diff --git builtin/settingtypes.txt builtin/settingtypes.txt
+@@
+ # Low-detail render distance beyond viewing_range (nodes)
+ lod_distance (Low-detail render distance) int 200 0 4000
++
++# Coloured lighting tint settings
++enable_colored_lighting_tint (Enable coloured lighting tint in far-range) bool true
++colored_lighting_samples (Number of nearby light sources to sample for coloured lighting) int 8 0 32
++colored_lighting_max_distance (Maximum distance in nodes to search for coloured light sources) int 2 0 8
++
++# Particle system budget
++max_particles (Maximum concurrent particles) int 20000 100 200000
+
+diff --git src/client/particles.cpp src/client/particles.cpp
+@@ void ParticleManager::addParticle(Particle *toadd)
+ {
+-    m_particles.push_back(toadd);
++    // Enforce a configurable cap on concurrent particles. Drop new particles when at cap.
++    static u32 max_particles = 0;
++    if (max_particles == 0) {
++        max_particles = rangelim(g_settings->getS32("max_particles"), 100, 200000);
++    }
++    if (m_particles.size() >= max_particles) {
++        delete toadd;
++        return;
++    }
++    m_particles.push_back(toadd);
+ }
+
+diff --git src/client/mapblock_mesh.h src/client/mapblock_mesh.h
+@@ class MapBlockMesh
+     ISceneNode *m_parent; // parent scene node
+@@
+     v3f m_bounding_sphere_center;
+     float m_bounding_radius;
++    // Tint color used for coloured lighting on far-away blocks
++    video::SColor m_block_tint;
+
+diff --git src/client/mapblock_mesh.cpp src/client/mapblock_mesh.cpp
+@@ MapBlockMesh::MapBlockMesh(Client *client, MeshMakeData *data)
+     // Determine whether this mesh is far enough from the camera to use
+     // simplified level-of-detail rendering. We measure the distance
+@@
+     if (dist_sq >= threshold_sq)
+         data->m_far_away = true;
++
++    // Precompute block tint colour for coloured lighting tint
++    m_block_tint = video::SColor(255, 255, 255, 255);
++    if (g_settings->getBool("enable_colored_lighting_tint")) {
++        u64 sum_r = 0, sum_g = 0, sum_b = 0, sum_w = 0;
++        v3s16 base = data->m_blockpos * MAP_BLOCKSIZE;
++        for (s16 z = 0; z < MAP_BLOCKSIZE; z++) {
++            for (s16 y = 0; y < MAP_BLOCKSIZE; y++) {
++                for (s16 x = 0; x < MAP_BLOCKSIZE; x++) {
++                    v3s16 p = base + v3s16(x, y, z);
++                    MapNode n;
++                    try {
++                        n = data->m_vmanip.getNodeNoEx(p);
++                    } catch (...) {
++                        continue;
++                    }
++                    const ContentFeatures &f = m_gamedef->ndef()->get(n.getContent());
++                    if (f.light_source > 0) {
++                        u8 ls = f.light_source;
++                        sum_r += (u64)f.light_color_r * ls;
++                        sum_g += (u64)f.light_color_g * ls;
++                        sum_b += (u64)f.light_color_b * ls;
++                        sum_w += ls;
++                    }
++                }
++            }
++        }
++        if (sum_w > 0) {
++            m_block_tint.setRed((u8)(sum_r / sum_w));
++            m_block_tint.setGreen((u8)(sum_g / sum_w));
++            m_block_tint.setBlue((u8)(sum_b / sum_w));
++        }
++    }
+@@
+         // Convert MeshCollector to SMesh
+@@
+         if (mesh) {
+             // Use VBO for mesh (this just would set this for every buffer)
+             mesh->setHardwareMappingHint(scene::EHM_STATIC);
++
++            // Apply block tint to vertices on far-away meshes
++            if (data->m_far_away && g_settings->getBool("enable_colored_lighting_tint")) {
++                const u8 tr = m_block_tint.getRed();
++                const u8 tg = m_block_tint.getGreen();
++                const u8 tb = m_block_tint.getBlue();
++                for (u32 i = 0; i < mesh->getMeshBufferCount(); i++) {
++                    video::IMeshBuffer *mbuf = mesh->getMeshBuffer(i);
++                    u32 vcount = mbuf->getVertexCount();
++                    video::S3DVertex *vtx = (video::S3DVertex *)mbuf->getVertices();
++                    for (u32 j = 0; j < vcount; j++) {
++                        video::SColor &vc = vtx[j].Color;
++                        vc.setRed((u32)vc.getRed() * tr / 255);
++                        vc.setGreen((u32)vc.getGreen() * tg / 255);
++                        vc.setBlue((u32)vc.getBlue() * tb / 255);
++                    }
++                    mbuf->setDirty();
++                }
++                mesh->recalculateBoundingBox();
++            }
+         }
+*** End Patch

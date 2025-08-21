@@ -1,7 +1,0 @@
-Textures by VanessaE (CC BY-SA 3.0):
-  default_torch_animated.png
-  default_torch_on_ceiling_animated.png
-  default_torch_on_floor_animated.png
-  default_torch_on_floor.png
-
-The torch code was derived by sofar from the 'torches' mod by BlockMen (LGPLv2.1+)

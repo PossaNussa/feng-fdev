@@ -1,9 +1,0 @@
-The code is licensed under MIT License (MIT): https://spdx.org/licenses/MIT.html
-
-Based on original code from:
-dungeon_loot by sfan5 (MIT)
-bones by PilzAdam and Various Minetest developers and contributors (MIT)
-
-The art is licensed under CC-BY-SA-3.0: https://spdx.org/licenses/CC-BY-SA-3.0.html
-
-The textures are copied from the bones mod, made by paramat (CC BY-SA 3.0)

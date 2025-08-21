@@ -1,5 +1,0 @@
-# textdomain: trash_can
-Trash Can=
-Dumpster=
-Wooden Trash Can=
-Empty Trash=

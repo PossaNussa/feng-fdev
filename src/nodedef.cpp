@@ -364,6 +364,7 @@ void ContentFeatures::reset()
 		j = TileDef();
 	alpha = ALPHAMODE_OPAQUE;
 	post_effect_color = video::SColor(0, 0, 0, 0);
+	light_colour = video::SColor(0xFFFFFFFF);
 	param_type = CPT_NONE;
 	param_type_2 = CPT2_NONE;
 	is_ground_content = false;

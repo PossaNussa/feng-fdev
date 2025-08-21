@@ -570,10 +570,15 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 void Camera::updateViewingRange()
 {
 	f32 viewing_range = g_settings->getFloat("viewing_range");
+	f32 lod_distance = 0.0f;
+	if (g_settings->exists("lod_distance"))
+		lod_distance = g_settings->getFloat("lod_distance");
+
+	f32 total_range = viewing_range + lod_distance;
 
 	m_cameranode->setNearValue(0.1f * BS);
 
-	m_draw_control.wanted_range = std::fmin(adjustDist(viewing_range, getFovMax()), 6000);
+	m_draw_control.wanted_range = std::fmin(adjustDist(total_range, getFovMax()), 6000);
 	if (m_draw_control.range_all) {
 		m_cameranode->setFarValue(100000.0);
 		return;

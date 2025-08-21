@@ -1,2 +1,0 @@
-name = "Cool Dude",
-author = "isaiah658",

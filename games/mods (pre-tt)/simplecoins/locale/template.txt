@@ -1,6 +1,0 @@
-# textdomain: simplecoins
-
-
-### init.lua ###
-
-Coins=

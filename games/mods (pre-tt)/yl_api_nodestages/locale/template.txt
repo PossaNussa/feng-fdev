@@ -1,3 +1,0 @@
-# textdomain: yl_api_nodestages
-
-[MOD] @1 : @2=

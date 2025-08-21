@@ -462,6 +462,24 @@ fps_max_unfocused (FPS when unfocused) int 10 1 4294967295
 #    View distance in nodes.
 viewing_range (Viewing range) int 190 20 4000
 
+# Colored lighting (tint) in low-detail range
+enable_colored_lighting_tint (Enable colored lighting tint) bool true
+colored_lighting_samples (Colored lighting samples) int 8 0 32
+colored_lighting_max_distance (Colored lighting max distance) int 2 0 8
+
+# Particle system budget (caps concurrent particles on the client)
+max_particles (Max concurrent particles) int 20000 100 200000
+
+# Additional distance in nodes used for low-detail rendering beyond the full-detail viewing range.
+# Blocks within viewing_range are rendered in full detail; beyond that and up to viewing_range + lod_distance,
+# blocks are rendered in simplified (low-detail) mode.
+lod_distance (Low-detail render distance) int 200 0 4000
+
+# Interval (in seconds) between server inventory synchronizations.
+# Lower values reduce the delay between actions (digging, dropping) and inventory updates but increase network traffic.
+# Higher values reduce network load but increase the delay.
+inventory_update_interval (Inventory update interval) float 0.25 0.01 5.0
+
 #    Undersampling is similar to using a lower screen resolution, but it applies
 #    to the game world only, keeping the GUI intact.
 #    It should give a significant performance boost at the cost of less detailed image.

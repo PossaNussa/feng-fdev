@@ -1,7 +1,0 @@
-# textdomain: mesecons_window
-Mesecon Window=Meseconfenster
-A Mesecon receptor which is opaque when it isn't powered and is fully transparent to light and sunlight when powered.=Ein Meseconrezepor, der undurchsichtig ist, wenn er nicht bestromt ist, und voll transparent für Licht und Sonnenlicht ist, wenn er bestromt ist.
-Mesecon Filter Window=Meseconfilterfenter
-A Mesecon receptor which is opaque when it isn't powered and is semi-transparent to light when powered.=Ein Meseconrezeptor, der undurchsichtig ist, wenn er nicht bestromt ist und halbdurchsichtig für Licht ist, wenn er bestromt ist.
-Mesecon Filter Glass=Meseconfilterglas
-A Mesecon receptor which lets light through. When not powered, it is semi-transparent, i.e. it is transparent to light, but filters out sunlight. When powered, it is fully transparent to light and sunlight.=Ein Meseconrezeptor, der lichtdurchlässig ist. Wenn er nicht bestromt ist, ist er halbtransparent für Licht, aber er filtert das Sonnenlicht. Wenn er bestromt ist, ist er völlig transparent für Licht und Sonnenlicht.

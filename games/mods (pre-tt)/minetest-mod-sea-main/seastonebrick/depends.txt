@@ -1,5 +1,0 @@
-default
-stairs
-seastone
-colormachine?
-moreblocks?

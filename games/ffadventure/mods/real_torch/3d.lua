@@ -31,6 +31,7 @@ minetest.register_node("real_torch:torch", {
 	description = "Torch",
 	drawtype = "mesh",
 	mesh = "torch_floor.obj",
+	light_colour = "#cf3b00",
 	inventory_image = "real_torch_on_floor.png",
 	wield_image = "real_torch_on_floor.png",
 	tiles = {

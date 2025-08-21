@@ -1,2 +1,0 @@
-name = "Hobgoblin Shaman",
-author = "anonymous",

@@ -1,4 +1,0 @@
-default?
-fire
-tnt?
-3d_armor?

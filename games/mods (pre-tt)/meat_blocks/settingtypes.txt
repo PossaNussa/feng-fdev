@@ -1,2 +1,0 @@
-#   The time between meatball drops (one meatball drops near each player every x seconds)
-meat_blocks_meatball_rain_amount (Meatball Rain Amount) int 2

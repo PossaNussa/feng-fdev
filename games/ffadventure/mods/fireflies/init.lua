@@ -19,6 +19,7 @@ minetest.register_node("fireflies:firefly", {
 	inventory_image = "fireflies_firefly.png",
 	wield_image =  "fireflies_firefly.png",
 	waving = 1,
+	light_colour = "#e6de12",
 	paramtype = "light",
 	sunlight_propagates = true,
 	buildable_to = true,

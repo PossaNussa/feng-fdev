@@ -1,5 +1,0 @@
-Code modifed by Neuromancer
-License: MIT
-Original Code, Models, icons and textures by runs.
-License: GPLv3
-

@@ -317,9 +317,14 @@ void set_default_settings()
     // at least this many seconds before sending the updated inventory to the
     // client. Larger values reduce network traffic at the cost of delayed
     // updates. Mods may override this default via setting "inventory_update_interval".
-    settings->setDefault("inventory_update_interval", "1.0");
+    // Reduce inventory update interval to improve responsiveness (with slightly higher network traffic)
+	settings->setDefault("inventory_update_interval", "0.25");
 
-	// Level‑of‑detail (LOD) distance in nodes.  When a mapblock's centre is farther
+	settings->setDefault("enable_colored_lighting_tint","true");
+settings->setDefault("colored_lighting_samples","8");
+settings->setDefault("colored_lighting_max_distance","2");
+settings->setDefault("max_particles","20000");
+// Level‑of‑detail (LOD) distance in nodes.  When a mapblock's centre is farther
 	// than this many nodes from the camera, the engine draws a simplified
 	// representation: it skips decorative drawtypes and only draws the top faces
 	// of solid/liquid nodes.  This reduces rendering load for distant terrain.
@@ -615,3 +620,4 @@ void set_default_settings()
 	// Tablets >= 6.0 use non-Android defaults for these settings
 #endif
 }
+

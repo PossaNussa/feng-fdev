@@ -1,1 +1,0 @@
-waterworks_make_default_water_non_renewable (Disable self-replication of default water) bool false

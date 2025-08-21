@@ -374,6 +374,8 @@ struct ContentFeatures
 	bool sunlight_propagates;
 	// Amount of light the node emits
 	u8 light_source;
+	// Optional tint for Approach-A colored lighting (LOD tint)
+	video::SColor light_colour;
 
 	// --- MAP GENERATION ---
 

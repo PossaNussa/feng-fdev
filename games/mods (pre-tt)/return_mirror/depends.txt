@@ -1,4 +1,0 @@
-mana?
-intllib?
-doc?
-doc_items?

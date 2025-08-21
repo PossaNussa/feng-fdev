@@ -1,6 +1,0 @@
-default
-mobs
-farming?
-crops?
-x_farming?
-metal_melter

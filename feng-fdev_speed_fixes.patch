@@ -1,0 +1,140 @@
+diff --git a/src/client/mapblock_mesh.cpp b/src/client/mapblock_mesh.cpp
+--- a/src/client/mapblock_mesh.cpp
++++ b/src/client/mapblock_mesh.cpp
+@@ MapBlockMesh::MapBlockMesh(Client *client, MeshMakeData *data):
+-        // fetch the configured LOD distance in nodes from settings (default 200)
+-        float lod_distance_nodes = 200.0f;
+-        if (g_settings->exists("lod_distance"))
+-                lod_distance_nodes = g_settings->getFloat("lod_distance");
+-        // compute world-space centre of this mesh
+-        // data->m_blockpos is in blocks; convert to node units and then to BS
+-        v3f mesh_origin = intToFloat(data->m_blockpos * MAP_BLOCKSIZE, BS);
+-        // bounding sphere center is relative to mesh origin
+-        v3f world_center = mesh_origin + m_bounding_sphere_center;
+-        // obtain camera position
+-        v3f camera_pos = client->getCamera()->getPosition();
+-        // compute squared distance in BS units
+-        float dist_sq = camera_pos.getDistanceFromSQ(world_center);
+-        float threshold = (lod_distance_nodes * BS);
+-        float threshold_sq = threshold * threshold;
+-        // set far_away flag
+-        if (dist_sq >= threshold_sq)
+-                data->m_far_away = true;
++        /*
++         * Fetch the configured view and LOD distances in nodes from settings.  To
++         * decide when to simplify a mapblock, we use the end of the full‑detail
++         * viewing range as the threshold.  Blocks within the viewing range are
++         * rendered in full detail; blocks beyond that range but still within
++         * viewing_range + lod_distance will be drawn in a simplified, low‑detail
++         * representation.  The camera's draw range is adjusted elsewhere to
++         * include the additional LOD distance.
++         */
++        float lod_distance_nodes = 0.0f;
++        if (g_settings->exists("lod_distance"))
++                lod_distance_nodes = g_settings->getFloat("lod_distance");
++        float viewing_range_nodes = 0.0f;
++        if (g_settings->exists("viewing_range"))
++                viewing_range_nodes = g_settings->getFloat("viewing_range");
++        // fallback: if viewing_range is not set, fall back to the LOD distance
++        float far_threshold_nodes = viewing_range_nodes > 0.0f ? viewing_range_nodes : lod_distance_nodes;
++        v3f mesh_origin = intToFloat(data->m_blockpos * MAP_BLOCKSIZE, BS);
++        v3f world_center = mesh_origin + m_bounding_sphere_center;
++        v3f camera_pos = client->getCamera()->getPosition();
++        float dist_sq = camera_pos.getDistanceFromSQ(world_center);
++        float threshold = far_threshold_nodes * BS;
++        float threshold_sq = threshold * threshold;
++        if (dist_sq >= threshold_sq)
++                data->m_far_away = true;
+
+diff --git a/src/client/camera.cpp b/src/client/camera.cpp
+--- a/src/client/camera.cpp
++++ b/src/client/camera.cpp
+@@
+ void Camera::updateViewingRange()
+ {
+-        f32 viewing_range = g_settings->getFloat("viewing_range");
+-
+-        m_cameranode->setNearValue(0.1f * BS);
+-
+-        m_draw_control.wanted_range = std::fmin(adjustDist(viewing_range, getFovMax()), 6000);
+-        if (m_draw_control.range_all) {
+-                m_cameranode->setFarValue(100000.0);
+-                return;
+-        }
+-        m_cameranode->setFarValue(std::fmax(2000, m_draw_control.wanted_range) * BS);
++        f32 viewing_range = g_settings->getFloat("viewing_range");
++        f32 lod_distance = 0.0f;
++        if (g_settings->exists("lod_distance"))
++                lod_distance = g_settings->getFloat("lod_distance");
++        f32 total_range = viewing_range + lod_distance;
++        m_cameranode->setNearValue(0.1f * BS);
++        m_draw_control.wanted_range = std::fmin(adjustDist(total_range, getFovMax()), 6000);
++        if (m_draw_control.range_all) {
++                m_cameranode->setFarValue(100000.0);
++                return;
++        }
++        m_cameranode->setFarValue(std::fmax(2000, m_draw_control.wanted_range) * BS);
+ }
+
+diff --git a/src/defaultsettings.cpp b/src/defaultsettings.cpp
+--- a/src/defaultsettings.cpp
++++ b/src/defaultsettings.cpp
+@@
+-    settings->setDefault("inventory_update_interval", "1.0");
++    // Reduce inventory update interval to improve responsiveness at the cost
++    // of slightly higher network traffic.  A value of 0.25s sends updates
++    // four times per second instead of once.
++    settings->setDefault("inventory_update_interval", "0.25");
+
+diff --git a/builtin/game/hud.lua b/builtin/game/hud.lua
+--- a/builtin/game/hud.lua
++++ b/builtin/game/hud.lua
+@@
+ local function scale_to_hud_max(player, field)
+-        -- Scale "hp" or "breath" to the hud maximum dimensions
+-        local current = player["get_" .. field](player)
+-        local nominal
+-        if field == "hp" then -- HUD is called health but field is hp
+-                nominal = registered_elements.health.elem_def.item
+-        else
+-                nominal = registered_elements[field].elem_def.item
+-        end
+-        local max_display = math.max(player:get_properties()[field .. "_max"], current)
+-        return math.ceil(current / max_display * nominal)
++        -- Scale "hp" or "breath" to the HUD's maximum dimensions.  Fall back to
++        -- the nominal maximum when the player's *_max property is missing or
++        -- non-positive.  This prevents the health bar from showing all hearts
++        -- as empty when hp_max or breath_max is zero or nil.
++        local current = player["get_" .. field](player)
++        local nominal
++        if field == "hp" then -- HUD is called health but field is hp
++                nominal = registered_elements.health.elem_def.item
++        else
++                nominal = registered_elements[field].elem_def.item
++        end
++        local props = player:get_properties() or {}
++        local max_display = props[field .. "_max"]
++        if type(max_display) ~= "number" or max_display <= 0 then
++                max_display = nominal
++        end
++        if current > max_display then
++                max_display = current
++        end
++        return math.ceil(current / max_display * nominal)
+ end
+
+diff --git a/builtin/settingtypes.txt b/builtin/settingtypes.txt
+--- a/builtin/settingtypes.txt
++++ b/builtin/settingtypes.txt
+@@
+ viewing_range (Viewing range) int 190 20 4000
++
++#    Additional distance in nodes used for low-detail rendering beyond the full-detail viewing range.
++#    Blocks within viewing_range are rendered in full detail; beyond that and up to viewing_range + lod_distance,
++#    blocks are rendered in simplified (low-detail) mode.  Larger values extend the area of low-detail rendering.
++lod_distance (Low-detail render distance) int 200 0 4000
++
++#    Interval (in seconds) between server inventory synchronizations.
++#    Lower values reduce the delay between actions (digging, dropping) and inventory updates but increase network traffic.
++#    Higher values reduce network load but increase the delay.
++inventory_update_interval (Inventory update interval) float 0.25 0.01 5.0

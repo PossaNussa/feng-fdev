@@ -1,4 +1,0 @@
-default
-unifieddyes?
-colormachine?
-nalc_lib?

@@ -1,3 +1,0 @@
-default
-marinara
-mobs

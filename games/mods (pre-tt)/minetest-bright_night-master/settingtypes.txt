@@ -1,3 +1,0 @@
-# Minimum light level for night time. Must be between 3 and 15.
-bright_night_light (Night light level) int 0
-

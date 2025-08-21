@@ -1,9 +1,0 @@
-# textdomain: armor_leather
-
-
-### init.lua ###
-
-Leather Boots=
-Leather Cap=
-Leather Pants=
-Leather Tunic=
