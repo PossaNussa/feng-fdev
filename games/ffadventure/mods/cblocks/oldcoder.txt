@@ -1,0 +1,22 @@
+Name:    cblocks
+Source:  Fork of upstream mod - Do not replace
+License: See "LICENSE"
+
+----------------------------------------------------------------------
+
+1. This is a fork of an upstream mod.  The starting point was obtained
+originally as follows:
+
+      rm -fr cblocks
+      git clone https://notabug.org/tenplus1/cblocks.git
+
+----------------------------------------------------------------------
+
+2. Partial list of changes:
+
+* Removed "mod.conf" and screenshot file(s).
+
+* Changed newlines to UNIX format. Detabbed and/or trimmed other white
+space.
+
+* Added the files "00README" and "oldcoder.txt" (this file).

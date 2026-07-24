@@ -1,0 +1,12 @@
+--- birthstones.old/tools.lua
++++ birthstones/tools.lua
+@@ -82,7 +82,8 @@
+ 			{'', 'default:stick'}
+ 		}
+ 	})
+-	if minetest.get_modpath("farming") then
++	if minetest.get_modpath("farming") and
++	    farming.register_hoe ~= nil then
+ 		farming.register_hoe("birthstones:hoe_" .. material, { -- formerly ":farming:hoe_" .. material
+ 			description = display_name .. " Hoe",
+ 			inventory_image = "birthstones_tool_" .. material .. "hoe.png",

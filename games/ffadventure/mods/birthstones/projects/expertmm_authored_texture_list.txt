@@ -1,0 +1,35 @@
+expertmm authored the following textures and resources:
+(see README for sources)
+
+/textures
+birthstones_tool_alexandriteshovel.png
+birthstones_tool_alexandritesword.png
+birthstones_tool_amethystshovel.png
+birthstones_tool_amethystsword.png
+birthstones_tool_aquamarineshovel.png
+birthstones_tool_aquamarinesword.png
+birthstones_tool_diamondshovel.png
+birthstones_tool_diamondsword.png
+birthstones_tool_emeraldshovel.png
+birthstones_tool_emeraldsword.png
+birthstones_tool_garnetshovel.png
+birthstones_tool_garnetsword.png
+birthstones_tool_opalshovel.png
+birthstones_tool_opalsword.png
+birthstones_tool_peridotshovel.png
+birthstones_tool_peridotsword.png
+birthstones_tool_rubyshovel.png
+birthstones_tool_rubysword.png
+birthstones_tool_sapphireshovel.png
+birthstones_tool_sapphiresword.png
+birthstones_tool_topazshovel.png
+birthstones_tool_topazsword.png
+birthstones_tool_zirconshovel.png
+birthstones_tool_zirconsword.png
+*_block_north.png
+*_block_east.png
+*_block_top.png
+*_block.png
+
+/etc
+(entire folder and all subfolders)

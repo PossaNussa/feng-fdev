@@ -1,0 +1,43 @@
+Name:    darkage
+Source:  Modified upstream mod - Do not replace
+License: See notes below
+
+----------------------------------------------------------------------
+
+1. This is a modified version of  an upstream mod.  The starting point
+was obtained originally as follows:
+
+      rm -fr darkage
+      git clone https://github.com/adrido/darkage.git
+
+----------------------------------------------------------------------
+
+2. Changes include:
+
+2a. Applied the following patch file, which is included with this file
+(oldcoder.txt):
+
+      bucket-darkage.patch
+
+One change included in the patch:  Dark Age mapgen is  disabled by de-
+fault. It can be turned on using the following conf-file setting:
+
+      enable_darkage_mapgen = true
+
+Existing Dark Age nodes are supported regardless.
+
+2b. Located  a copy  of a  missing  texture file  named  "unifieddyes_
+palette.png",  renamed  it to "darkage_palette.png",  and  added it to
+this mod.
+
+2c. Removed screenshot file(s).
+
+2d. Added the files "00README" and "oldcoder.txt" (this file).
+
+----------------------------------------------------------------------
+
+3. The license for this mod is WTFPL except for the PNG file "darkage_
+palette.png", which is licensed under GPL V2.
+
+----------------------------------------------------------------------
+End of file.

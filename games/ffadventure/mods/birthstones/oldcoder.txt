@@ -1,0 +1,30 @@
+Name:    birthstones
+Source:  Modified upstream mod - Do not replace
+License: See "LICENSE.txt"
+
+----------------------------------------------------------------------
+
+1. This is a  modified version of an upstream mod.  The starting point
+was obtained originally as follows:
+
+      rm -fr *birthstones
+      git clone \
+          https://github.com/poikilos/minetest-birthstones.git \
+          birthstones
+
+----------------------------------------------------------------------
+
+2. Changes include:
+
+2a. Applied the following patch file, which is included with this file
+(oldcoder.txt):
+
+      bucket-birthstones.patch
+
+2b. Removed files  with  spaces in their filenames or,  in some cases,
+replaced the spaces with underscores.
+
+2c. Added the files "00README" and "oldcoder.txt" (this file).
+
+----------------------------------------------------------------------
+End of file.

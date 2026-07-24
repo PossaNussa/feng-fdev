@@ -1,0 +1,23 @@
+Name:    pizza
+Source:  Modified version of existing mod - Do not replace
+License: WTFPL
+
+----------------------------------------------------------------------
+
+1. This is a modified copy of an upstream mod.  The starting point was
+obtained initially as follows:
+
+      rm -fr pizza
+      git clone https://github.com/jogag/pizza-improved.git pizza
+
+----------------------------------------------------------------------
+
+2. List of changes:
+
+2a. Scaled PNG files up 4X using "scalerx".
+
+2b. Merged a missing item [open pizza box] from:
+
+      https://github.com/AntumMT/mod-pizza.git
+
+2c. Added the files "00README" and "oldcoder.txt" (this file).
