@@ -1,6 +1,6 @@
 minetest.register_node("badlands:red_sand", {
 	description = "Red Sand",
-	tiles = {"default_sand.png^[colorize:sienna:130^[colorize:red:30"},
+	tiles = {"default_sand.png^[colorize:darkred:170^[colorize:sienna:30"},
 	groups = {crumbly = 3, falling_node = 1, sand = 1},
 	sounds = default.node_sound_sand_defaults(),
 })
@@ -63,22 +63,23 @@ minetest.register_craft({
 })
 
 
+-- badlands_plains: hot arid lowland plains transitioning between badlands cliffs and outback.
+-- heat=79, hum=10 — sits between badlands (83,2) and outback (82,20) in Voronoi space.
 minetest.register_biome({
 	name = "badlands_plains",
 	node_top = "badlands:red_sand",
 	depth_top = 1,
-	node_filler = "badlands:red_sand",
-	depth_filler = 1,
+	node_filler = "badlands:red_sandstone",
+	depth_filler = 3,
 	node_stone = "default:stone",
 	node_riverbed = "default:sand",
 	depth_riverbed = 2,
 	node_dungeon = "bakedclay:orange",
 	node_dungeon_stair = "stairs:stair_bakedclay_orange",
-	y_max = 30,
-	y_min = -255,
-	vertical_blend = 2,
-	heat_point = 83,
-	humidity_point = 2,
+	y_max = 29,
+	y_min = 1,
+	heat_point = 79,
+	humidity_point = 10,
 })
 
 minetest.register_biome({
@@ -322,3 +323,54 @@ end
 		decoration = "default:dry_shrub",
 		param2 = 4,
 	})
+
+-- Sparse dry shrubs on the badlands highland (bakedclay/stone surface, y >= 30)
+local badlands_surface = {
+	"bakedclay:orange", "bakedclay:red", "bakedclay:natural",
+	"bakedclay:yellow", "bakedclay:brown", "bakedclay:dark_grey",
+	"bakedclay:grey", "default:stone",
+}
+
+minetest.register_decoration({
+	name = "badlands:highland_dry_shrub",
+	deco_type = "simple",
+	place_on = badlands_surface,
+	sidelen = 16,
+	noise_params = {
+		offset = -0.01,
+		scale = 0.025,
+		spread = {x = 120, y = 120, z = 120},
+		seed = 7843,
+		octaves = 3,
+		persist = 0.6,
+	},
+	biomes = {"badlands"},
+	y_max = 31000,
+	y_min = 30,
+	decoration = "default:dry_shrub",
+	param2 = 4,
+})
+
+-- Occasional outback-style bush on badlands highland
+if minetest.get_modpath("naturalbiomes") then
+	minetest.register_decoration({
+		name = "badlands:highland_bush",
+		deco_type = "schematic",
+		place_on = badlands_surface,
+		place_offset_y = 1,
+		sidelen = 16,
+		noise_params = {
+			offset = -0.006,
+			scale = 0.010,
+			spread = {x = 90, y = 90, z = 90},
+			seed = 3312,
+			octaves = 3,
+			persist = 0.65,
+		},
+		biomes = {"badlands"},
+		y_max = 31000,
+		y_min = 30,
+		schematic = minetest.get_modpath("naturalbiomes") .. "/schematics/naturalbiomes_outback_bush2_0_90.mts",
+		flags = "place_center_x, place_center_z",
+	})
+end

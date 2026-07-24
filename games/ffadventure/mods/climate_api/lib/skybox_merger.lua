@@ -33,18 +33,8 @@ local default_sky = {
 		sunrise_visible = true,
 		scale = 1
 	},
-	moon_data = {
-		visible = true,
-		texture = "moon.png",
-		tonemap = "moon_tonemap.png",
-		scale = 1
-	},
-	star_data = {
-		visible = true,
-		count = 1000,
-		star_color = "#ebebff69",
-		scale = 1
-	},
+	-- moon_data and star_data omitted: astral mod owns moon/stars
+	-- weather effects (e.g. deep_cave) can still override via their own layers
 }
 
 local skybox = {}
@@ -68,10 +58,11 @@ local function set_skybox(playername, sky)
 	local player = minetest.get_player_by_name(playername)
 	if player == nil or	not player.get_stars then return end
 	player:set_sky(sky.sky_data)
+	sky.cloud_data.density = 0
 	player:set_clouds(sky.cloud_data)
-	player:set_moon(sky.moon_data)
 	player:set_sun(sky.sun_data)
-	player:set_stars(sky.star_data)
+	if sky.moon_data then player:set_moon(sky.moon_data) end
+	if sky.star_data then player:set_stars(sky.star_data) end
 end
 
 function skybox.update(playername)

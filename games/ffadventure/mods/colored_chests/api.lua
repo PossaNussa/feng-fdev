@@ -2,13 +2,26 @@ local S = minetest.get_translator("colored_chests")
 
 colored_chests.chest = {}
 
-function colored_chests.chest.get_chest_formspec(pos)
+function colored_chests.chest.get_chest_formspec(pos, player_name)
 	local spos = pos.x .. "," .. pos.y .. "," .. pos.z
+	local hotbar_len = 8
+	local player = player_name and minetest.get_player_by_name(player_name)
+	if player then
+		hotbar_len = player:hud_get_hotbar_itemcount()
+	end
+	local inv_rows = 3
+	local width = math.max(hotbar_len, 8)
+	-- Ensure chest inventory matches display width (upgrades old 8-wide chests)
+	local meta = minetest.get_meta(pos)
+	local inv = meta:get_inventory()
+	if inv:get_size("main") < width * 4 then
+		inv:set_size("main", width * 4)
+	end
 	local formspec =
-		"size[8,9]" ..
-		"list[nodemeta:" .. spos .. ";main;0,0.3;8,4;]" ..
-		"list[current_player;main;0,4.85;8,1;]" ..
-		"list[current_player;main;0,6.08;8,3;8]" ..
+		"size[" .. width .. "," .. (inv_rows + 1 + 4 + 1) .. "]" ..
+		"list[nodemeta:" .. spos .. ";main;0,0.3;" .. width .. ",4;]" ..
+		"list[current_player;main;0,4.85;" .. hotbar_len .. ",1;]" ..
+		"list[current_player;main;0,6.08;" .. hotbar_len .. "," .. inv_rows .. ";" .. hotbar_len .. "]" ..
 		"listring[nodemeta:" .. spos .. ";main]" ..
 		"listring[current_player;main]" ..
 		default.get_hotbar_bg(0,4.85)
@@ -94,7 +107,7 @@ function colored_chests.chest.register_chest(prefixed_name, d)
 			meta:set_string("infotext", S("Locked Colored Chest"))
 			meta:set_string("owner", "")
 			local inv = meta:get_inventory()
-			inv:set_size("main", 8*4)
+			inv:set_size("main", 9*4)
 		end
 		def.after_place_node = function(pos, placer)
 			local meta = minetest.get_meta(pos)
@@ -145,7 +158,7 @@ function colored_chests.chest.register_chest(prefixed_name, d)
 						param2 = node.param2 })
 			end
 			minetest.after(0.2, minetest.show_formspec, cn,
-					"colored_chests:chest", colored_chests.chest.get_chest_formspec(pos))
+					"colored_chests:chest", colored_chests.chest.get_chest_formspec(pos, cn))
 			colored_chests.chest.open_chests[cn] = { pos = pos,
 					sound = def.sound_close, swap = name }
 		end
@@ -171,7 +184,7 @@ function colored_chests.chest.register_chest(prefixed_name, d)
 			minetest.show_formspec(
 				player:get_player_name(),
 				"colored_chests:chest_locked",
-				colored_chests.chest.get_chest_formspec(pos)
+				colored_chests.chest.get_chest_formspec(pos, player:get_player_name())
 			)
 		end
 		def.on_skeleton_key_use = function(pos, player, newsecret)
@@ -199,7 +212,7 @@ function colored_chests.chest.register_chest(prefixed_name, d)
 			local meta = minetest.get_meta(pos)
 			meta:set_string("infotext", S("Colored Chest"))
 			local inv = meta:get_inventory()
-			inv:set_size("main", 8*4)
+			inv:set_size("main", 9*4)
 		end
 		def.can_dig = function(pos,player)
 			local meta = minetest.get_meta(pos);
@@ -222,7 +235,7 @@ function colored_chests.chest.register_chest(prefixed_name, d)
 			end
 			minetest.after(0.2, minetest.show_formspec,
 					cn,
-					"colored_chests:chest", colored_chests.chest.get_chest_formspec(pos))
+					"colored_chests:chest", colored_chests.chest.get_chest_formspec(pos, cn))
 			colored_chests.chest.open_chests[cn] = { pos = pos,
 					sound = def.sound_close, swap = name }
 		end
@@ -280,7 +293,7 @@ function colored_chests.chest.register_chest(prefixed_name, d)
 				local inv = meta:get_inventory()
 				local list = inv:get_list("colored_chests:chest")
 				if list then
-					inv:set_size("main", 8*4)
+					inv:set_size("main", 9*4)
 					inv:set_list("main", list)
 					inv:set_list("colored_chests:chest", nil)
 				end

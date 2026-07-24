@@ -17,3 +17,16 @@ compile_commands.json
 .vscode/
 .idea/
 .DS_Store
+
+# world saves, logs, backups (never version these)
+/worlds/
+/wipremake/
+/remakeworld/
+/finalOAworld/
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+debug.txt
+debug.txt.*
+games/ffadventure.zip

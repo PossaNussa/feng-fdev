@@ -1,0 +1,42 @@
+# textdomain: potted_farming
+# textdomain: potted_farming
+
+
+### items.lua ###
+
+Empty Watering Can=Innaffiatoio Vuoto
+
+### lib.lua ###
+
+Pot with =Vaso con
+
+Basil=Basilico
+Rosemary=Rosmarino
+Sage=Salvia
+Parsley=Prezzemolo
+Mint=Menta
+Oregano=Origano
+Stem=con Radice
+Wild =Selvatico
+
+Brown=Marrone
+Cantharellus=Gallinaccio
+Boletus=Boleto
+
+Lemon=Limone
+Orange=Arancia
+Apple=Mela
+(Leaves)=(Foglie)
+
+### nodes.lua ###
+
+Pot with Soil=Vaso con Terra
+Pot with Shrub=Vaso con Arbusto
+Pot with Plantain=Vaso con Piantaggine
+
+### tools.lua ###
+
+Watering Can=Innaffiatoio
+
+
+##### not used anymore #####

@@ -462,13 +462,13 @@ fps_max_unfocused (FPS when unfocused) int 10 1 4294967295
 #    View distance in nodes.
 viewing_range (Viewing range) int 190 20 4000
 
-# Colored lighting (tint) in low-detail range
+# FlashEng colored lighting & particle settings
 enable_colored_lighting_tint (Enable colored lighting tint) bool true
 colored_lighting_samples (Colored lighting samples) int 8 0 32
 colored_lighting_max_distance (Colored lighting max distance) int 2 0 8
 
-# Particle system budget (caps concurrent particles on the client)
 max_particles (Max concurrent particles) int 20000 100 200000
+
 
 # Additional distance in nodes used for low-detail rendering beyond the full-detail viewing range.
 # Blocks within viewing_range are rendered in full detail; beyond that and up to viewing_range + lod_distance,
@@ -2537,3 +2537,4 @@ show_technical_names (Show technical names) bool false
 
 #    Controlled by a checkbox in the settings menu.
 show_advanced (Show advanced settings) bool false
+s

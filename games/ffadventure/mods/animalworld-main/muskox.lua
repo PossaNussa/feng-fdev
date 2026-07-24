@@ -45,6 +45,7 @@ mobs:register_mob("animalworld:muskox", {
 	lava_damage = 5,
 	light_damage = 0,
 	fear_height = 3,
+	pathfinding = true,
 	animation = {
 		speed_normal = 50,
 		stand_speed = 50,
@@ -83,6 +84,8 @@ mobs:spawn({
 	min_height = 10,
 	max_height = 60,
 	day_toggle = true,
+	min_heat = 0, max_heat = 20,
+	min_humidity = 10, max_humidity = 65,
 
 		on_spawn = function(self, pos)
 

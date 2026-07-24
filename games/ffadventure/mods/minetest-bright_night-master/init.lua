@@ -10,11 +10,22 @@ local dusk = ({0.7952, 0.7882, 0.7831, 0.7784, 0.7741, 0.7702, 0.7662, 0.7626, 0
 local night_mode = false
 
 local function set_night(player)
-	player:override_day_night_ratio(night_light / SUNLIGHT)  -- This will be 0 / 15, effectively making it 0
+	player:override_day_night_ratio(night_light / SUNLIGHT)
 end
 
 local function unset_night(player)
 	player:override_day_night_ratio(nil)
+end
+
+-- Make get_node_light reflect the override during night
+local original_get_node_light = minetest.get_node_light
+minetest.get_node_light = function(pos, timeofday)
+	local light = original_get_node_light(pos, timeofday)
+	if night_mode and light then
+		local natural = minetest.get_natural_light(pos) or 0
+		light = math.max(0, light - natural)
+	end
+	return light
 end
 
 minetest.register_on_joinplayer(function(player)

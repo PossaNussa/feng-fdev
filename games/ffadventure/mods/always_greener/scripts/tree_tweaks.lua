@@ -11,7 +11,19 @@ if minetest.settings: get_bool('awg.bushes', true) then
 		drawtype = 'mesh',
 		use_texture_alpha = 'clip',
 		mesh = 'awg_bush_leaves_berries.obj',
-		tiles = {'awg_blueberry_bush.png', 'awg_blueberry_bush_extra.png', 'awg_blueberry.png'}
+		tiles = {'awg_blueberry_bush.png', 'awg_blueberry_bush_extra.png', 'awg_blueberry.png'},
+		on_rightclick = function(pos, node, clicker, itemstack, pointed_thing)
+			local count = math.random(1, 4)
+			local inv = clicker:get_inventory()
+			local stack = ItemStack("default:blueberries " .. count)
+			if inv:room_for_item("main", stack) then
+				inv:add_item("main", stack)
+			else
+				minetest.add_item(pos, stack)
+			end
+			minetest.set_node(pos, {name = "default:blueberry_bush_leaves"})
+			minetest.get_node_timer(pos):start(math.random(300, 1500))
+		end,
 	})
 
 	minetest.override_item('default:bush_leaves', {

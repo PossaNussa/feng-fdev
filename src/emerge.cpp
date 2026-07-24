@@ -111,7 +111,7 @@ EmergeManager::EmergeManager(Server *server, MetricsBackend *mb)
 	m_qlimit_total = std::max(m_qlimit_total, std::max(m_qlimit_diskonly, m_qlimit_generate));
 
 	for (s16 i = 0; i < nthreads; i++)
-		m_threads.push_back(new EmergeThread(server, i));
+		m_threads.push_back(new EmergeThread(server, i, this));
 
 	infostream << "EmergeManager: using " << nthreads << " threads" << std::endl;
 }
@@ -215,6 +215,13 @@ Mapgen *EmergeManager::getCurrentMapgen()
 	}
 
 	return nullptr;
+}
+
+
+void EmergeManager::setMapOverride(ServerMap *map)
+{
+	for (u32 i = 0; i != m_threads.size(); i++)
+		m_threads[i]->m_map_override = map;
 }
 
 
@@ -450,11 +457,13 @@ void EmergeManager::reportCompletedEmerge(EmergeAction action)
 //// EmergeThread
 ////
 
-EmergeThread::EmergeThread(Server *server, int ethreadid) :
+EmergeThread::EmergeThread(Server *server, int ethreadid, EmergeManager *owner) :
 	enable_mapgen_debug_info(false),
 	id(ethreadid),
 	m_server(server),
+	m_owner(owner),
 	m_map(nullptr),
+	m_map_override(nullptr),
 	m_emerge(nullptr),
 	m_mapgen(nullptr),
 	m_trans_liquid(nullptr)
@@ -606,7 +615,7 @@ MapBlock *EmergeThread::finishGen(v3s16 pos, BlockMakeData *bmdata,
 	*/
 	try {
 		m_server->getScriptIface()->environment_OnGenerated(
-			minp, maxp, m_mapgen->blockseed);
+			minp, maxp, m_mapgen->blockseed, m_emerge->m_dim_name);
 	} catch (LuaError &e) {
 		m_server->setAsyncFatalError(e);
 	}
@@ -662,8 +671,8 @@ void *EmergeThread::run()
 	std::map<v3s16, MapBlock*> modified_blocks;
 	std::string databuf;
 
-	m_map    = &m_server->m_env->getServerMap();
-	m_emerge = m_server->getEmergeManager();
+	m_map    = m_map_override ? m_map_override : &m_server->m_env->getServerMap();
+	m_emerge = m_owner ? m_owner : m_server->getEmergeManager();
 	m_mapgen = m_emerge->m_mapgens[id];
 	enable_mapgen_debug_info = m_emerge->enable_mapgen_debug_info;
 

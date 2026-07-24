@@ -465,6 +465,7 @@ end
 minetest.register_entity(mod_name .. ":" .. "ghost_object", {
 	initial_properties = {
 		visual = "item",
+		armor_groups = {immortal = 1},
 	},
 	wield_item = "default:cobble",
 	visual_size = { x = 0.6, y = 0.6, z = 0.6 },

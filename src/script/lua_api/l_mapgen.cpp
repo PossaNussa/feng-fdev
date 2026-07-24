@@ -12,6 +12,9 @@
 #include "server.h"
 #include "environment.h"
 #include "emerge_internal.h"
+#include "dimension_manager.h"
+#include "remoteplayer.h"
+#include "serverenvironment.h"
 #include "mapgen/mg_biome.h"
 #include "mapgen/mg_ore.h"
 #include "mapgen/mg_decoration.h"
@@ -373,6 +376,8 @@ Biome *read_biome_def(lua_State *L, int index, const NodeDefManager *ndef)
 	getintfield(L,    index, "depth_riverbed",  b->depth_riverbed);
 	getfloatfield(L,  index, "heat_point",      b->heat_point);
 	getfloatfield(L,  index, "humidity_point",  b->humidity_point);
+	getfloatfield(L,  index, "amplify_terrain", b->amplify_terrain);
+	getfloatfield(L,  index, "amplify_features", b->amplify_features);
 	getintfield(L,    index, "vertical_blend",  b->vertical_blend);
 	getfloatfield(L,  index, "weight",          b->weight);
 
@@ -2044,6 +2049,71 @@ Mapgen *ModApiMapgen::getMapgen(lua_State *L)
 	return getServer(L)->getEmergeManager()->getCurrentMapgen();
 }
 
+// minetest.register_dimension(name, def)
+// def = { savedir = "/path/to/dim/dir" }  (savedir is relative to world path if not absolute)
+int ModApiMapgen::l_register_dimension(lua_State *L)
+{
+	std::string dim_name = luaL_checkstring(L, 1);
+	luaL_checktype(L, 2, LUA_TTABLE);
+
+	std::string savedir;
+	lua_getfield(L, 2, "savedir");
+	if (lua_isstring(L, -1))
+		savedir = lua_tostring(L, -1);
+	lua_pop(L, 1);
+
+	if (savedir.empty()) {
+		// Default: <worldpath>/dimensions/<dim_name>
+		savedir = getServer(L)->getWorldPath()
+			+ DIR_DELIM + "dimensions" + DIR_DELIM + dim_name;
+	}
+
+	DimensionManager *dm = getServer(L)->getDimensionManager();
+	if (!dm) {
+		lua_pushboolean(L, false);
+		return 1;
+	}
+	lua_pushboolean(L, dm->registerDimension(dim_name, savedir));
+	return 1;
+}
+
+// minetest.set_player_dimension(player_name, dim_name)
+// dim_name="" or nil means return to main world
+int ModApiMapgen::l_set_player_dimension(lua_State *L)
+{
+	std::string player_name = luaL_checkstring(L, 1);
+	std::string dim_name;
+	if (!lua_isnil(L, 2))
+		dim_name = luaL_checkstring(L, 2);
+
+	DimensionManager *dm = getServer(L)->getDimensionManager();
+	if (!dm)
+		return 0;
+
+	// Look up peer_id from player_name
+	RemotePlayer *player = getServer(L)->getEnv().getPlayer(player_name.c_str());
+	if (!player)
+		return 0;
+
+	dm->setPlayerDimension(player->getPeerId(), player_name, dim_name);
+	return 0;
+}
+
+// minetest.get_player_dimension(player_name) -> string ("" for main world)
+int ModApiMapgen::l_get_player_dimension(lua_State *L)
+{
+	std::string player_name = luaL_checkstring(L, 1);
+	DimensionManager *dm = getServer(L)->getDimensionManager();
+	if (!dm) {
+		lua_pushstring(L, "");
+		return 1;
+	}
+	std::string dim = dm->getPlayerDimension(player_name);
+	lua_pushstring(L, dim.c_str());
+	return 1;
+}
+
+
 void ModApiMapgen::Initialize(lua_State *L, int top)
 {
 	API_FCT(get_biome_id);
@@ -2086,6 +2156,10 @@ void ModApiMapgen::Initialize(lua_State *L, int top)
 	API_FCT(spawn_tree_on_vmanip);
 	API_FCT(serialize_schematic);
 	API_FCT(read_schematic);
+
+	API_FCT(register_dimension);
+	API_FCT(set_player_dimension);
+	API_FCT(get_player_dimension);
 }
 
 void ModApiMapgen::InitializeEmerge(lua_State *L, int top)

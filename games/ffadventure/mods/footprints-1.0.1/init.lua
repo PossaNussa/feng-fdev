@@ -475,9 +475,17 @@ end
 
 local timer = 0
 
-local get_param2 = function(footprints_def)
+local get_param2 = function(footprints_def, pos)
 	if footprints_def.randomize_trampled_param2 then
 		return math.random(0,3)
+	end
+	-- For palette-coloured nodes (e.g. always_greener grass), copy the existing
+	-- colour index from the source node so the tint is not lost when trampled.
+	if pos then
+		local tdef = minetest.registered_nodes[footprints_def.name]
+		if tdef and tdef.paramtype2 == "color" then
+			return minetest.get_node(pos).param2
+		end
 	end
 	return 0
 end
@@ -542,7 +550,7 @@ minetest.register_globalstep(function(dtime)
 							z = pos_z_plus_half
 						}
 						if test_trample_count(footprints_def, pos_ground_cover_plus) then
-							minetest.set_node(pos_ground_cover_plus, {name = footprints_def.name, param2 = get_param2(footprints_def)})
+							minetest.set_node(pos_ground_cover_plus, {name = footprints_def.name, param2 = get_param2(footprints_def, pos_ground_cover_plus)})
 						end
 					end
 				else
@@ -560,7 +568,7 @@ minetest.register_globalstep(function(dtime)
 							z =pos_z_plus_half
 						}
 						if test_trample_count(footprints_def, pos_groundpl) then
-							minetest.set_node(pos_groundpl, {name = footprints_def.name, param2 = get_param2(footprints_def)})
+							minetest.set_node(pos_groundpl, {name = footprints_def.name, param2 = get_param2(footprints_def, pos_groundpl)})
 						end
 					end
 				end

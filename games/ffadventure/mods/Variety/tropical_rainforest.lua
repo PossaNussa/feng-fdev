@@ -25,8 +25,8 @@ minetest.register_craft({
 		node_dungeon_alt = "default:cobblestone",
 		y_max = 31000,
 		y_min = 1,
-		heat_point = 75,
-		humidity_point = 45,
+		heat_point = 80,
+		humidity_point = 87,
 
 	})
 

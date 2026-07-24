@@ -12,6 +12,10 @@ local tools = {
         title = 'Sword',
         light_source = 0,
     },
+    hammer = {
+        title = 'Hammer',
+        only_materials = { flint = true },
+    },
 }
 
 local materials = {
@@ -22,7 +26,8 @@ local materials = {
             pick = 'default:pick_stone',
             sword = 'default:sword_stone',
             axe = 'default:axe_stone',
-            shovel = 'default:shovel_stone'
+            shovel = 'default:shovel_stone',
+            hammer = 'default:hammer_flint',
         }
     },
     obsidian = {
@@ -70,12 +75,17 @@ if core.global_exists('stoneage') then
     materials.flint = nil
 end
 
+-- Maps head item name → tool item name for wear transfer
+local head_to_tool = {}
+
 for name, def in pairs(tools) do
     for material, props in pairs(materials) do
+        if def.only_materials and not def.only_materials[material] then goto continue end
         local item_name = "knapping_mtg:" .. material .. "_" .. name .. "_head"
-        core.register_craftitem(item_name, {
+        core.register_tool(item_name, {
             description = "Knapped " .. props.title .. ' ' .. def.title .. " Head",
             inventory_image = material .. "_" .. name .. "_head.png",
+            groups = { knapped_head = 1, not_in_creative_inventory = 0 },
         })
 
         knapping.register_recipe({
@@ -119,5 +129,33 @@ for name, def in pairs(tools) do
                 { 'group:stick' }
             }
         })
+
+        head_to_tool[item_name] = tool_name
+        ::continue::
     end
 end
+
+-- Transfer wear from knapped head to finished tool
+local function find_head_in_craft(items)
+    for _, item in ipairs(items) do
+        if head_to_tool[item:get_name()] then
+            return item
+        end
+    end
+end
+
+core.register_craft_predict(function(itemstack, player, old_craft_grid, craft_inv)
+    if itemstack:is_empty() then return end
+    local head = find_head_in_craft(old_craft_grid)
+    if head and head:get_wear() > 0 then
+        itemstack:set_wear(head:get_wear())
+        return itemstack
+    end
+end)
+
+core.register_on_craft(function(itemstack, player, old_craft_grid, craft_inv)
+    local head = find_head_in_craft(old_craft_grid)
+    if head and head:get_wear() > 0 then
+        itemstack:set_wear(head:get_wear())
+    end
+end)

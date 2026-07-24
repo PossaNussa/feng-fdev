@@ -21,6 +21,9 @@ end
 
 local modpath = core.get_modpath("craft_table")
 
+-- Recipe cycle resolver (must load before api.lua)
+dofile(modpath .."/recipe_cycle.lua")
+
 -- API
 dofile(modpath .."/api.lua")
 

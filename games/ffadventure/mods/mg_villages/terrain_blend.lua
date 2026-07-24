@@ -11,13 +11,16 @@ mg_villages.village_area_mark_single_house_area = function(village_area, minp, m
 
 	local YFLATMIN = 2 -- Lowest flat area height
 	local FFAPROP = 0.5 -- front flat area proportion of dimension
+	-- Improved noise parameters for more natural, organic terrain blending
+	-- Larger spread creates smoother, more gradual transitions
+	-- More octaves add fine detail variation to break up artificial edges
 	local np_blend = {
 		offset = 0,
-		scale = 1,
-		spread = {x=12, y=12, z=12},
+		scale = 1.5,  -- Increased scale for more variation
+		spread = {x=24, y=24, z=24},  -- Larger spread for smoother transitions
 		seed = 38393,
-		octaves = 3,
-		persist = 0.67
+		octaves = 4,  -- More octaves for finer detail
+		persist = 0.55  -- Lower persistence for gentler transitions
 	}
 
 	local sidelen = maxp.x - minp.x + 1
@@ -58,8 +61,11 @@ mg_villages.village_area_mark_single_house_area = function(village_area, minp, m
 		local rade2 = math.sqrt(xre2 ^ 2 + zre2 ^ 2)
 		local flatrad = math.min(rade1, rade2) -- radius at edge of rectangular house flat area
 		local n_absblend = math.abs(nvals_blend[ni])
-		local blenradn = village.vs - n_absblend * 2 -- vary blend radius
-		local flatradn = flatrad + n_absblend * 2 -- vary shape of house flat area
+		-- Improved blend calculations for more natural terrain transitions
+		-- Use squared falloff for smoother edges that don't create obvious crater rims
+		local blend_variation = n_absblend * 3  -- More variation from noise
+		local blenradn = village.vs - blend_variation -- vary blend radius more
+		local flatradn = flatrad + blend_variation * 0.7 -- vary shape of house flat area
 		local nodrad = math.sqrt(xr ^ 2 + zr ^ 2) -- node radius
 
 		-- only blend the terrain if it does not already belong to another village
@@ -70,7 +76,11 @@ mg_villages.village_area_mark_single_house_area = function(village_area, minp, m
 			elseif nodrad <= flatradn or (xr == 0 and zr == 0) then -- irregular flat area around house
 				village_area[ x ][ z ] = {village_nr, 1}
 			elseif nodrad <= blenradn then -- terrain blend area
-				local blenprop = ((nodrad - flatradn) / (blenradn - flatradn))
+				-- Use smoothstep curve for more natural blending transitions
+				-- This prevents the harsh linear edges that create obvious crater rims
+				local linear_prop = ((nodrad - flatradn) / (blenradn - flatradn))
+				-- Smoothstep: 3x^2 - 2x^3 creates an S-curve for smoother transitions
+				local blenprop = linear_prop * linear_prop * (3 - 2 * linear_prop)
 				village_area[ x ][ z ] = {village_nr, -1 * blenprop} -- terrain blending
 			else -- no change to terrain
 				--village_area[xrm][zrm] = {village_nr, 0}

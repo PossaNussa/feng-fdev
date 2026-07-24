@@ -72,6 +72,69 @@ local function use_offhand(secondary, mainhand_stack, player, pointed_thing, ...
     return mainhand_stack
 end
 
+-- ─── Offhand attack (dual-wield) ─────────────────────────────────────
+-- Right-clicking with a sword or axe in the offhand performs a melee
+-- attack using that weapon's tool_capabilities.
+
+local function is_offhand_weapon(itemstack)
+    local def = itemstack:get_definition()
+    if not def or not def.groups then return false end
+    return (def.groups.sword or 0) > 0 or (def.groups.axe or 0) > 0
+end
+
+local function raycast_entity(player, range)
+    local pos1 = player:get_pos()
+    pos1 = pos1 + player:get_eye_offset()
+    pos1.y = pos1.y + (player:get_properties()).eye_height
+    local dir = player:get_look_dir()
+    local pos2 = vector.add(pos1, vector.multiply(dir, range))
+    local ray = Raycast(pos1, pos2, true, false)  -- objects=true, liquids=false
+    for pointed_thing in ray do
+        if pointed_thing.type == "object" then
+            local obj = pointed_thing.ref
+            if obj and obj ~= player then
+                return obj, dir
+            end
+        elseif pointed_thing.type == "node" then
+            -- hit a node before any entity — no target
+            return nil, dir
+        end
+    end
+    return nil, dir
+end
+
+local function offhand_attack(player)
+    local inv = player:get_inventory()
+    local offhand_stack = inv:get_stack("offhand", 1)
+    if offhand_stack:is_empty() or not is_offhand_weapon(offhand_stack) then
+        return false
+    end
+
+    local def = offhand_stack:get_definition()
+    local tc = def.tool_capabilities
+    if not tc then return false end
+
+    local interval = tc.full_punch_interval or 0.9
+
+    -- raycast for a target
+    local range = def.range or (minetest.registered_items[""] or {}).range or 5
+    local target, dir = raycast_entity(player, range)
+    if not target then return true end  -- weapon present, consume click even if no target
+
+    -- punch the target at full interval so engine treats it as full-power hit
+    target:punch(player, interval, tc, dir)
+
+    -- apply wear to the offhand tool (only if punch_attack_uses is defined)
+    if tc.punch_attack_uses and tc.punch_attack_uses > 0 then
+        local wear = math.floor(65535 / tc.punch_attack_uses)
+        offhand_stack:add_wear(wear)
+        inv:set_stack("offhand", 1, offhand_stack)
+        update_offhand(player, offhand_stack, offhand_stack)
+    end
+
+    return true  -- attack handled
+end
+
 local function get_tile_name(tiledef)
     if type(tiledef) == "table" then return tiledef.name end
     return tiledef
@@ -125,6 +188,10 @@ minetest.item_place = function(mainhand_stack, player, pointed_thing, ...)
     if not player or not player:is_player() then
         return item_place(mainhand_stack, player, pointed_thing, ...)
     end
+    -- offhand weapon attack takes priority over placement
+    if not is_switched and offhand_attack(player) then
+        return mainhand_stack
+    end
     local inv = player:get_inventory()
     local stackname = mainhand_stack:get_name()
     if not is_switched
@@ -172,6 +239,8 @@ end
 -- detect right-click in the air when tool has no on_secondary_use handler
 controls.register_on_press(function(player, control_name)
     if control_name ~= "place" then return end
+    -- offhand weapon attack takes priority
+    if offhand_attack(player) then return end
     local mainhand = player:get_wielded_item()
     local stackname = mainhand:get_name() or ""
     -- tool already implements own handler, skip

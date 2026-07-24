@@ -12,8 +12,8 @@ local S = minetest.get_translator("variety")
 		node_dungeon_alt = "default:cobblestone",
 		y_max = 31000,
 		y_min = 1,
-		heat_point = 100,
-		humidity_point = 115,
+		heat_point = 95,
+		humidity_point = 97,
 	})
 
 minetest.register_decoration({

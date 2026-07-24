@@ -116,18 +116,37 @@ public:
 */
 
 void ScriptApiEnv::environment_OnGenerated(v3s16 minp, v3s16 maxp,
-	u32 blockseed)
+	u32 blockseed, const std::string &dim_name)
 {
 	SCRIPTAPI_PRECHECKHEADER
 
 	// Get core.registered_on_generateds
 	lua_getglobal(L, "core");
 	lua_getfield(L, -1, "registered_on_generateds");
-	// Call callbacks
+	// Call callbacks: minp, maxp, blockseed, dim_name
 	push_v3s16(L, minp);
 	push_v3s16(L, maxp);
 	lua_pushnumber(L, blockseed);
-	runCallbacks(3, RUN_CALLBACKS_MODE_FIRST);
+	lua_pushstring(L, dim_name.c_str());
+	runCallbacks(4, RUN_CALLBACKS_MODE_FIRST);
+
+	// Also call per-dimension callbacks if registered for this dim
+	if (!dim_name.empty()) {
+		int saved_top = lua_gettop(L);
+		lua_getglobal(L, "core");                                  // core
+		lua_getfield(L, -1, "registered_dim_on_generateds");      // core, dim_cbs_map
+		lua_getfield(L, -1, dim_name.c_str());                    // core, dim_cbs_map, cbs
+		// Remove the two intermediary items so only the callback table is left
+		lua_remove(L, saved_top + 1);  // removes core;     stack: dim_cbs_map, cbs
+		lua_remove(L, saved_top + 1);  // removes dim_cbs_map; stack: cbs
+		if (lua_istable(L, saved_top + 1)) {
+			push_v3s16(L, minp);
+			push_v3s16(L, maxp);
+			lua_pushnumber(L, blockseed);
+			runCallbacks(3, RUN_CALLBACKS_MODE_FIRST);
+		}
+		lua_settop(L, saved_top); // clean up regardless
+	}
 }
 
 void ScriptApiEnv::environment_Step(float dtime)

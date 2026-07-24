@@ -590,8 +590,8 @@ minetest.register_node("default:sand", {
 
 minetest.register_node("default:desert_sand", {
 	description = S("Desert Sand"),
-	tiles = {"default_desert_sand.png",
-		{name = "default_desert_sand_side.png",
+	tiles = {"default_desert_sand.png^[colorize:#DEA140:90",
+		{name = "default_desert_sand_side.png^[colorize:#DEA140:90",
 			tileable_vertical = false}},
 	groups = {crumbly = 3, falling_node = 1, sand = 1},
 	sounds = default.node_sound_sand_defaults(),
@@ -628,34 +628,103 @@ minetest.register_node("default:clay", {
 })
 
 
+local snow_step = 8 -- 64/16*2, 8 levels per layer, converts to snowblock at 64
+
+local snow_dirt_conversions = {
+	["default:dirt_with_grass"] = true,
+	["default:dirt_with_dry_grass"] = true,
+	["default:dirt_with_coniferous_litter"] = true,
+	["default:dirt_with_rainforest_litter"] = true,
+	["default:dry_dirt_with_dry_grass"] = true,
+	["default:dirt_with_grass_footsteps"] = true,
+}
+
+local function snow_onto_node(pos)
+	pos.y = pos.y - 1
+	if snow_dirt_conversions[minetest.get_node(pos).name] then
+		minetest.set_node(pos, {name = "default:dirt_with_snow"})
+	end
+end
+
 minetest.register_node("default:snow", {
 	description = S("Snow"),
 	tiles = {"default_snow.png"},
 	inventory_image = "default_snowball.png",
 	wield_image = "default_snowball.png",
 	paramtype = "light",
+	paramtype2 = "leveled",
 	buildable_to = true,
 	floodable = true,
+	place_param2 = snow_step,
+	leveled = snow_step,
 	drawtype = "nodebox",
 	node_box = {
-		type = "fixed",
-		fixed = {
-			{-0.5, -0.5, -0.5, 0.5, -0.25, 0.5},
-		},
-	},
-	collision_box = {
-		type = "fixed",
-		fixed = {
-			{-0.5, -0.5, -0.5, 0.5, -6 / 16, 0.5},
-		},
+		type = "leveled",
+		fixed = {-0.5, -0.5, -0.5, 0.5, -0.25, 0.5},
 	},
 	groups = {crumbly = 3, falling_node = 1, snowy = 1},
 	sounds = default.node_sound_snow_defaults(),
+	node_placement_prediction = "",
 
-	on_construct = function(pos)
-		pos.y = pos.y - 1
-		if minetest.get_node(pos).name == "default:dirt_with_grass" then
-			minetest.set_node(pos, {name = "default:dirt_with_snow"})
+	on_construct = snow_onto_node,
+
+	on_dig = function(pos, node, digger)
+		local level = minetest.get_node_level(pos)
+		minetest.node_dig(pos, node, digger)
+		if minetest.get_node(pos).name == node.name or
+				not digger or not digger:is_player() then
+			return
+		end
+		local extra = math.max(0, level / snow_step - 1)
+		if extra > 0 then
+			core.handle_node_drops(pos, {ItemStack("default:snow " .. tostring(extra))}, digger)
+		end
+	end,
+
+	on_place = function(itemstack, placer, pointed_thing)
+		local place_to = pointed_thing.under
+		local old_node = minetest.get_node(place_to)
+		if old_node.name ~= "default:snow" then
+			local node_def = minetest.registered_nodes[old_node.name]
+			if node_def and node_def.buildable_to then
+				return minetest.item_place(itemstack, placer, pointed_thing)
+			end
+			place_to = pointed_thing.above
+			old_node = minetest.get_node(place_to)
+			if old_node.name ~= "default:snow" then
+				return minetest.item_place(itemstack, placer, pointed_thing)
+			end
+		end
+		local player_name = placer and placer:is_player()
+		player_name = player_name and placer:get_player_name() or ""
+		if minetest.is_protected(place_to, player_name) and
+				(player_name == "" or
+				not minetest.check_player_privs(placer, "protection_bypass")) then
+			if player_name == "" then return itemstack end
+			minetest.record_protection_violation(place_to, player_name)
+			return itemstack
+		end
+		local level = minetest.get_node_level(place_to)
+		level = level + snow_step
+		if level >= 64 then
+			minetest.swap_node(place_to, {name = "default:snowblock"})
+		else
+			minetest.set_node_level(place_to, level)
+		end
+		itemstack:take_item()
+		return itemstack
+	end,
+})
+
+-- Fix mapgen-placed snow (param2=0 would be invisible with leveled drawtype)
+minetest.register_lbm({
+	label = "Fix snow node levels",
+	name = "default:fix_snow_levels_v1",
+	nodenames = {"default:snow"},
+	run_at_every_load = true,
+	action = function(pos, node)
+		if node.param2 == 0 then
+			minetest.swap_node(pos, {name = "default:snow", param2 = snow_step})
 		end
 	end,
 })
@@ -1775,12 +1844,19 @@ minetest.register_node("default:blueberry_bush_leaves_with_berries", {
 	drawtype = "allfaces_optional",
 	tiles = {"default_blueberry_bush_leaves.png^default_blueberry_overlay.png"},
 	paramtype = "light",
-	groups = {snappy = 3, flammable = 2, leaves = 1, dig_immediate = 3},
-	drop = "default:blueberries",
+	groups = {snappy = 3, flammable = 2, leaves = 1},
+	drop = "default:blueberry_bush_leaves",
 	sounds = default.node_sound_leaves_defaults(),
-	node_dig_prediction = "default:blueberry_bush_leaves",
 
-	after_dig_node = function(pos, oldnode, oldmetadata, digger)
+	on_rightclick = function(pos, node, clicker, itemstack, pointed_thing)
+		local count = math.random(1, 4)
+		local inv = clicker:get_inventory()
+		local stack = ItemStack("default:blueberries " .. count)
+		if inv:room_for_item("main", stack) then
+			inv:add_item("main", stack)
+		else
+			minetest.add_item(pos, stack)
+		end
 		minetest.set_node(pos, {name = "default:blueberry_bush_leaves"})
 		minetest.get_node_timer(pos):start(math.random(300, 1500))
 	end,
@@ -1810,6 +1886,21 @@ minetest.register_node("default:blueberry_bush_leaves", {
 	end,
 
 	after_place_node = after_place_leaves,
+})
+
+-- Start the berry-regrowth timer on any blueberry_bush_leaves that was placed
+-- by mapgen (after_place_node is not called for mapgen nodes, so they'd sit
+-- as plain leaves forever without this).
+minetest.register_lbm({
+	name = "default:blueberry_bush_start_timer",
+	nodenames = {"default:blueberry_bush_leaves"},
+	run_at_every_load = false,
+	action = function(pos)
+		local t = minetest.get_node_timer(pos)
+		if not t:is_started() then
+			t:start(math.random(300, 1500))
+		end
+	end,
 })
 
 minetest.register_node("default:blueberry_bush_sapling", {
@@ -2330,6 +2421,7 @@ minetest.register_node("default:water_flowing", {
 
 minetest.register_node("default:river_water_source", {
 	description = S("River Water Source"),
+	waving = 3,
 	drawtype = "liquid",
 	tiles = {
 		{
@@ -2379,6 +2471,7 @@ minetest.register_node("default:river_water_source", {
 
 minetest.register_node("default:river_water_flowing", {
 	description = S("Flowing River Water"),
+	waving = 3,
 	drawtype = "flowingliquid",
 	tiles = {"default_river_water.png"},
 	special_tiles = {

@@ -18,10 +18,9 @@ if dynamic_liquid.config.water then
 	minetest.override_item("default:water_flowing", override_def)
 
 	dynamic_liquid.liquid_abm("default:water_source", "default:water_flowing", water_probability)
-	dynamic_liquid.liquid_abm("default:river_water_source", "default:river_water_flowing", river_water_probability)
 end
 
-if dynamic_liquid.config.river_water then	
+if dynamic_liquid.config.river_water then
 	dynamic_liquid.liquid_abm("default:river_water_source", "default:river_water_flowing", river_water_probability)
 end
 
@@ -33,18 +32,18 @@ if dynamic_liquid.config.flow_through then
 	local flow_through_nodes = {"group:flow_through", "group:leaves", "group:sapling", "group:grass", "group:dry_grass", "group:flora", "groups:rail", "groups:flower",
 
 	"default:apple", "default:papyrus", "default:dry_shrub", "default:bush_stem", "default:acacia_bush_stem","default:sign_wall_wood", "default:sign_wall_steel", "default:ladder_wood", "default:ladder_steel", "default:fence_wood", "default:fence_acacia_wood", "default:fence_junglewood", "default:fence_pine_wood","default:fence_aspen_wood"}
-	
+
 	if minetest.get_modpath("xpanes") then
 		table.insert(flow_through_nodes, "xpanes:bar")
 		table.insert(flow_through_nodes, "xpanes:bar_flat")
 	end
-	
+
 	if minetest.get_modpath("carts") then
 		table.insert(flow_through_nodes, "carts:rail")
 		table.insert(flow_through_nodes, "carts:powerrail")
 		table.insert(flow_through_nodes, "carts:brakerail")
 	end
-	
+
 	dynamic_liquid.flow_through_abm({nodenames = flow_through_nodes})
 end
 
@@ -62,7 +61,7 @@ if dynamic_liquid.config.new_lava_cooling then
 	default.cool_lava = function(pos, node)
 		-- no-op disables default cooling ABM
 	end
-	
+
 	dynamic_liquid.cooling_lava({
 		flowing_destroys = {"default:water_flowing", "default:river_water_flowing", "default:snow", "default:snowblock"},
 		source_destroys = {	"default:water_source",

@@ -104,15 +104,15 @@ local mg = farming.mapgen == "v6"
 
 def = {
 	y_max = mg and 50 or 55,
-	spawn_on = mg and {"default:dirt_with_grass"} or {"default:dirt_with_dry_grass",
-			"default:dirt_with_rainforest_litter", "default:dry_dirt_with_dry_grass",
-			"mcl_core:dirt_with_grass"}
+	spawn_on = mg and {"default:dirt_with_grass"} or {"default:dirt_with_rainforest_litter",
+			"naturalbiomes:savannalitter", "mcl_core:dirt_with_grass"}
 }
 
 minetest.register_decoration({
 	deco_type = "simple",
 	place_on = def.spawn_on,
 	sidelen = 16,
+	biomes = {"rainforest", "naturalbiomes:wetsavanna", "naturalbiomes:palmbeach"},
 	noise_params = {
 		offset = 0,
 		scale = farming.coffee,
@@ -121,7 +121,7 @@ minetest.register_decoration({
 		octaves = 3,
 		persist = 0.6
 	},
-	y_min = 20,
+	y_min = 5,
 	y_max = def.y_max,
 	decoration = "farming:coffee_5"
 })

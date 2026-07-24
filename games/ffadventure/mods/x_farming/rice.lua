@@ -27,6 +27,7 @@ x_farming.register_plant('x_farming:rice', {
     minlight = 13,
     maxlight = 14,
     fertility = { 'grassland' },
+    heat_min = 58, heat_max = 95, hum_min = 50, hum_max = 95,
     drawtype = 'plantlike_rooted',
     paramtype2 = 'none',
     visual_scale = 3.0,
@@ -278,16 +279,22 @@ minetest.register_on_mods_loaded(function()
 
     -- MTG
     if minetest.get_modpath('default') then
-        table.insert(deco_place_on, 'default:dirt')
-        table.insert(deco_place_on, 'default:dry_dirt')
-        table.insert(deco_biomes, 'rainforest_swamp')
-        table.insert(deco_biomes, 'savanna_shore')
-    end
-
-    -- MCL
-    if minetest.get_modpath('mcl_core') then
-        table.insert(deco_place_on, 'mcl_core:sand')
-        table.insert(deco_biomes, 'Savanna_beach')
+    -- subtropical to tropical, high moisture (heat 58-95, hum 50-95)
+    -- include shore biomes (_shore) for waterline placement, exclude only underground
+    local seen_nodes = {}
+    for bname, bdef in pairs(minetest.registered_biomes) do
+        if not bname:find('_under') and not bname:find('_ocean') then
+            local h = bdef.heat_point or -1
+            local w = bdef.humidity_point or -1
+            if h >= 58 and h <= 95 and w >= 50 and w <= 95 then
+                table.insert(deco_biomes, bname)
+                local top = bdef.node_top
+                if top and minetest.registered_nodes[top] and not seen_nodes[top] then
+                    seen_nodes[top] = true
+                    table.insert(deco_place_on, top)
+                end
+            end
+        end
     end
 
     if next(deco_place_on) and next(deco_biomes) then
@@ -315,5 +322,6 @@ minetest.register_on_mods_loaded(function()
             },
             flags = 'force_placement'
         })
+    end
     end
 end)

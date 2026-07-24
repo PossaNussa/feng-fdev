@@ -64,8 +64,29 @@ end
 -- ===========================================================================
 
 
+-- Mud patch noise params with FIXED seeds for consistency across chunks
+local mud_primary_noise_params = {
+    offset = 0,
+    scale = 1,
+    spread = {x = 128, y = 128, z = 128},
+    seed = 59347,  -- Fixed seed, not per-chunk
+    octaves = 3,
+    persist = 0.5,
+    lacunarity = 2.0,
+}
+
+local mud_transition_noise_params = {
+    offset = 0,
+    scale = 1,
+    spread = {x = 16, y = 16, z = 16},
+    seed = 59348,  -- Fixed seed, not per-chunk
+    octaves = 3,
+    persist = 0.5,
+    lacunarity = 2.0,
+}
+
 minetest.register_on_generated(function(minp, maxp, seed)
-    minetest.after(0.1, function(minp, maxp, seed)
+    minetest.after(0.1, function(minp, maxp)
         local vm = minetest.get_voxel_manip(minp, maxp)
         local area = VoxelArea:new({MinEdge=minp, MaxEdge=maxp})
         local data = vm:get_data()
@@ -73,21 +94,22 @@ minetest.register_on_generated(function(minp, maxp, seed)
         local c_sand = minetest.get_content_id("default:sand")
         local c_mud = minetest.get_content_id("default:mud")
 
-        local primary_noise = minetest.get_perlin(seed, 3, 0.5, 128) -- To decide primary node for larger regions
-        local transition_noise = minetest.get_perlin(seed + 1, 3, 0.5, 8) -- To smooth out transitions between regions
+        -- Use fixed noise params for world-consistent noise
+        local primary_noise = minetest.get_perlin(mud_primary_noise_params)
+        local transition_noise = minetest.get_perlin(mud_transition_noise_params)
 
         for z = minp.z, maxp.z do
             for x = minp.x, maxp.x do
-                local primary_value = primary_noise:get2d({x=x, y=z})
-                local transition_value = transition_noise:get2d({x=x, y=z})
+                local primary_value = primary_noise:get_2d({x=x, y=z})
+                local transition_value = transition_noise:get_2d({x=x, y=z})
 
                 for y = minp.y, maxp.y do
                     local vi = area:index(x, y, z)
                     if data[vi] == c_sand then
-                        if primary_value < 0.05 then 
+                        if primary_value < 0.05 then
                             data[vi] = c_mud
                         elseif primary_value >= 0.05 and primary_value < 0.07 then
-                            -- Applying transition noise
+                            -- Applying transition noise for smooth edges
                             if transition_value < 0 then
                                 data[vi] = c_mud
                             end
@@ -100,7 +122,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
         vm:set_data(data)
         vm:update_liquids()
         vm:write_to_map()
-    end, minp, maxp, seed)
+    end, minp, maxp)
 end)
 --
 -- Register ores
@@ -953,7 +975,7 @@ function default.register_biomes()
 		node_dungeon_stair = "stairs:stair_cobble",
 		y_max = 31000,
 		y_min = 47,
-		heat_point = 0,
+		heat_point = 5,
 		humidity_point = 40,
 	})
 
@@ -972,7 +994,7 @@ function default.register_biomes()
 		vertical_blend = 4,
 		y_max = 46,
 		y_min = 2,
-		heat_point = 0,
+		heat_point = 5,
 		humidity_point = 40,
 	})
 
@@ -991,7 +1013,7 @@ function default.register_biomes()
 		y_max = 1,
 		y_min = -3,
 		node_water = "sailing:shallow_water_source",
-		heat_point = 0,
+		heat_point = 5,
 		humidity_point = 40,
 	})
 
@@ -1011,7 +1033,7 @@ function default.register_biomes()
 		node_water = "sailing:shallow_water_source",
 		y_max = -4,
 		y_min = -255,
-		heat_point = 0,
+		heat_point = 5,
 		humidity_point = 40,
 	})
 
@@ -1024,7 +1046,7 @@ function default.register_biomes()
 		node_water = "sailing:shallow_water_source",
 		y_max = -256,
 		y_min = -31000,
-		heat_point = 0,
+		heat_point = 5,
 		humidity_point = 40,
 	})
 
@@ -1494,8 +1516,8 @@ minetest.register_biome({
 		node_dungeon_stair = "stairs:stair_sandstone_block",
 		y_max = 31000,
 		y_min = 4,
-		heat_point = 60,
-		humidity_point = 1,
+		heat_point = 65,
+		humidity_point = 3,
 	})
 
 	minetest.register_biome({
@@ -1512,8 +1534,8 @@ minetest.register_biome({
 		node_dungeon_stair = "stairs:stair_sandstone_block",
 		y_max = 3,
 		y_min = -255,
-		heat_point = 60,
-		humidity_point = 1,
+		heat_point = 65,
+		humidity_point = 3,
 	})
 
 	minetest.register_biome({
@@ -1524,8 +1546,8 @@ minetest.register_biome({
 		node_dungeon_stair = "stairs:stair_cobble",
 		y_max = -256,
 		y_min = -31000,
-		heat_point = 60,
-		humidity_point = 1,
+		heat_point = 65,
+		humidity_point = 3,
 	})
 
 	-- Cold desert

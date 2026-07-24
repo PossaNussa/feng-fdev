@@ -19,10 +19,4 @@ minetest.register_on_newplayer(function(obj)
 	local inv = obj:get_inventory()
 	inv:add_item('main', 'spyglass:spyglass')
 	inv:add_item('main', 'boats:boat')
-
-	local pos = obj:get_pos()
-	pos.y = 3
-	obj:set_pos(pos)
-
-	return true
 end)

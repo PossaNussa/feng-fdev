@@ -1105,7 +1105,12 @@ void ServerMap::transformLiquids(std::map<v3s16, MapBlock*> &modified_blocks,
 		//bool flow_down_enabled = (flowing_down && ((n0.param2 & LIQUID_FLOW_DOWN_MASK) != LIQUID_FLOW_DOWN_MASK));
 		if (m_nodedef->get(new_node_content).liquid_type == LIQUID_FLOWING) {
 			// set level to last 3 bits, flowing down bit to 4th bit
-			n0.param2 = (flowing_down ? LIQUID_FLOW_DOWN_MASK : 0x00) | (new_node_level & LIQUID_LEVEL_MASK);
+			// For CPT2_COLORFLOWINGLIQUID keep the upper nibble: it holds
+			// the palette index and would otherwise be zeroed on every update.
+			u8 preserved = 0;
+			if (m_nodedef->get(new_node_content).param_type_2 == CPT2_COLORFLOWINGLIQUID)
+				preserved = n0.param2 & 0xF0;
+			n0.param2 = preserved | (flowing_down ? LIQUID_FLOW_DOWN_MASK : 0x00) | (new_node_level & LIQUID_LEVEL_MASK);
 		} else {
 			// set the liquid level and flow bits to 0
 			n0.param2 &= ~(LIQUID_LEVEL_MASK | LIQUID_FLOW_DOWN_MASK);

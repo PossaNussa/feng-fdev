@@ -12,6 +12,12 @@ end)
 
 function skygen.update_sky(player)
     local name = player:get_player_name()
+
+    -- Skip if player is in space (space mod owns sky there)
+    if space and space.player and space.player[name] and space.player[name] > 0 then
+        return
+    end
+
     local sky_state = skygen.read(name, "sky_state")
 
     if skygen.is_edgy then
@@ -27,7 +33,8 @@ function skygen.update_biome_sky(player)
     local name = player:get_player_name()
     local biome_name = skygen.fetch_biome(player)
     local previous_biome_name = skygen.active_biome[name]
-    if previous_biome_name == biome_name then
+    -- Force re-apply if returning from space (active_biome cleared by space transition)
+    if previous_biome_name == biome_name and previous_biome_name ~= nil then
         return
     elseif previous_biome_name == nil then
         skygen.active_biome[name] = biome_name

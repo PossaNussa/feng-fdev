@@ -7,12 +7,7 @@
 better_fences = {}
 
 better_fences.additional_connected = {
-    "group:crumbly",
-    "group:cracky",
-    "group:snappy",
-    "group:choppy",
-    "group:oddly_breakable_by_hand",
-    "group:dig_immediate"
+    "group:stone",
 }
 
 function better_fences.check_position(pos, nopropagate)

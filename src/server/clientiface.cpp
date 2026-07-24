@@ -422,6 +422,14 @@ void RemoteClient::SentBlock(v3s16 p)
 				" already in m_blocks_sending"<<std::endl;
 }
 
+void RemoteClient::clearSentBlocks()
+{
+	m_blocks_sent.clear();
+	m_blocks_sending.clear();
+	m_blocks_occ.clear();
+	m_nearest_unsent_d = 0;
+}
+
 void RemoteClient::SetBlockNotSent(v3s16 p, bool low_priority)
 {
 	m_nothing_to_send_pause_timer = 0;

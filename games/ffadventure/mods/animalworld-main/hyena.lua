@@ -38,6 +38,7 @@ stepheight = 2,
 	lava_damage = 4,
 	light_damage = 0,
 	fear_height = 4,
+	pathfinding = true,
         stay_near = {{"naturalbiomes:savanna_flowergrass", "naturalbiomes:savanna_grass", "naturalbiomes:savanna_grass2", "naturalbiomes:savanna_grass3", "naturalbiomes:savannagrass"}, 6},
 	animation = {
 		speed_normal = 75,

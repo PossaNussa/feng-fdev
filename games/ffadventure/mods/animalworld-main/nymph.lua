@@ -76,6 +76,8 @@ mobs:spawn({
 	chance = 15500, -- 15000
 	min_height = -10,
 	max_height = 30,
+	min_heat = 25, max_heat = 80,
+	min_humidity = 40, max_humidity = 95,
 })
 end
 

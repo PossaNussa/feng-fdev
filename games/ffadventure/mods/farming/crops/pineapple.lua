@@ -94,7 +94,8 @@ local def = {
 		handy = 1, snappy = 3, flammable = 2, plant = 1, attached_node = 1,
 		not_in_creative_inventory = 1, growing = 1
 	},
-	sounds = farming.sounds.node_sound_leaves_defaults()
+	sounds = farming.sounds.node_sound_leaves_defaults(),
+	_heat_min = 78, _heat_max = 95, _hum_min = 38, _hum_max = 95,
 }
 
 -- stage 1
@@ -155,21 +156,40 @@ def = {
 	num = mg and 1 or -1
 }
 
-minetest.register_decoration({
-	deco_type = "simple",
-	place_on = def.grow_on,
-	sidelen = 16,
-	noise_params = {
-		offset = 0,
-		scale = farming.pineapple,
-		spread = {x = 100, y = 100, z = 100},
-		seed = 354,
-		octaves = 3,
-		persist = 0.6
-	},
-	y_min = 11,
-	y_max = 30,
-	decoration = {"farming:pineapple_8"},
-	spawn_by = def.grow_near,
-	num_spawn_by = def.num
-})
+minetest.register_on_mods_loaded(function()
+	-- tropical, hot (heat 78-95, hum 38-95)
+	local place_on, biomes, seen = {}, {}, {}
+	for bname, bdef in pairs(minetest.registered_biomes) do
+		if not bname:find('_under') then
+			local h = bdef.heat_point or -1
+			local w = bdef.humidity_point or -1
+			if h >= 78 and h <= 95 and w >= 38 and w <= 95 then
+				biomes[#biomes + 1] = bname
+				local top = bdef.node_top
+				if top and minetest.registered_nodes[top] and not seen[top] then
+					seen[top] = true
+					place_on[#place_on + 1] = top
+				end
+			end
+		end
+	end
+	if next(place_on) then
+		minetest.register_decoration({
+			deco_type = "simple",
+			place_on = place_on,
+			sidelen = 16,
+			biomes = biomes,
+			noise_params = {
+				offset = 0,
+				scale = farming.pineapple,
+				spread = {x = 100, y = 100, z = 100},
+				seed = 354,
+				octaves = 3,
+				persist = 0.6
+			},
+			y_min = 1,
+			y_max = 35,
+			decoration = {"farming:pineapple_8"},
+		})
+	end
+end)

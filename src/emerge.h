@@ -29,6 +29,7 @@ class OreManager;
 class DecorationManager;
 class SchematicManager;
 class Server;
+class ServerMap;
 class ModApiMapgen;
 struct MapDatabaseAccessor;
 
@@ -162,6 +163,13 @@ public:
 	void initMap(MapDatabaseAccessor *holder);
 	/// resets the reference
 	void resetMap();
+
+	// Dimension name: "" for main world, or the registered dim name for dims.
+	// Set by DimensionManager after creation. Used to route on_generated callbacks.
+	std::string m_dim_name;
+
+	// Set the map override on all threads (used by DimensionManager)
+	void setMapOverride(ServerMap *map);
 
 	void startThreads();
 	void stopThreads();

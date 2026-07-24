@@ -66,6 +66,8 @@ mobs:spawn({
 	active_object_count = 7,
 	min_height = 0,
 	max_height = 50,
+	min_heat = 60, max_heat = 100,
+	min_humidity = 10, max_humidity = 60,
 	})
 end
 

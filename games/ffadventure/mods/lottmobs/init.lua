@@ -24,6 +24,7 @@ dofile(minetest.get_modpath("lottmobs").."/dwarves.lua")
 dofile(minetest.get_modpath("lottmobs").."/trader_goods.lua")
 dofile(minetest.get_modpath("lottmobs").."/trader.lua")
 dofile(minetest.get_modpath("lottmobs").."/special_mobs.lua")
+dofile(minetest.get_modpath("lottmobs").."/pigman_traders.lua")
 
 -- Mobs
 
@@ -66,6 +67,10 @@ mobs:register_mob("lottmobs:nune_guard", {
 		max = 1,},
 		{name = "spears:spear_steel",
 		chance = 10,
+		min = 1,
+		max = 1,},
+		{name = "spears:real_spear_steel",
+		chance = 12,
 		min = 1,
 		max = 1,},
 		{name = ":3d_armor:helmet_bronze",
@@ -223,6 +228,8 @@ mobs:register_mob("lottmobs:mung_guard", {
 		{name = "default:flint", chance = 20, min = 1, max = 3,},
 		{name = "spears:spear_wood", chance = 25, min = 1, max = 1,},
 		{name = "spears:spear_stone", chance = 30, min = 1, max = 1,},
+		{name = "spears:real_spear_wood", chance = 20, min = 1, max = 1,},
+		{name = "spears:real_spear_stone", chance = 28, min = 1, max = 1,},
 		{name = "default:bone", chance = 35, min = 1, max = 2,},
 	},
 	light_resistant = true,

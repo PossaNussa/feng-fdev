@@ -1,0 +1,52 @@
+HOW_TO_WIRE_V8 (surgical, minimal edits; do NOT replace core headers)
+
+1) Restore any modified core files you replaced earlier:
+   - src/mapgen/mapgen.h
+   - src/mapgen/mapgen.cpp
+   - src/defaultsettings.cpp
+   - builtin/settingtypes.txt
+   Use your repo’s originals so other mapgens (v7, flat, valleys, carpathian) keep working.
+
+2) Add v8 source files:
+   Copy:
+     - src/mapgen/mapgen_v8.h
+     - src/mapgen/mapgen_v8.cpp
+   from this kit into your tree.
+
+3) Register MAPGEN_V8 (tiny edits):
+
+   A) In src/mapgen/mapgen.h
+      - Find the enum MapgenType. Add a new constant without removing anything else:
+            MAPGEN_V8,
+        Place it near V7 (order doesn't matter as long as es_Mapgen matches).
+
+   B) In src/mapgen/mapgen.cpp
+      - In the es_Mapgen[] table, add:
+            { MAPGEN_V8, "v8" },
+      - In MapgenFactory::createMapgen(...) switch, add:
+            case MAPGEN_V8: return new MapgenV8(static_cast<MapgenV8Params*>(params), emerge);
+      - In MapgenParams::create(...) switch, add:
+            case MAPGEN_V8: return new MapgenV8Params();
+
+   C) Ensure the v8 header is included at the top of mapgen.cpp:
+         #include "mapgen_v8.h"
+
+4) Default to v8 (optional):
+   - In src/defaultsettings.cpp, change the default:
+         settings->setDefault("mg_name", "v8");
+     Keep all other defaults as-is.
+
+   - In builtin/settingtypes.txt, ensure “v8” appears in the mg_name enum list.
+     Optionally append a small “Mapgen v8” block; not required for compiling.
+
+5) Build notes:
+   - If you see “modification time in the future”, run:
+       find src -type f -exec touch {} +
+     or clean and reconfigure:
+       git clean -xfd && cmake -B build -S . && cmake --build build -j
+
+6) Run:
+   - Set mg_name = v8 in your config or select v8 in the UI.
+   - Create a fresh world for testing.
+
+This kit avoids touching shared engine headers so other mapgens keep compiling.

@@ -18,6 +18,7 @@ IMPORT("S", "FS", "translate", "ItemStack", "toupper", "utf8_len")
 IMPORT("true_str", "true_table", "is_fav", "is_num", "str_to_pos")
 IMPORT("maxn", "sort", "concat", "copy", "insert", "remove", "unpack")
 IMPORT("extract_groups", "groups_to_items", "is_group", "item_has_groups", "get_group")
+IMPORT("near_workbench")
 
 local function fmt(elem, ...)
 	if not fs_elements[elem] then
@@ -412,6 +413,16 @@ local function get_container(fs, data, player, yoffset, ctn_len, award_list, awa
 	fs("list[detached:i3_trash;main;%f,%f;1,1;]", 4.45, yoffset + 3.75)
 	image(4.45, yoffset + 3.75, 1, 1, PNG.trash)
 
+	-- Cycle buttons: shown when the current craft grid matches multiple recipes.
+	if recipe_cycle then
+		local rc_st = recipe_cycle.get_state(player)
+		if rc_st and #rc_st.alts > 1 then
+			button(2.05, yoffset + 2.55, 0.4, 0.4, "craft_cycle_prev", "<")
+			fs("label[%f,%f;%s]", 2.52, yoffset + 2.74, rc_st.idx .. "/" .. #rc_st.alts)
+			button(2.9, yoffset + 2.55, 0.4, 0.4, "craft_cycle_next", ">")
+		end
+	end
+
 	local yextra = damage_enabled and 5.5 or 5
 
 	for i, title in ipairs(i3.categories) do
@@ -443,6 +454,7 @@ local function get_container(fs, data, player, yoffset, ctn_len, award_list, awa
 		local armor_def = armor.def[data.player_name]
 		local _, armor_inv = armor:get_valid_player(player, "3d_armor")
 
+		-- Row 1: Head, Chest, Legs, Boots, Shield (slots 1-5)
 		fs("list[detached:%s_armor;armor;0,%f;5,1;]", esc_name, yextra + 0.7)
 
 		for i = 1, 5 do
@@ -458,21 +470,44 @@ local function get_container(fs, data, player, yoffset, ctn_len, award_list, awa
 			end
 		end
 
+		-- Row 2: Gloves (armor slot 6) and Quiver (player inv)
+		local row2_y = yextra + 1.9
+
+		-- Gloves slot (armor inventory slot 6, starting_item_index=5)
+		fs("list[detached:%s_armor;armor;0,%f;1,1;5]", esc_name, row2_y)
+		local gloves_stack = armor_inv:get_stack("armor", 6)
+		if gloves_stack:is_empty() then
+			image(0, row2_y, 1, 1, "i3_armor_5.png^[opacity:80")
+			tooltip(0, row2_y, 1, 1, FS("Gloves"))
+		end
+
+		-- Quiver slot (player inventory x_bows:quiver_inv)
+		local player_inv = player:get_inventory()
+		if player_inv then
+			fs("list[current_player;x_bows:quiver_inv;%f,%f;1,1;]", 1.15, row2_y)
+			local quiver_stack = player_inv:get_stack("x_bows:quiver_inv", 1)
+			if quiver_stack:is_empty() then
+				image(1.15, row2_y, 1, 1, "x_bows_quiver.png^[opacity:80")
+				tooltip(1.15, row2_y, 1, 1, FS("Quiver"))
+			end
+		end
+
 		local box_len, max_level, max_heal = 4, 85, 60
 		local bar_lvl = (armor_def.level * box_len) / max_level
 		local bar_heal = (armor_def.heal * box_len) / max_heal
 
 		fs"style_type[label;font_size=15]"
 
-		box(0.8, yextra + 1.95, box_len, 0.4, "#101010")
+		local bars_y = row2_y + 1.25
+		box(0.8, bars_y, box_len, 0.4, "#101010")
 		fs"style_type[box;colors=#9dc34c80,#9dc34c,#9dc34c,#9dc34c80]"
-		box(0.8, yextra + 1.95, bar_lvl, 0.4, "")
-		label(1.1, yextra + 2.15, FS("Armor level"))
+		box(0.8, bars_y, bar_lvl, 0.4, "")
+		label(1.1, bars_y + 0.2, FS("Armor level"))
 
-		box(0.8, yextra + 2.55, box_len, 0.4, "#101010")
+		box(0.8, bars_y + 0.6, box_len, 0.4, "#101010")
 		fs"style_type[box;colors=#4466aa80,#4466aa,#4466aa,#4466aa80]"
-		box(0.8, yextra + 2.55, bar_heal, 0.4, "")
-		label(1.1, yextra + 2.75, FS("Armor healing"))
+		box(0.8, bars_y + 0.6, bar_heal, 0.4, "")
+		label(1.1, bars_y + 0.8, FS("Armor healing"))
 
 		fs"style_type[label;font_size=16]"
 
@@ -1324,7 +1359,7 @@ local function get_rcp_extra(fs, data, player, panel, is_recipe, is_usage)
 			data.scrbar_usg = 1
 		end
 
-		if max_stacks_rcp > 0 or max_stacks_usg > 0 then
+		if (max_stacks_rcp > 0 or max_stacks_usg > 0) and near_workbench(player) then
 			get_crafting_fs(fs, data, is_recipe, is_usage, max_stacks_rcp, max_stacks_usg)
 
 		elseif rcp_ok or usg_ok then

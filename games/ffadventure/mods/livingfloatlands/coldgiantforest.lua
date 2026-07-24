@@ -17,9 +17,9 @@ minetest.register_biome({
 		node_dungeon_alt = "default:mossycobble",
 		node_dungeon_stair = "stairs:stair_cobble",
     y_max = 31000,
-    y_min = 1000,
-    heat_point = 47,
-    humidity_point = 66,
+    y_min = 1,
+    heat_point = 46,
+    humidity_point = 57,
 })
 
 -- New giantforest paleo redwood tree

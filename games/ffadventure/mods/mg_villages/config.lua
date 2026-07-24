@@ -6,7 +6,7 @@ mg_villages.ENABLE_VILLAGES = true;
 
 -- generate one random building for each mg_villages.INVERSE_HOUSE_DENSITY th mapchunk;
 -- set to 0 in order to disable spawning of these lone buildings outside villages
-mg_villages.INVERSE_HOUSE_DENSITY = 4;
+mg_villages.INVERSE_HOUSE_DENSITY = 94;
 
 -- cover some villages with artificial snow; probability: 1/mg_villages.artificial_snow_probability
 mg_villages.artificial_snow_probability = 10;
@@ -35,7 +35,7 @@ mg_villages.FIRST_VILLAGE_TYPE = 'medieval';
 -- the mapgen will disregard mapchunks where min.y > mg_villages.MAX_HEIGHT_TREATED;
 -- you can set this value to 64 if you have a slow machine and a mapgen which does not create extreme mountains
 -- (or if you don't care if extreme mountains may create burried villages occasionally)
-mg_villages.MAX_HEIGHT_TREATED = 200;
+mg_villages.MAX_HEIGHT_TREATED = 250;
 
 -- choose the debug level you want
 mg_villages.DEBUG_LEVEL = mg_villages.DEBUG_LEVEL_NORMAL
@@ -114,54 +114,56 @@ end
 -- set according to your liking
 -----------------------------------------------------------------------------
 -- how much does the player have to pay for a plot with a building?
+-- Uses gold coins (simplecoins:coins) - medieval fantasy pricing
+-- Land ownership was a BIG deal in medieval times
 mg_villages.prices = {
-	empty          = "default:copper_ingot 1", -- plot to build on 
+	empty          = "simplecoins:coins 800", -- plot to build on
 
 	-- building types which usually have inhabitants (and thus allow the player
 	-- who bought the building to modifiy the entire village area minus other
 	-- buildings)
-	tent           = "default:copper_ingot 1",
-	hut            = "default:copper_ingot 1",
-	farm_full      = "default:gold_ingot 4",
-	farm_tiny      = "default:gold_ingot 2",
-	lumberjack     = "default:gold_ingot 2",
-	house          = "default:gold_ingot 2",
-	house_large    = "default:gold_ingot 4",
-	tavern         = "default:gold_ingot 12",
-	trader         = "default:gold_ingot 2",
+	tent           = "simplecoins:coins 200",
+	hut            = "simplecoins:coins 600",
+	farm_full      = "simplecoins:coins 3500",
+	farm_tiny      = "simplecoins:coins 1800",
+	lumberjack     = "simplecoins:coins 2200",
+	house          = "simplecoins:coins 2500",
+	house_large    = "simplecoins:coins 4500",
+	tavern         = "simplecoins:coins 8000",
+	trader         = "simplecoins:coins 3000",
 
 	-- more or less community buildings
-	well           = "default:gold_ingot 1",
-	village_square = "default:goldblock 1",
-	secular        = "default:goldblock 2", -- secular buildings, such as libraries ec.
-	church         = "default:goldblock 10",
+	well           = "simplecoins:coins 1200",
+	village_square = "simplecoins:coins 25000",
+	secular        = "simplecoins:coins 12000", -- secular buildings, such as libraries etc.
+	church         = "simplecoins:coins 35000",
 
 	-- places for mobs to work at; usually without inhabitants
-	tower          = "default:copper_ingot 1",
-	shed           = "default:copper_ingot 2",
-	pit            = "default:copper_ingot 3", -- claytrader pit
-	mill           = "default:gold_ingot 10",
-	forge          = "default:gold_ingot 10",
-	bakery         = "default:gold_ingot 10",
-	shop           = "default:gold_ingot 20",
-	sawmill        = "default:gold_ingot 30",
+	tower          = "simplecoins:coins 5000",
+	shed           = "simplecoins:coins 900",
+	pit            = "simplecoins:coins 1100", -- claytrader pit
+	mill           = "simplecoins:coins 7000",
+	forge          = "simplecoins:coins 6500",
+	bakery         = "simplecoins:coins 5500",
+	shop           = "simplecoins:coins 9000",
+	sawmill        = "simplecoins:coins 8500",
 
 	-- decoration
-	wagon          = "default:tree 10",
-	bench          = "default:tree 4",
+	wagon          = "simplecoins:coins 150",
+	bench          = "simplecoins:coins 80",
 
 	-- seperate fields
-	pasture        = "default:copper_ingot 2",
-	field          = "default:copper_ingot 2",
+	pasture        = "simplecoins:coins 1500",
+	field          = "simplecoins:coins 1400",
 
-	-- chateaus are expensive
-	chateau        = "default:diamondblock 5",
+	-- chateaus are expensive - noble estates
+	chateau        = "simplecoins:coins 75000",
 
-	-- one mese crystal per square meter in the spawn town :-)
-	empty6x12      = "default:mese_crystal 72",
-	empty8x8       = "default:mese_crystal 64",
-	-- a large plot costs mese blocks
-	empty16x16     = "default:mese 56",
+	-- larger plots cost more
+	empty6x12      = "simplecoins:coins 2800",
+	empty8x8       = "simplecoins:coins 2500",
+	-- a large plot costs even more
+	empty16x16     = "simplecoins:coins 6000",
 	-- this is just enough space to grow a tree
         empty5x5       = "default:mese_crystal 12",
 	-- nobody is supposed to buy the spawn building...except for the admin
@@ -185,10 +187,10 @@ mg_villages.VILLAGE_CHECK_COUNT = 1
 --mg_villages.VILLAGE_CHANCE = 28
 --mg_villages.VILLAGE_MIN_SIZE = 20
 --mg_villages.VILLAGE_MAX_SIZE = 40
-mg_villages.VILLAGE_CHANCE = 28
+mg_villages.VILLAGE_CHANCE = 94
 -- min and max size are only used in case of them beeing not provided by the village type (see buildings.lua)
-mg_villages.VILLAGE_MIN_SIZE = 25
-mg_villages.VILLAGE_MAX_SIZE = 90 --55
+mg_villages.VILLAGE_MIN_SIZE = 15
+mg_villages.VILLAGE_MAX_SIZE = 95 --55
 mg_villages.FIRST_ROADSIZE = 3
 mg_villages.BIG_ROAD_CHANCE = 0
 

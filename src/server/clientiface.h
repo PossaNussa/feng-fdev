@@ -254,6 +254,10 @@ public:
 	void SetBlockNotSent(v3s16 p, bool low_priority = false);
 	void SetBlocksNotSent(const std::vector<v3s16> &blocks, bool low_priority = false);
 
+	// Clear all sent-block tracking (used when switching dimensions so the
+	// client re-requests all blocks from the new dimension's map).
+	void clearSentBlocks();
+
 	/**
 	 * tell client about this block being modified right now.
 	 * this information is required to requeue the block in case it's "on wire"

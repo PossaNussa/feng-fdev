@@ -230,7 +230,11 @@ function beds.on_rightclick(pos, player)
 	-- move to bed
 	if not beds.player[name] then
 		lay_down(player, ppos, pos)
-		beds.set_spawns() -- save respawn positions when entering bed
+		-- only set spawn for beds that aren't no_spawn (sleeping bags, hammocks)
+		local node = minetest.get_node(pos)
+		if minetest.get_item_group(node.name, "bed_no_spawn") == 0 then
+			beds.set_spawns()
+		end
 	else
 		lay_down(player, nil, nil, false)
 	end

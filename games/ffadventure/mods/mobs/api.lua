@@ -66,6 +66,7 @@ local mobs_griefing = settings:get_bool("mobs_griefing") ~= false
 local spawn_protected = settings:get_bool("mobs_spawn_protected") ~= false
 local spawn_monster_protected = settings:get_bool("mobs_spawn_monster_protected") ~= false
 local remove_far = settings:get_bool("remove_far_mobs") ~= false
+local mobs_all_persistent = settings:get_bool("mobs_all_persistent") ~= false
 local mob_area_spawn = settings:get_bool("mob_area_spawn")
 local difficulty = tonumber(settings:get("mob_difficulty")) or 1.0
 local max_per_block = tonumber(settings:get("max_objects_per_block") or 99)
@@ -127,6 +128,9 @@ local creatura = minetest.get_modpath("creatura") and
 
 mobs.mob_class = {
 	fly_in = "air",
+	swimmer = false,
+	at_shore = false,
+	smart_path = false,
 	owner = "",
 	order = "",
 	jump_height = 4,
@@ -258,8 +262,8 @@ function mob_class:collision()
 
 	local pos = self.object:get_pos() ; if not pos then return {0, 0} end
 	local x, z = 0, 0
-	local prop = self.object:get_properties()
-	local width = -prop.collisionbox[1] + prop.collisionbox[4] + 0.5
+	local cb = self.base_colbox
+	local width = -cb[1] + cb[4] + 0.5
 
 	for _,object in pairs(minetest.get_objects_inside_radius(pos, width)) do
 
@@ -295,11 +299,11 @@ local function check_for(look_for, look_inside)
 				return true
 			end
 
-			if str and str:find("group:") then
+			if str then
 
-				local group = str:split(":")[2] or ""
+				local group = str:match("^group:(.+)")
 
-				if minetest.get_item_group(look_for, group) ~= 0 then
+				if group and minetest.get_item_group(look_for, group) ~= 0 then
 					return true
 				end
 			end
@@ -559,7 +563,8 @@ end
 
 function mob_class:attempt_flight_correction(override)
 
-	if self:flight_check() and override ~= true then return true end
+	local in_medium = self:flight_check()
+	if in_medium and override ~= true then return true end
 
 	-- We are not flying in what we are supposed to.
 	-- See if we can find intended flight medium and return to it
@@ -570,9 +575,12 @@ function mob_class:attempt_flight_correction(override)
 		searchnodes = {self.fly_in}
 	end
 
+	-- beached swimmers search a much wider area; in-medium adjustments use narrow radius
+	local r = (self.swimmer and not in_medium) and 8 or 1
+
 	local flyable_nodes = minetest.find_nodes_in_area(
-		{x = pos.x - 1, y = pos.y - 1, z = pos.z - 1},
-		{x = pos.x + 1, y = pos.y + 2, z = pos.z + 1}, searchnodes)
+		{x = pos.x - r, y = pos.y - 1, z = pos.z - r},
+		{x = pos.x + r, y = pos.y + 2, z = pos.z + r}, searchnodes)
 
 	if #flyable_nodes < 1 then
 		return false
@@ -581,7 +589,9 @@ function mob_class:attempt_flight_correction(override)
 	local escape_target = flyable_nodes[random(#flyable_nodes)]
 	local escape_direction = vdirection(pos, escape_target)
 
-	self.object:set_velocity(vmultiply(escape_direction, 1))
+	-- swimmers move at walk velocity toward water; air-fliers use speed 1
+	local spd = self.swimmer and self.walk_velocity or 1
+	self.object:set_velocity(vmultiply(escape_direction, spd))
 
 	return true
 end
@@ -599,7 +609,12 @@ function mob_class:flight_check()
 		return true
 	end
 
-	-- stops mobs getting stuck inside stairs and plantlike nodes
+	-- swimmer mobs are only valid in their liquid medium; solid ground is always wrong
+	if self.swimmer then
+		return false
+	end
+
+	-- stops flying mobs getting stuck inside stairs and plantlike nodes
 	if def.drawtype ~= "airlike"
 	and def.drawtype ~= "liquid"
 	and def.drawtype ~= "flowingliquid" then
@@ -1059,11 +1074,12 @@ function mob_class:is_at_cliff()
 
 	if not yaw then return false end
 
-	local prop = self.object:get_properties()
-	local dir_x = -sin(yaw) * (prop.collisionbox[4] + 0.5)
-	local dir_z = cos(yaw) * (prop.collisionbox[4] + 0.5)
+	local cb = self.base_colbox
+	local child_scale = self.child and 0.5 or 1.0
+	local dir_x = -sin(yaw) * (cb[4] * child_scale + 0.5)
+	local dir_z = cos(yaw) * (cb[4] * child_scale + 0.5)
 	local pos = self.object:get_pos()
-	local ypos = pos.y + prop.collisionbox[2] -- just above floor
+	local ypos = pos.y + cb[2] * child_scale -- just above floor
 
 	local free_fall, blocker = minetest.line_of_sight(
 		{x = pos.x + dir_x, y = ypos, z = pos.z + dir_z},
@@ -1104,8 +1120,7 @@ function mob_class:do_env_damage()
 		return true
 	end
 
-	local prop = self.object:get_properties()
-	local py = {x = pos.x, y = pos.y + prop.collisionbox[5], z = pos.z}
+	local py = {x = pos.x, y = pos.y + self.base_colbox[5], z = pos.z}
 	local nodef = minetest.registered_nodes[self.standing_in]
 
 	-- water
@@ -1227,6 +1242,70 @@ end
 
 
 -- jump if facing a solid node (not fences or gates)
+-- smart pathing: scan candidate directions to avoid walls and ledges.
+-- Returns a new yaw to walk in, or nil if no redirect is needed.
+function mob_class:do_smart_path(yaw)
+
+	local pos = self.object:get_pos()
+	if not pos then return nil end
+
+	local cb  = self.base_colbox
+	local child_scale = self.child and 0.5 or 1.0
+	local look_dist   = cb[4] * child_scale + 0.9
+	local floor_y     = pos.y + cb[2] * (self.child and 0.25 or 1.0)
+
+	-- Is the node ahead a solid wall that can't be jumped?
+	local wall_ahead = minetest.registered_nodes[self.looking_at]
+		and minetest.registered_nodes[self.looking_at].walkable == true
+	local jump_clears = wall_ahead
+		and minetest.registered_nodes[self.looking_above]
+		and minetest.registered_nodes[self.looking_above].walkable == false
+
+	-- Is the ground dropping away ahead (ledge)?
+	local ledge_ahead = false
+	if not wall_ahead then
+		local front_x = pos.x + (-sin(yaw) * look_dist)
+		local front_z = pos.z + ( cos(yaw) * look_dist)
+		local n = minetest.get_node_or_nil({x = front_x, y = floor_y - 1, z = front_z})
+		if n then
+			local def = minetest.registered_nodes[n.name]
+			ledge_ahead = not (def and def.walkable == true)
+		end
+	end
+
+	-- Nothing blocking — no redirect needed
+	if not (wall_ahead and not jump_clears) and not ledge_ahead then
+		return nil
+	end
+
+	-- Scan candidate directions: left/right 90°, 45°, 135°, then behind
+	local offsets = {pi/2, -pi/2, pi*3/4, -pi*3/4, pi/4, -pi/4, pi}
+
+	for _, offset in ipairs(offsets) do
+		local cy = yaw + offset
+		local cx = pos.x + (-sin(cy) * look_dist)
+		local cz = pos.z + ( cos(cy) * look_dist)
+
+		local na = minetest.get_node_or_nil({x = cx, y = floor_y + 0.5, z = cz})
+		if na then
+			local def_a = minetest.registered_nodes[na.name]
+			if def_a and def_a.walkable ~= true then
+				local nf = minetest.get_node_or_nil({x = cx, y = floor_y - 1, z = cz})
+				if nf then
+					local def_f = minetest.registered_nodes[nf.name]
+					if def_f and def_f.walkable == true then
+						return cy
+					end
+				end
+			end
+		end
+	end
+
+	-- Nowhere safe found; reverse as last resort
+	return yaw + pi
+end
+
+
 function mob_class:do_jump()
 
 	local vel = self.object:get_velocity() ; if not vel then return false end
@@ -1294,9 +1373,13 @@ function mob_class:do_jump()
 		if self.jump_count > 2 then
 
 			local yaw = self.object:get_yaw() or 0
-			local turn = random(0, 2) + 1.35
 
-			self:set_yaw(yaw + turn, 12)
+			if self.smart_path then
+				local new_yaw = self:do_smart_path(yaw)
+				self:set_yaw(new_yaw or (yaw + random(0, 2) + 1.35), 12)
+			else
+				self:set_yaw(yaw + random(0, 2) + 1.35, 12)
+			end
 
 			self.jump_count = 0
 		end
@@ -1390,9 +1473,7 @@ function mob_class:breed()
 				self.on_grown(self)
 			else
 				local pos = self.object:get_pos() ; if not pos then return end
-				local prop = self.object:get_properties()
-
-				pos.y = pos.y + (prop.collisionbox[2] * -1) + 0.1
+				pos.y = pos.y + (self.base_colbox[2] * -1) + 0.1
 
 				self.object:set_pos(pos)
 
@@ -1424,9 +1505,7 @@ function mob_class:breed()
 	and self.hornytimer <= HORNY_TIME then
 
 		local pos = self.object:get_pos()
-		local prop = self.object:get_properties().collisionbox
-
-		effect({x = pos.x, y = pos.y + prop[5], z = pos.z},
+			effect({x = pos.x, y = pos.y + self.base_colbox[5], z = pos.z},
 				8, "heart.png", 3, 4, 1, 0.1, 1, true)
 
 		local objs = minetest.get_objects_inside_radius(pos, 3)
@@ -2186,7 +2265,19 @@ function mob_class:follow_flop()
 				end
 			end
 
-			self.object:set_velocity({x = 0, y = -5, z = 0})
+			-- swimmer beached with no water in range: drift in current direction
+			-- (may eventually reach water or a lower elevation that has it)
+			if self.swimmer then
+				local yaw = self.object:get_yaw() or 0
+				local spd = self.walk_velocity * 0.5
+				self.object:set_velocity({
+					x = -sin(yaw) * spd,
+					y = -2,
+					z =  cos(yaw) * spd,
+				})
+			else
+				self.object:set_velocity({x = 0, y = -5, z = 0})
+			end
 
 			self:set_animation("stand")
 
@@ -2327,9 +2418,23 @@ function mob_class:do_states(dtime)
 		end
 
 		-- stand for great fall in front
-		if self.facing_fence == true
-		or self.at_cliff
-		or random(100) <= self.stand_chance then
+		local should_stand = self.facing_fence == true
+			or self.at_cliff
+			or self.at_shore
+			or random(100) <= self.stand_chance
+
+		-- smart_path: redirect around walls and cliffs instead of stopping
+		if should_stand and self.smart_path
+		and (self.facing_fence or self.at_cliff) and not self.at_shore then
+			local new_yaw = self:do_smart_path(yaw)
+			if new_yaw then
+				yaw = new_yaw
+				self:set_yaw(yaw, 6)
+				should_stand = false
+			end
+		end
+
+		if should_stand then
 
 			-- don't stand if mob flies and keep_flying set
 			if (self.fly and not self.keep_flying) or not self.fly then
@@ -2675,9 +2780,7 @@ function mob_class:do_states(dtime)
 				self:mob_sound(self.sounds.shoot_attack)
 
 				local p = self.object:get_pos()
-				local prop = self.object:get_properties()
-
-				p.y = p.y + (prop.collisionbox[2] + prop.collisionbox[5]) / 2
+				p.y = p.y + (self.base_colbox[2] + self.base_colbox[5]) / 2
 
 				if minetest.registered_entities[self.arrow] then
 
@@ -2739,7 +2842,7 @@ function mob_class:falling(pos)
 		if self.fall_damage == 1
 		and self.object:get_velocity().y == 0 then
 
-			local d = (self.old_y or 0) - self.object:get_pos().y
+			local d = (self.old_y or 0) - pos.y
 
 			if d > 5 then
 
@@ -2752,7 +2855,7 @@ function mob_class:falling(pos)
 				end
 			end
 
-			self.old_y = self.object:get_pos().y
+			self.old_y = pos.y
 		end
 	end
 
@@ -2908,8 +3011,6 @@ function mob_class:on_punch(hitter, tflp, tool_capabilities, dir, damage)
 
 		minetest.sound_play(snd, {object = self.object, max_hear_distance = 8}, true)
 
-		local prop = self.object:get_properties()
-
 		-- blood_particles
 		if not disable_blood and self.blood_amount > 0 then
 
@@ -2917,7 +3018,7 @@ function mob_class:on_punch(hitter, tflp, tool_capabilities, dir, damage)
 			local blood = self.blood_texture
 			local amount = self.blood_amount
 
-			pos.y = pos.y + (-prop.collisionbox[2] + prop.collisionbox[5]) * .5
+			pos.y = pos.y + (-self.base_colbox[2] + self.base_colbox[5]) * .5
 
 			-- lots of damage = more blood :)
 			if damage > 10 then
@@ -3282,6 +3383,19 @@ function mob_class:mob_activate(staticdata, def, dtime)
 	self.standing_in = "air"
 	self.standing_on = "air"
 
+	-- auto-detect swimmer: a mob that flies in a liquid medium (fish, water creatures, etc.)
+	self.swimmer = false
+	if self.fly and self.fly_in and self.fly_in ~= "air" then
+		local fly_nodes = type(self.fly_in) == "table" and self.fly_in or {self.fly_in}
+		for _, n in ipairs(fly_nodes) do
+			local nd = minetest.registered_nodes[n]
+			if nd and nd.groups and nd.groups.liquid then
+				self.swimmer = true
+				break
+			end
+		end
+	end
+
 	-- set anything changed above
 	self:set_yaw((random(0, 360) - 180) / 180 * pi, 6)
 	self:set_animation("stand")
@@ -3291,6 +3405,14 @@ function mob_class:mob_activate(staticdata, def, dtime)
 
 	-- set 5.x flag to remove monsters when map area unloaded
 	if remove_far and not self.tamed then
+		self.object:set_properties({static_save = true})
+	end
+
+	-- persistence: lifetimer > 20000 bypasses both removal paths —
+	-- mob_staticdata (unload removal) and mob_expire (timer expiry).
+	-- static_save ensures the entity is written to disk on chunk unload.
+	if mobs_all_persistent or (def and def.persistent) then
+		self.lifetimer = 20001
 		self.object:set_properties({static_save = true})
 	end
 
@@ -3355,10 +3477,11 @@ function mob_class:get_nodes()
 
 	local pos = self.object:get_pos()
 	local yaw = self.object:get_yaw()
-	local prop = self.object:get_properties()
+	local cb = self.base_colbox
 
-	-- child mobs have a lower y_level
-	local y_level = self.child and prop.collisionbox[2] * 0.5 or prop.collisionbox[2]
+	-- child mobs have a lower y_level (child actual colbox is 0.5x, so 0.5*0.5=0.25x base)
+	local child_scale = self.child and 0.5 or 1.0
+	local y_level = cb[2] * (self.child and 0.25 or 1.0)
 
 	self.standing_in = node_ok({
 		x = pos.x, y = pos.y + y_level + 0.25, z = pos.z}, "air").name
@@ -3367,8 +3490,8 @@ function mob_class:get_nodes()
 		x = pos.x, y = pos.y + y_level - 0.25, z = pos.z}, "air").name
 
 	-- find front position
-	local dir_x = -sin(yaw) * (prop.collisionbox[4] + 0.5)
-	local dir_z = cos(yaw) * (prop.collisionbox[4] + 0.5)
+	local dir_x = -sin(yaw) * (cb[4] * child_scale + 0.5)
+	local dir_z = cos(yaw) * (cb[4] * child_scale + 0.5)
 
 	-- nodes in front of mob and front/above
 	self.looking_at = node_ok({
@@ -3384,6 +3507,15 @@ function mob_class:get_nodes()
 		self.facing_fence = true
 	else
 		self.facing_fence = nil
+	end
+
+	-- swimmers: detect when looking at walkable land from within water (shore edge)
+	if self.swimmer then
+		local in_water = check_for(self.standing_in, self.fly_in)
+		local la_def = minetest.registered_nodes[self.looking_at]
+		self.at_shore = in_water and (la_def ~= nil) and (la_def.walkable == true)
+	else
+		self.at_shore = false
 	end
 --[[
 print("on: " .. self.standing_on
@@ -3424,6 +3556,11 @@ function mob_class:on_step(dtime, moveresult)
 		self.at_cliff = self:is_at_cliff()
 
 		if self.pause_timer <= 0 and self.at_cliff then
+			self:set_velocity(0)
+		end
+
+		-- swimmers: stop at shore edge so they don't beach themselves
+		if self.pause_timer <= 0 and self.at_shore then
 			self:set_velocity(0)
 		end
 
@@ -3684,6 +3821,8 @@ minetest.register_entity(":" .. name, setmetatable({
 	pushable = def.pushable,
 	stay_near = def.stay_near,
 	randomly_turn = def.randomly_turn ~= false,
+	persistent = def.persistent,
+	smart_path = def.smart_path,
 	ignore_invisibility = def.ignore_invisibility,
 	messages = def.messages,
 
@@ -3914,7 +4053,8 @@ end
 
 
 function mobs:spawn_specific(name, nodes, neighbors, min_light, max_light, interval,
-		chance, aoc, min_height, max_height, day_toggle, on_spawn, map_load)
+		chance, aoc, min_height, max_height, day_toggle, on_spawn, map_load, biomes,
+		min_heat, max_heat, min_humidity, max_humidity)
 
 	-- Do mobs spawn at all?
 	if not mobs_spawn or not mobs.spawning_mobs[name] then
@@ -3944,6 +4084,13 @@ function mobs:spawn_specific(name, nodes, neighbors, min_light, max_light, inter
 	end
 
 	mobs.spawning_mobs[name].aoc = aoc
+
+	-- pre-build biome lookup set so checks in spawn_action are O(1)
+	local biome_set = nil
+	if biomes and #biomes > 0 then
+		biome_set = {}
+		for _, b in ipairs(biomes) do biome_set[b] = true end
+	end
 
 	local spawn_action = function(
 			pos, node, active_object_count, active_object_count_wider)
@@ -4023,6 +4170,35 @@ function mobs:spawn_specific(name, nodes, neighbors, min_light, max_light, inter
 		if pos.y > max_height or pos.y < min_height then
 --print("--- height limits not met", name, pos.y)
 			return
+		end
+
+		-- biome filter: if a biomes list was supplied, only spawn in those biomes
+		if biome_set then
+			local bdata = minetest.get_biome_data(pos)
+			if not bdata or not biome_set[minetest.get_biome_name(bdata.biome)] then
+--print("--- biome not in list", name, bdata and minetest.get_biome_name(bdata.biome))
+				return
+			end
+		end
+
+		-- climate filter: heat and/or humidity ranges
+		if min_heat or max_heat then
+			local heat = minetest.get_heat(pos)
+			if not heat
+					or (min_heat and heat < min_heat)
+					or (max_heat and heat > max_heat) then
+--print("--- heat out of range", name, heat)
+				return
+			end
+		end
+		if min_humidity or max_humidity then
+			local humidity = minetest.get_humidity(pos)
+			if not humidity
+					or (min_humidity and humidity < min_humidity)
+					or (max_humidity and humidity > max_humidity) then
+--print("--- humidity out of range", name, humidity)
+				return
+			end
 		end
 
 		-- are light levels ok?
@@ -4155,7 +4331,10 @@ function mobs:spawn(def)
 		def.max_height or 31000,
 		def.day_toggle,
 		def.on_spawn,
-		def.on_map_load)
+		def.on_map_load,
+		def.biomes,
+		def.min_heat, def.max_heat,
+		def.min_humidity, def.max_humidity)
 end
 
 
@@ -4661,9 +4840,8 @@ function mobs:protect(self, clicker)
 	end
 
 	local pos = self.object:get_pos()
-	local prop = self.object:get_properties()
 
-	pos.y = pos.y + prop.collisionbox[5]
+	pos.y = pos.y + self.base_colbox[5]
 
 	effect(pos, 25, "mobs_protect_particle.png", 0.5, 4, 2, 15)
 
@@ -4760,7 +4938,6 @@ function mobs:feed_tame(self, clicker, feed_count, breed, tame)
 		mob_obj[name] = self
 		mob_sta[name] = item
 
-		local prop = self.object:get_properties()
 		local tag = self._nametag or ""
 		local esc = minetest.formspec_escape
 

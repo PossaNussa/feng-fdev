@@ -26,53 +26,41 @@
 #include <SMesh.h>
 #include <IMeshBuffer.h>
 #include <CMeshBuffer.h>
-// FlashEng: thread-local far-tint control for LOD shell
-static thread_local bool g_apply_far_tint = false;
-static thread_local video::SColorf g_far_tint = video::SColorf(1.f,1.f,1.f);
 
-static video::SColorf compute_far_tint(MeshMakeData *data, const NodeDefManager *ndef)
+// === FlashEng colored lighting (near + far) ============================
+static thread_local bool g_apply_colored_tint = false;
+static thread_local video::SColorf g_block_tint = video::SColorf(1.f, 1.f, 1.f);
+static video::SColorf compute_block_tint(MeshMakeData *data, const NodeDefManager *ndef)
 {
-    // Parameters
     const s32 R = core::clamp(g_settings->getS32("colored_lighting_max_distance"), 0, 8);
     const s32 samples_max = core::clamp(g_settings->getS32("colored_lighting_samples"), 0, 32);
     if (R <= 0 || samples_max == 0)
         return video::SColorf(1.f,1.f,1.f);
-
-    v3s16 center = data->m_blockpos * MAP_BLOCKSIZE + v3s16(MAP_BLOCKSIZE/2, MAP_BLOCKSIZE/2, MAP_BLOCKSIZE/2);
-    double wr = 0.0, wg = 0.0, wb = 0.0, wsum = 0.0;
-    s32 samples = 0;
-    for (s32 dz = -R; dz <= R; ++dz) {
-        for (s32 dy = -R; dy <= R; ++dy) {
-            for (s32 dx = -R; dx <= R; ++dx) {
-                if (samples >= samples_max) break;
-                v3s16 p = center + v3s16(dx,dy,dz);
-                MapNode n = data->m_vmanip.getNodeNoEx(p);
-		const ContentFeatures &cf = ndef->get(n);
-		if (cf.light_source == 0)
-                    continue;
-                // Weight by brightness and distance
-                float L = cf.light_source / 15.f;
-                float dist = sqrtf((float)(dx*dx + dy*dy + dz*dz));
-                float w = L / (1.f + dist);
-                // Convert to linear
-                float r = core::clamp((int)cf.light_colour.getRed(), 0, 255) / 255.f;
-                float g = core::clamp((int)cf.light_colour.getGreen(), 0, 255) / 255.f;
-                float b = core::clamp((int)cf.light_colour.getBlue(), 0, 255) / 255.f;
-                r = powf(r, 2.2f); g = powf(g, 2.2f); b = powf(b, 2.2f);
-                wr += w * r; wg += w * g; wb += w * b; wsum += w;
-                ++samples;
-            }
-        }
+    v3s16 center = data->m_blockpos * MAP_BLOCKSIZE
+                 + v3s16(MAP_BLOCKSIZE/2, MAP_BLOCKSIZE/2, MAP_BLOCKSIZE/2);
+    double wr=0.0, wg=0.0, wb=0.0, wsum=0.0; s32 samples=0;
+    for (s32 dz=-R; dz<=R; ++dz) for (s32 dy=-R; dy<=R; ++dy) for (s32 dx=-R; dx<=R; ++dx) {
+        if (samples >= samples_max) break;
+        v3s16 p = center + v3s16(dx,dy,dz);
+        MapNode n = data->m_vmanip.getNodeNoEx(p);
+        const ContentFeatures &cf = ndef->get(n);
+        if (cf.light_source == 0) continue;
+        const float L = cf.light_source / 15.f;
+        const float dist = std::sqrt((float)(dx*dx + dy*dy + dz*dz));
+        const float w = L / (1.f + dist);
+        float r = cf.light_colour.getRed()/255.f;
+        float g = cf.light_colour.getGreen()/255.f;
+        float b = cf.light_colour.getBlue()/255.f;
+        r = std::pow(r, 2.2f); g = std::pow(g, 2.2f); b = std::pow(b, 2.2f);
+        wr += w*r; wg += w*g; wb += w*b; wsum += w; ++samples;
     }
-    if (wsum <= 0.0)
-        return video::SColorf(1.f,1.f,1.f);
-    // Normalize and convert back to gamma space
-    float r = powf((float)(wr / wsum), 1.f/2.2f);
-    float g = powf((float)(wg / wsum), 1.f/2.2f);
-    float b = powf((float)(wb / wsum), 1.f/2.2f);
+    if (wsum <= 0.0) return video::SColorf(1.f,1.f,1.f);
+    float r = std::pow((float)(wr/wsum), 1.f/2.2f);
+    float g = std::pow((float)(wg/wsum), 1.f/2.2f);
+    float b = std::pow((float)(wb/wsum), 1.f/2.2f);
     return video::SColorf(r,g,b);
 }
-
+// =======================================================================
 
 /*
 	MeshMakeData
@@ -368,6 +356,8 @@ void final_color_blend(video::SColor *result,
 	b += emphase_blue_when_dark[core::clamp((s32) ((r + g + b) / 3 * 255),
 		0, 255) / 8] / 255.0f;
 
+	
+	if (g_apply_colored_tint) { r *= g_block_tint.r; g *= g_block_tint.g; b *= g_block_tint.b; }
 	result->setRed(core::clamp((s32) (r * 255.0f), 0, 255));
 	result->setGreen(core::clamp((s32) (g * 255.0f), 0, 255));
 	result->setBlue(core::clamp((s32) (b * 255.0f), 0, 255));
@@ -644,6 +634,10 @@ MapBlockMesh::MapBlockMesh(Client *client, MeshMakeData *data):
 	m_animation_force_timer(0), // force initial animation
 	m_last_crack(-1)
 {
+    const bool __tint_on = g_settings->getBool("enable_colored_lighting_tint");
+    struct __TintGuard { ~__TintGuard() { g_apply_colored_tint = false; } } __tguard;
+    if (__tint_on) { g_apply_colored_tint = true; g_block_tint = compute_block_tint(data, data->m_nodedef); }
+
 	ZoneScoped;
 
 	// Determine whether this mesh is far enough from the camera to use
@@ -669,18 +663,22 @@ MapBlockMesh::MapBlockMesh(Client *client, MeshMakeData *data):
 		v3f camera_pos = client->getCamera()->getPosition();
 		// compute squared distance in BS units
 		float dist_sq = camera_pos.getDistanceFromSQ(world_center);
+    // FlashEng: LOD boundary pegged to viewing_range
+    {
+        float viewing_range_nodes = g_settings->getFloat("viewing_range");
+        if (viewing_range_nodes > 0.0f) {
+            float vr = viewing_range_nodes * BS;
+            float vr_sq = vr * vr;
+            if (dist_sq >= vr_sq)
+                data->m_far_away = true;
+        }
+    }
+
 		float threshold = (lod_distance_nodes * BS);
 		float threshold_sq = threshold * threshold;
 		// set far_away flag
 		if (dist_sq >= threshold_sq)
 			data->m_far_away = true;
-	// FlashEng: enable far tint if configured
-	if (g_settings->getBool("enable_colored_lighting_tint")) {
-		g_apply_far_tint = data->m_far_away;
-		if (g_apply_far_tint)
-			g_far_tint = compute_far_tint(data, data->m_nodedef);
-	}
-
 	}
 
 	for (auto &m : m_mesh)

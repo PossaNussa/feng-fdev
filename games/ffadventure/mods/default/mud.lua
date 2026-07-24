@@ -33,6 +33,11 @@ minetest.register_abm({
     interval = 12.0, -- Run every 1 second
     chance = 1, -- Select every 1 in 1 nodes
     action = function(pos)
+        local bd = minetest.get_biome_data(pos)
+        if bd then
+            local bname = minetest.get_biome_name(bd.biome) or ""
+            if bname:find("desert") then return end
+        end
         minetest.set_node(pos, {name="default:mud"})
     end,
 })
@@ -64,14 +69,10 @@ minetest.register_craft({
 })
 local speed_multiplier = 1.5
 local original_speeds = {}
-local key_states = {}
-local tap_intervals = {}
-local fov_intervals = {}
 local speed_intervals = {}
-local double_tap_max_interval = 0.5
 local default_fov = 70
 local sprint_fov = default_fov + 30
-local fov_step = 1
+local pre_sprint_fov = {}
 local sprint_time_max = 38
 local cooldown_time_max = 19
 local sprint_times = {}
@@ -79,131 +80,237 @@ local cooldown_times = {}
 local idle_times = {}
 local speed_step = 0.1
 local max_speed = 1.5
-local bhop_timers = {}
+-- Sprint: track press/release pattern like Minecraft
+local sprint_awaiting_second_press = {}  -- true after W released, waiting for second press
+local sprint_prev_up = {}  -- previous frame's up state
+local sprint_await_time = {}  -- time remaining to accept second press
+-- Bhop
 local bhop_speed_bonus = 0.2
-local bhop_max_interval = 3
-local jump_timers = {} -- To track jump key presses
-local can_double_jump = {} -- Tracks if player can double jump
-local has_double_jumped = {} -- Tracks if double jump has been used
+local bhop_max_speed = 2.5
+local bhop_speeds = {}
+local prev_on_ground = {}
+-- Double jump (airborne-time threshold, no edge detection)
+local has_double_jumped = {}
+local airborne_time = {}
+local jump_released_in_air = {}
+
+-- Robust on-ground detection: check node below feet + velocity fallback.
+-- Avoids false positives at jump apex (where velocity.y ≈ 0 but no ground).
+local function is_on_ground(player)
+	local pos = player:get_pos()
+	local vel = player:get_velocity()
+	-- Check walkable node just below feet
+	local below = {x = math.floor(pos.x + 0.5), y = math.floor(pos.y - 0.1), z = math.floor(pos.z + 0.5)}
+	local node = minetest.get_node(below)
+	local ndef = minetest.registered_nodes[node.name]
+	if ndef and ndef.walkable and vel and math.abs(vel.y) < 0.5 then
+		return true
+	end
+	-- Velocity-only fallback for non-full-block surfaces (slabs, stairs, etc.)
+	-- Use a very tight threshold so jump apex doesn't falsely trigger
+	if vel and math.abs(vel.y) < 0.01 then
+		return true
+	end
+	return false
+end
 
 minetest.register_on_joinplayer(function(player)
-    player:set_fov(default_fov)
+	local name = player:get_player_name()
+	sprint_awaiting_second_press[name] = false
+	sprint_prev_up[name] = false
+	sprint_await_time[name] = 0
+	prev_on_ground[name] = true
+	bhop_speeds[name] = 0
+	has_double_jumped[name] = false
+	airborne_time[name] = 0
+	jump_released_in_air[name] = false
+end)
+
+minetest.register_on_leaveplayer(function(player)
+	local name = player:get_player_name()
+	speed_intervals[name] = nil
+	original_speeds[name] = nil
+	sprint_times[name] = nil
+	cooldown_times[name] = nil
+	idle_times[name] = nil
+	sprint_awaiting_second_press[name] = nil
+	sprint_prev_up[name] = nil
+	sprint_await_time[name] = nil
+	prev_on_ground[name] = nil
+	bhop_speeds[name] = nil
+	has_double_jumped[name] = nil
+	airborne_time[name] = nil
+	jump_released_in_air[name] = nil
+	pre_sprint_fov[name] = nil
 end)
 
 minetest.register_globalstep(function(dtime)
-    for _, player in ipairs(minetest.get_connected_players()) do
-        local player_name = player:get_player_name()
-        local control = player:get_player_control()
-        
-        idle_times[player_name] = idle_times[player_name] or 0
-        sprint_times[player_name] = sprint_times[player_name] or sprint_time_max
-        cooldown_times[player_name] = cooldown_times[player_name] or 0
-        speed_intervals[player_name] = speed_intervals[player_name] or 0
-        bhop_timers[player_name] = bhop_timers[player_name] or 0
-        tap_intervals[player_name] = tap_intervals[player_name] or {}
-        jump_timers[player_name] = jump_timers[player_name] or 0
-        can_double_jump[player_name] = can_double_jump[player_name] or true
-        has_double_jumped[player_name] = has_double_jumped[player_name] or false
+	for _, player in ipairs(minetest.get_connected_players()) do
+		local player_name = player:get_player_name()
+		local control = player:get_player_control()
 
-        -- Get the current time
-        local now = minetest.get_us_time() / 1000000.0
+		-- Initialize if needed
+		idle_times[player_name] = idle_times[player_name] or 0
+		sprint_times[player_name] = sprint_times[player_name] or sprint_time_max
+		cooldown_times[player_name] = cooldown_times[player_name] or 0
+		speed_intervals[player_name] = speed_intervals[player_name] or 0
+		if sprint_awaiting_second_press[player_name] == nil then sprint_awaiting_second_press[player_name] = false end
+		if sprint_prev_up[player_name] == nil then sprint_prev_up[player_name] = false end
+		sprint_await_time[player_name] = sprint_await_time[player_name] or 0
+		has_double_jumped[player_name] = has_double_jumped[player_name] or false
+		airborne_time[player_name] = airborne_time[player_name] or 0
+		if jump_released_in_air[player_name] == nil then jump_released_in_air[player_name] = false end
+		if prev_on_ground[player_name] == nil then prev_on_ground[player_name] = true end
+		bhop_speeds[player_name] = bhop_speeds[player_name] or 0
 
-        -- Handle movement (sprint, bhop, etc.)
-        if control.up then
-            if not key_states[player_name] then
-                key_states[player_name] = true
+		local on_ground = is_on_ground(player)
+		local just_left_ground = prev_on_ground[player_name] and not on_ground
 
-                if tap_intervals[player_name].up and now - tap_intervals[player_name].up < double_tap_max_interval then
-                    if not original_speeds[player_name] and cooldown_times[player_name] <= 0 then
-                        original_speeds[player_name] = player:get_physics_override().speed or 1
-                        speed_intervals[player_name] = speed_step
-                        fov_intervals[player_name] = fov_step
-                        sprint_times[player_name] = sprint_time_max
-                    end
-                end
+		-- Edge detection for forward key
+		local up_just_pressed = control.up and not sprint_prev_up[player_name]
+		local up_just_released = not control.up and sprint_prev_up[player_name]
 
-                tap_intervals[player_name].up = now
-            end
+		-- === SPRINT (Minecraft-style: tap W, release, tap W again) ===
+		-- Uses a countdown timer instead of idle_time comparison for the
+		-- grace window, so a lag spike that skips the release frame still
+		-- works as long as the second press arrives within the window.
+		if up_just_released and not sprint_awaiting_second_press[player_name] then
+			sprint_awaiting_second_press[player_name] = true
+			sprint_await_time[player_name] = 0.4  -- 400ms grace window
+		end
 
-            idle_times[player_name] = 0
-        else
-            key_states[player_name] = false
-            idle_times[player_name] = idle_times[player_name] + dtime
+		-- Tick down the sprint double-tap window
+		if sprint_awaiting_second_press[player_name] then
+			sprint_await_time[player_name] = sprint_await_time[player_name] - dtime
+			if sprint_await_time[player_name] <= 0 then
+				sprint_awaiting_second_press[player_name] = false
+			end
+		end
 
-            if idle_times[player_name] >= cooldown_time_max and cooldown_times[player_name] <= 0 then
-                sprint_times[player_name] = sprint_time_max
-            end
+		if up_just_pressed then
+			if sprint_awaiting_second_press[player_name] then
+				-- Second press detected — START SPRINT
+				if not original_speeds[player_name] and cooldown_times[player_name] <= 0 then
+					original_speeds[player_name] = player:get_physics_override().speed or 1
+					speed_intervals[player_name] = speed_step
+					local cur = player:get_fov()
+					pre_sprint_fov[player_name] = (cur ~= 0) and cur or default_fov
+					player:set_fov(sprint_fov, false, 0.5)
+					sprint_times[player_name] = sprint_time_max
+				end
+			end
+			sprint_awaiting_second_press[player_name] = false
+		end
 
-            if original_speeds[player_name] then
-                player:set_physics_override({speed = original_speeds[player_name]})
-                original_speeds[player_name] = nil
-                speed_intervals[player_name] = -speed_step
-                fov_intervals[player_name] = -fov_step
-            end
-        end
+		if control.up then
+			idle_times[player_name] = 0
+		else
+			idle_times[player_name] = idle_times[player_name] + dtime
 
-        -- Handle jumping logic
-        if control.jump then
-            -- Double-tap jump detection
-            if now - jump_timers[player_name] < double_tap_max_interval and can_double_jump[player_name] and not has_double_jumped[player_name] then
-                -- Trigger double jump
-                player:add_velocity({x = 0, y = 6, z = 0}) -- Add upward velocity for the double jump
-                has_double_jumped[player_name] = true -- Mark the double jump as used
-            elseif not has_double_jumped[player_name] then
-                -- Regular jump
-                jump_timers[player_name] = now
-            end
-        end
+			if idle_times[player_name] >= cooldown_time_max and cooldown_times[player_name] <= 0 then
+				sprint_times[player_name] = sprint_time_max
+			end
 
-        -- Reset double jump if player is on the ground
-        if player:get_velocity().y == 0 then
-            has_double_jumped[player_name] = false -- Reset the double-jump flag when player lands
-            can_double_jump[player_name] = true
-        end
+			if original_speeds[player_name] then
+				player:set_physics_override({speed = original_speeds[player_name]})
+				original_speeds[player_name] = nil
+				speed_intervals[player_name] = -speed_step
+				player:set_fov(pre_sprint_fov[player_name] or default_fov, false, 0.5)
+				pre_sprint_fov[player_name] = nil
+			end
 
-        -- Smooth transition of speed (unchanged)
-        if speed_intervals[player_name] then
-            local current_speed = player:get_physics_override().speed or 1
-            local target_speed = original_speeds[player_name] and original_speeds[player_name] * speed_multiplier or max_speed
-            local new_speed = current_speed + speed_intervals[player_name]
+			-- Decay bhop when not moving forward
+			bhop_speeds[player_name] = math.max(0, bhop_speeds[player_name] - dtime * 3)
+		end
 
-            if (speed_intervals[player_name] > 0 and new_speed >= target_speed) or 
-               (speed_intervals[player_name] < 0 and new_speed <= (original_speeds[player_name] or 1)) then
-                speed_intervals[player_name] = nil
-                new_speed = target_speed
-            end
-            player:set_physics_override({speed = new_speed})
-        end
+		-- Update previous up state
+		sprint_prev_up[player_name] = control.up
 
-        -- Smooth transition of FOV (unchanged)
-        if fov_intervals[player_name] then
-            local current_fov = player:get_fov() or default_fov
-            local new_fov = current_fov + fov_intervals[player_name]
+		-- === BHOP (speed boost on each jump while moving forward) ===
+		if just_left_ground and control.up then
+			bhop_speeds[player_name] = math.min(bhop_max_speed - 1, bhop_speeds[player_name] + bhop_speed_bonus)
+		end
 
-            if (fov_intervals[player_name] > 0 and new_fov >= sprint_fov) or (fov_intervals[player_name] < 0 and new_fov <= default_fov) then
-                fov_intervals[player_name] = nil
-            else
-                player:set_fov(new_fov)
-            end
-        end
+		-- Apply bhop speed on top of current speed
+		if bhop_speeds[player_name] > 0 and control.up then
+			local base = original_speeds[player_name] or 1
+			local current = player:get_physics_override().speed or 1
+			local target_with_bhop = math.max(current, base + bhop_speeds[player_name])
+			if current < target_with_bhop then
+				player:set_physics_override({speed = target_with_bhop})
+			end
+		end
 
-        -- Decrement sprint time if player is sprinting (unchanged)
-        if sprint_times[player_name] and original_speeds[player_name] then
-            sprint_times[player_name] = math.max(0, sprint_times[player_name] - dtime)
-            if sprint_times[player_name] <= 0 then
-                player:set_physics_override({speed = original_speeds[player_name]})
-                original_speeds[player_name] = nil
-                speed_intervals[player_name] = -speed_step
-                fov_intervals[player_name] = -fov_step
-                cooldown_times[player_name] = cooldown_time_max
-            end
-        end
+		-- Decay bhop slowly when on ground
+		if on_ground then
+			bhop_speeds[player_name] = math.max(0, bhop_speeds[player_name] - dtime * 0.8)
+		end
 
-        -- Decrement cooldown time (unchanged)
-        if cooldown_times[player_name] then
-            cooldown_times[player_name] = math.max(0, cooldown_times[player_name] - dtime)
-        end
-    end
+		-- === DOUBLE JUMP (airborne-time threshold — lag-proof) ===
+		-- Instead of single-frame edge detection, we track how long the
+		-- player has been airborne and whether jump was released in the air.
+		-- Two ways to trigger:
+		--   1) Hold jump from ground: fires after 0.12s airborne (feels instant)
+		--   2) Tap jump in air: fires immediately on re-press (release latch)
+		-- Both work even under 500ms+ lag spikes.
+		if on_ground then
+			has_double_jumped[player_name] = false
+			airborne_time[player_name] = 0
+			jump_released_in_air[player_name] = false
+		else
+			airborne_time[player_name] = airborne_time[player_name] + dtime
+
+			-- Track if jump was released while airborne (for tap-to-double-jump)
+			if not control.jump then
+				jump_released_in_air[player_name] = true
+			end
+
+			-- Fire double jump
+			if control.jump and not has_double_jumped[player_name] then
+				-- Path 1: held jump from ground, airborne long enough
+				-- Path 2: released jump in air, now pressing again
+				if airborne_time[player_name] > 0.12 or jump_released_in_air[player_name] then
+					player:add_velocity({x = 0, y = 6, z = 0})
+					has_double_jumped[player_name] = true
+				end
+			end
+		end
+
+		-- Update state for next frame
+		prev_on_ground[player_name] = on_ground
+
+		-- Smooth transition of speed
+		if speed_intervals[player_name] then
+			local current_speed = player:get_physics_override().speed or 1
+			local target_speed = original_speeds[player_name] and original_speeds[player_name] * speed_multiplier or max_speed
+			local new_speed = current_speed + speed_intervals[player_name]
+
+			if (speed_intervals[player_name] > 0 and new_speed >= target_speed) or
+			   (speed_intervals[player_name] < 0 and new_speed <= (original_speeds[player_name] or 1)) then
+				speed_intervals[player_name] = nil
+				new_speed = target_speed
+			end
+			player:set_physics_override({speed = new_speed})
+		end
+
+		-- Decrement sprint time if player is sprinting
+		if sprint_times[player_name] and original_speeds[player_name] then
+			sprint_times[player_name] = math.max(0, sprint_times[player_name] - dtime)
+			if sprint_times[player_name] <= 0 then
+				player:set_physics_override({speed = original_speeds[player_name]})
+				original_speeds[player_name] = nil
+				speed_intervals[player_name] = -speed_step
+				player:set_fov(pre_sprint_fov[player_name] or default_fov, false, 0.5)
+				pre_sprint_fov[player_name] = nil
+				cooldown_times[player_name] = cooldown_time_max
+			end
+		end
+
+		-- Decrement cooldown time
+		if cooldown_times[player_name] then
+			cooldown_times[player_name] = math.max(0, cooldown_times[player_name] - dtime)
+		end
+	end
 end)
 
 
@@ -282,8 +389,15 @@ minetest.register_entity("default:fish", {
 })
 
 minetest.register_craftitem("default:fish_item", {
-    description = "Speckfish",
+    description = "Raw Speckfish",
     inventory_image = "fish.png",
+    on_use = minetest.item_eat(1),
+})
+
+minetest.register_craftitem("default:fish_item_cooked", {
+    description = "Cooked Speckfish",
+    inventory_image = "fish.png^[colorize:#c87040:120",
+    on_use = minetest.item_eat(3),
 })
 
 global_trout_table = {}
@@ -368,8 +482,15 @@ minetest.register_entity("default:trout", {
 })
 
 minetest.register_craftitem("default:trout_item", {
-    description = "Cod",
+    description = "Raw Cod",
     inventory_image = "trout.png",
+    on_use = minetest.item_eat(1),
+})
+
+minetest.register_craftitem("default:trout_item_cooked", {
+    description = "Cooked Cod",
+    inventory_image = "trout.png^[colorize:#c87040:120",
+    on_use = minetest.item_eat(3),
 })
 minetest.register_abm({
     nodenames = {"default:water_source"},
@@ -810,23 +931,22 @@ end,
             else
                 -- Else place a new item on the table
                 local wield_item = clicker:get_wielded_item()
-                local wield_item_name = wield_item:get_name()
+                if wield_item:is_empty() then return end
 
-                if wield_item:is_empty() or not wield_item_name then return end
-
-                meta:set_string("item", wield_item_name)
+                local single = ItemStack(wield_item:to_string())
+                single:set_count(1)
+                meta:set_string("item", single:to_string())
                 local item_entity = minetest.add_entity({x = pos.x, y = pos.y + 0.5, z = pos.z}, "default:item_on_table")
     if item_entity then
         item_entity:set_rotation({x = math.pi/2, y = new_rotation, z = 0})
         local lua_entity = item_entity:get_luaentity()
         if lua_entity then
-            lua_entity.itemname = wield_item_name
+            lua_entity.itemname = single:get_name()
             lua_entity.rotation = new_rotation
-            item_entity:set_properties({textures = {wield_item_name}})
+            item_entity:set_properties({textures = {single:get_name()}})
         end
     end
-    meta:set_float("rotation", new_rotation)  -- Store rotation in node's metadata
-
+    meta:set_float("rotation", new_rotation)
 
                 itemstack:take_item(1)
                 clicker:set_wielded_item(itemstack)
@@ -837,11 +957,17 @@ end,
 
 		on_punch = function(pos, node, puncher, pointed_thing)
 			local meta = minetest.get_meta(pos)
-			local item = meta:get_string("item")
+			local item_str = meta:get_string("item")
 
-			if not item or item == "" then return end
+			if not item_str or item_str == "" then return end
 
-			puncher:get_inventory():add_item("main", item)
+			local stack = ItemStack(item_str)
+			local inv = puncher:get_inventory()
+			if inv:room_for_item("main", stack) then
+				inv:add_item("main", stack)
+			else
+				minetest.add_item(pos, stack)
+			end
 			meta:set_string("item", "")
 
     for _, obj in pairs(minetest.get_objects_inside_radius(pos, 1)) do
@@ -849,7 +975,7 @@ end,
             obj:remove()
         end
     end
-    meta:set_float("rotation", 0)  -- Reset rotation in node's metadata
+    meta:set_float("rotation", 0)
 		end,
 	})
 end
@@ -914,19 +1040,20 @@ on_rightclick = function(pos, node, clicker, itemstack)
         end
     else
         local wield_item = clicker:get_wielded_item()
-        local wield_item_name = wield_item:get_name()
+        if wield_item:is_empty() then return end
 
-        if wield_item:is_empty() or not wield_item_name then return end
-
-        meta:set_string("item", wield_item_name)
+        local single = ItemStack(wield_item:to_string())
+        single:set_count(1)
+        meta:set_string("item", single:to_string())
+        local item_name = single:get_name()
         local item_entity = minetest.add_entity({x = pos.x, y = pos.y + 0.5, z = pos.z}, "default:item_on_table")
         if item_entity then
             item_entity:set_rotation({x = math.pi/2, y = 0, z = 0})
             local lua_entity = item_entity:get_luaentity()
             if lua_entity then
-                lua_entity.itemname = wield_item_name
+                lua_entity.itemname = item_name
                 lua_entity.rotation = 0
-                item_entity:set_properties({textures = {wield_item_name}})
+                item_entity:set_properties({textures = {item_name}})
             end
         end
         meta:set_float("rotation", 0)
@@ -942,11 +1069,17 @@ end,
 
         on_punch = function(pos, node, puncher, pointed_thing)
             local meta = minetest.get_meta(pos)
-            local item = meta:get_string("item")
+            local item_str = meta:get_string("item")
 
-            if not item or item == "" then return end
+            if not item_str or item_str == "" then return end
 
-            puncher:get_inventory():add_item("main", item)
+            local stack = ItemStack(item_str)
+            local inv = puncher:get_inventory()
+            if inv:room_for_item("main", stack) then
+                inv:add_item("main", stack)
+            else
+                minetest.add_item(pos, stack)
+            end
             meta:set_string("item", "")
             meta:set_float("rotation", 0)
             meta:set_float("y_rotation", 0)
@@ -972,23 +1105,51 @@ local function register_weapon_stand_craft(name, node_name)
     })
 end
 
--- Loop through all registered nodes to find wood types and register corresponding tables, weapon stands, and crafts
-for node_name, def in pairs(minetest.registered_nodes) do
-    if def.groups and def.groups.wood and not def.groups.not_in_craft_guide then
-        local wood_type = node_name:match(":([^:]+)$") -- Extracts the wood type from the node name
-        if wood_type then
-            local description = def.description or "Wooden"
-            local texture = def.tiles and def.tiles[1] or "unknown_texture.png"
-            
-            -- Register tables
-            register_table(wood_type, description, texture)  -- Existing function to register the table
-            register_table_craft(wood_type, node_name)  -- Updated function to register the table craft
-            
-            -- Register weapon stands
-            register_weapon_stand(wood_type, description, texture)  -- Existing function to register the weapon stand
-            register_weapon_stand_craft(wood_type, node_name)  -- Updated function to register the weapon stand craft
-        end
-    end
+-- Curated plank list for tables and weapon stands (matches plank_splitting's tree set)
+local table_planks = {
+	"default:wood",
+	"default:junglewood",
+	"default:pine_wood",
+	"default:acacia_wood",
+	"default:aspen_wood",
+	"moretrees:spruce_planks",
+	"moretrees:cedar_planks",
+	"moretrees:poplar_planks",
+	"moretrees:rubber_tree_planks",
+	"dynamic_trees:bamboo_planks",
+	"dynamic_trees:dry_planks",
+	"variety:baobab_wood",
+	"variety:cypress_wood",
+	"variety:redwood",
+	"variety:cherry_wood",
+	"variety:darkforest_wood",
+	"variety:frost_land_wood",
+	"variety:tropical_rainforest_wood",
+	"variety:autumn_forest_wood",
+	"maple:maple_wood",
+	"oak:wood",
+	"cherrytree:wood",
+	"lemontree:wood",
+	"hollytree:wood",
+	"chestnuttree:wood",
+	"spruce_tree:spruce_planks",
+	"larch:wood",
+	"sequoia:wood",
+	"paleotest:metasequoia_wood",
+}
+
+for _, node_name in ipairs(table_planks) do
+	local def = minetest.registered_nodes[node_name]
+	if def then
+		local wood_type = node_name:gsub(":", "_")
+		local description = def.description or "Wooden"
+		local texture = def.tiles and def.tiles[1] or "unknown_texture.png"
+
+		register_table(wood_type, description, texture)
+		register_table_craft(wood_type, node_name)
+		register_weapon_stand(wood_type, description, texture)
+		register_weapon_stand_craft(wood_type, node_name)
+	end
 end
 -- Define the painting entity
 local paintings = {
@@ -1102,20 +1263,31 @@ update_painting = function(self, dir)
     end
 end,
 on_rightclick = function(self, clicker)
-    local formspec = "formspec_version[4]"
-    formspec = formspec .. "size[8,8]"
-    formspec = formspec .. "label[0.5,0.5;Select a Painting:]"
-    formspec = formspec .. "checkbox[0.5,7;centered;Centered;false]"
+    local cols     = 7
+    local step     = 1.1
+    local start_x  = 0.3
+    local start_y  = 1.0
+    local rows     = math.ceil(#paintings / cols)
+    local form_w   = start_x + cols * step + 0.2
+    local grid_bot = start_y + rows * step
+    local form_h   = grid_bot + 1.2
 
-    local x, y = 0.5, 1
+    local formspec = string.format("formspec_version[4]size[%.1f,%.1f]", form_w, form_h)
+    formspec = formspec .. "label[0.3,0.6;Select a Painting:]"
+
+    local x, y = start_x, start_y
     for i, painting in ipairs(paintings) do
-        formspec = formspec .. "image_button["..x..","..y..";1,1;"..painting.texture..";painting_"..i..";]"
-        x = x + 1.2
-        if x > 6 then
-            x = 0.5
-            y = y + 1.2
+        formspec = formspec .. string.format("image_button[%.1f,%.1f;1,1;%s;painting_%d;]",
+            x, y, painting.texture, i)
+        if i % cols == 0 then
+            x = start_x
+            y = y + step
+        else
+            x = x + step
         end
     end
+
+    formspec = formspec .. string.format("checkbox[0.3,%.1f;centered;Centered;false]", grid_bot + 0.2)
 
     minetest.show_formspec(clicker:get_player_name(), "default:painting_selection", formspec)
 end,
@@ -2175,30 +2347,31 @@ minetest.register_on_placenode(function(pos, newnode, placer, oldnode, itemstack
 end)
 
 -- ABM for falling wood behavior
+-- Optimized: early exit for non-player-placed wood (most common case)
 minetest.register_abm({
+    label = "Falling wood check",
     nodenames = {"group:wood"},
-    interval = 1,
+    interval = 2,
     chance = 1,
     action = function(pos, node)
         local meta = minetest.get_meta(pos)
-        local just_placed = meta:get_int("just_placed")
-        local placed_by_player = meta:get_string("placed_by_player")
-        local hammer_hit = meta:get_int("hammer_hit")
-
-        if just_placed == 1 then
+        -- Quick exit for non-player-placed wood first (most wood is natural)
+        if meta:get_string("placed_by_player") ~= "true" then
             return
         end
-
-        if placed_by_player == "true" and hammer_hit == 0 then
-            local below_pos = {x = pos.x, y = pos.y - 1, z = pos.z}
-            local below_node = minetest.get_node_or_nil(below_pos)
-            if below_node and below_node.name == "air" then
-                minetest.remove_node(pos)
-                local falling_wood = minetest.add_entity(pos, "default:falling_wood_entity")
-                if falling_wood then
-                    falling_wood:set_properties({textures = {node.name}})
-                    falling_wood:get_luaentity().original_node = node.name
-                end
+        if meta:get_int("just_placed") == 1 then
+            return
+        end
+        if meta:get_int("hammer_hit") ~= 0 then
+            return
+        end
+        local below_node = minetest.get_node_or_nil({x = pos.x, y = pos.y - 1, z = pos.z})
+        if below_node and below_node.name == "air" then
+            minetest.remove_node(pos)
+            local falling_wood = minetest.add_entity(pos, "default:falling_wood_entity")
+            if falling_wood then
+                falling_wood:set_properties({textures = {node.name}})
+                falling_wood:get_luaentity().original_node = node.name
             end
         end
     end,
@@ -2517,65 +2690,411 @@ minetest.register_entity("default:thrown_spear", {
 	end,
 })
 
--- Register an entity that represents a stick on the ground
-minetest.register_entity("default:ground_stick", {
+-----------------------------------------------------------------------
+-- CAMPFIRE SYSTEM
+-- A proper campfire with fuel management and cooking
+-----------------------------------------------------------------------
+
+-- Cooking recipes: raw item -> cooked item, cook time in seconds
+local campfire_recipes = {
+    -- Animalia raw meats
+    ["animalia:beef_raw"] = {result = "animalia:beef_cooked", time = 30},
+    ["animalia:mutton_raw"] = {result = "animalia:mutton_cooked", time = 25},
+    ["animalia:porkchop_raw"] = {result = "animalia:porkchop_cooked", time = 25},
+    ["animalia:poultry_raw"] = {result = "animalia:poultry_cooked", time = 20},
+    ["animalia:venison_raw"] = {result = "animalia:venison_cooked", time = 35},
+    ["animalia:rat_raw"] = {result = "animalia:rat_cooked", time = 15},
+    -- Flour to bread
+    ["farming:flour"] = {result = "farming:bread", time = 40},
+    ["farming:rice_flour"] = {result = "farming:rice_bread", time = 40},
+    ["farming:flour_multigrain"] = {result = "farming:bread_multigrain", time = 45},
+    ["farming:pumpkin_dough"] = {result = "farming:pumpkin_bread", time = 35},
+    -- Fish
+    ["default:fish_item"] = {result = "default:fish_item_cooked", time = 15},
+    ["default:trout_item"] = {result = "default:trout_item_cooked", time = 15},
+    -- x_farming items
+    ["x_farming:potato"] = {result = "x_farming:bakedpotato", time = 20},
+    ["x_farming:corn"] = {result = "x_farming:corn_popcorn", time = 15},
+    -- Animalia eggs
+    ["animalia:chicken_egg"] = {result = "animalia:chicken_egg_fried", time = 10},
+    ["animalia:turkey_egg"] = {result = "animalia:turkey_egg_fried", time = 12},
+    ["animalia:song_bird_egg"] = {result = "animalia:song_bird_egg_fried", time = 8},
+    -- Locust
+    ["hardcore_farming:locust"] = {result = "hardcore_farming:locust_roasted", time = 10},
+    -- Tilding dries into mud brick
+    ["default:tilding"] = {result = "default:mud_brick_item", time = 60},
+}
+
+-- Public API: other mods call this (e.g. in on_mods_loaded) to add campfire recipes.
+function default.register_campfire_recipe(item, result, time)
+    campfire_recipes[item] = {result = result, time = time or 20}
+end
+
+-- Get campfire infotext
+local function campfire_infotext(fuel, cooking_item, cooking_progress, cooking_time)
+    local text = "Campfire"
+    if fuel > 0 then
+        text = text .. "\nFuel: " .. math.ceil(fuel) .. " sticks"
+    else
+        text = text .. "\nNo fuel"
+    end
+    if cooking_item and cooking_item ~= "" then
+        local percent = math.floor((cooking_progress / cooking_time) * 100)
+        text = text .. "\nCooking: " .. cooking_item .. " (" .. percent .. "%)"
+    end
+    return text
+end
+
+-- Spawn fire particles above lit campfire
+local function campfire_particles(pos)
+    minetest.add_particlespawner({
+        amount = 8,
+        time = 1,
+        minpos = {x = pos.x - 0.2, y = pos.y + 0.3, z = pos.z - 0.2},
+        maxpos = {x = pos.x + 0.2, y = pos.y + 0.5, z = pos.z + 0.2},
+        minvel = {x = -0.1, y = 0.5, z = -0.1},
+        maxvel = {x = 0.1, y = 1.0, z = 0.1},
+        minacc = {x = 0, y = 0.1, z = 0},
+        maxacc = {x = 0, y = 0.2, z = 0},
+        minexptime = 0.5,
+        maxexptime = 1.5,
+        minsize = 1,
+        maxsize = 3,
+        texture = "fire_basic_flame.png",
+        glow = 14,
+    })
+    -- Smoke particles
+    minetest.add_particlespawner({
+        amount = 3,
+        time = 1,
+        minpos = {x = pos.x - 0.1, y = pos.y + 0.6, z = pos.z - 0.1},
+        maxpos = {x = pos.x + 0.1, y = pos.y + 0.8, z = pos.z + 0.1},
+        minvel = {x = -0.05, y = 0.3, z = -0.05},
+        maxvel = {x = 0.05, y = 0.6, z = 0.05},
+        minacc = {x = 0, y = 0.05, z = 0},
+        maxacc = {x = 0, y = 0.1, z = 0},
+        minexptime = 2,
+        maxexptime = 4,
+        minsize = 2,
+        maxsize = 4,
+        texture = "default_cloud.png^[colorize:#555555:200",
+    })
+end
+
+-- Drop cooked item near campfire
+local function drop_cooked_item(pos, item)
+    local drop_pos = {x = pos.x + math.random(-2, 2) / 10, y = pos.y + 0.5, z = pos.z + math.random(-2, 2) / 10}
+    minetest.add_item(drop_pos, item)
+    minetest.sound_play("default_cool_lava", {pos = pos, gain = 0.3, max_hear_distance = 8})
+end
+
+-- Campfire timer function
+local function campfire_timer(pos)
+    local node = minetest.get_node(pos)
+    if node.name ~= "default:campfire_lit" then
+        return false
+    end
+
+    local meta = minetest.get_meta(pos)
+    local fuel = meta:get_float("fuel")
+    if fuel == 0 then fuel = meta:get_int("fuel") end  -- compat with old int storage
+    local cooking_item = meta:get_string("cooking_item")
+    local cooking_progress = meta:get_float("cooking_progress")
+    local cooking_time = meta:get_float("cooking_time")
+
+    -- Consume fuel (0.7 per tick = ~30% slower burn)
+    fuel = fuel - 0.7
+    meta:set_float("fuel", fuel)
+
+    -- Keep fire node alive (it can burn out naturally)
+    local fire_pos = {x = pos.x, y = pos.y + 1, z = pos.z}
+    local fire_node = minetest.get_node(fire_pos).name
+    if fire_node ~= "fire:basic_flame" and fire_node == "air" then
+        minetest.set_node(fire_pos, {name = "fire:basic_flame"})
+    end
+
+    -- Spawn smoke particles
+    campfire_particles(pos)
+
+    -- Progress cooking
+    if cooking_item ~= "" then
+        cooking_progress = cooking_progress + 5  -- 5 seconds per timer tick
+        meta:set_float("cooking_progress", cooking_progress)
+
+        if cooking_progress >= cooking_time then
+            -- Cooking complete
+            local recipe = campfire_recipes[cooking_item]
+            if recipe then
+                drop_cooked_item(pos, recipe.result)
+            end
+            meta:set_string("cooking_item", "")
+            meta:set_float("cooking_progress", 0)
+            meta:set_float("cooking_time", 0)
+            cooking_item = ""
+        end
+    end
+
+    -- Update infotext
+    meta:set_string("infotext", campfire_infotext(fuel, cooking_item, cooking_progress, cooking_time))
+
+    -- Check if out of fuel
+    if fuel <= 0 then
+        -- Extinguish fire
+        minetest.swap_node(pos, {name = "default:campfire"})
+        -- Remove fire node above
+        local fire_pos = {x = pos.x, y = pos.y + 1, z = pos.z}
+        if minetest.get_node(fire_pos).name == "fire:basic_flame" then
+            minetest.remove_node(fire_pos)
+        end
+        meta:set_string("infotext", "Campfire (unlit)\nRight-click with sticks to add fuel")
+        minetest.sound_play("default_cool_lava", {pos = pos, gain = 0.5, max_hear_distance = 10})
+        return false
+    end
+
+    return true  -- Keep timer running
+end
+
+-- Register unlit campfire
+minetest.register_node("default:campfire", {
+    description = "Campfire",
+    drawtype = "nodebox",
+    tiles = {
+        "default_tree_top.png",  -- top
+        "default_cobble.png",    -- bottom
+        "default_tree.png",      -- sides
+    },
+    use_texture_alpha = "clip",
+    paramtype = "light",
+    sunlight_propagates = true,
+    walkable = false,
+    buildable_to = false,
+    groups = {choppy = 3, oddly_breakable_by_hand = 1},
+    node_box = {
+        type = "fixed",
+        fixed = {
+            -- Stone ring base
+            {-0.4, -0.5, -0.4, 0.4, -0.4, -0.3},  -- front
+            {-0.4, -0.5, 0.3, 0.4, -0.4, 0.4},    -- back
+            {-0.4, -0.5, -0.3, -0.3, -0.4, 0.3},  -- left
+            {0.3, -0.5, -0.3, 0.4, -0.4, 0.3},    -- right
+            -- Sticks/logs
+            {-0.25, -0.4, -0.05, 0.25, -0.35, 0.05},  -- log 1
+            {-0.05, -0.4, -0.25, 0.05, -0.35, 0.25},  -- log 2
+            {-0.2, -0.35, -0.2, 0.2, -0.3, -0.15},    -- log 3
+            {-0.2, -0.35, 0.15, 0.2, -0.3, 0.2},      -- log 4
+        },
+    },
+    selection_box = {
+        type = "fixed",
+        fixed = {-0.4, -0.5, -0.4, 0.4, 0.0, 0.4},
+    },
+    collision_box = {
+        type = "fixed",
+        fixed = {-0.4, -0.5, -0.4, 0.4, -0.3, 0.4},
+    },
+    sounds = default.node_sound_wood_defaults(),
+
+    on_construct = function(pos)
+        local meta = minetest.get_meta(pos)
+        meta:set_float("fuel", 0)
+        meta:set_string("cooking_item", "")
+        meta:set_float("cooking_progress", 0)
+        meta:set_float("cooking_time", 0)
+        meta:set_string("infotext", "Campfire (unlit)\nRight-click with sticks to add fuel")
+    end,
+
+    on_rightclick = function(pos, node, clicker, itemstack)
+        local item_name = itemstack:get_name()
+        local meta = minetest.get_meta(pos)
+        local fuel = meta:get_float("fuel")
+
+        -- Add sticks as fuel
+        if item_name == "default:stick" then
+            local count = itemstack:get_count()
+            local add = math.min(count, 20 - math.floor(fuel))  -- Max 20 fuel
+            if add > 0 then
+                fuel = fuel + add
+                meta:set_float("fuel", fuel)
+                itemstack:take_item(add)
+                minetest.sound_play("default_place_node", {pos = pos, gain = 0.5})
+                meta:set_string("infotext", "Campfire (unlit, " .. math.ceil(fuel) .. " sticks)\nUse flint and steel to light")
+            end
+            return itemstack
+        end
+
+        -- Light the fire
+        if fuel > 0 and (item_name == "fire:flint_and_steel" or item_name == "fire:bowdrill") then
+            minetest.swap_node(pos, {name = "default:campfire_lit"})
+            meta:set_string("infotext", campfire_infotext(fuel, "", 0, 0))
+
+            -- Place fire node above
+            local fire_pos = {x = pos.x, y = pos.y + 1, z = pos.z}
+            if minetest.get_node(fire_pos).name == "air" then
+                minetest.set_node(fire_pos, {name = "fire:basic_flame"})
+            end
+
+            -- Start timer
+            local timer = minetest.get_node_timer(pos)
+            timer:start(5)  -- 5 second intervals
+
+            -- Wear tool
+            if item_name == "fire:flint_and_steel" then
+                itemstack:add_wear(1000)
+            else
+                itemstack:add_wear(100)
+            end
+            minetest.sound_play("fire_flint_and_steel", {pos = pos, gain = 0.5, max_hear_distance = 8})
+            return itemstack
+        end
+
+        return itemstack
+    end,
+})
+
+-- Register lit campfire
+minetest.register_node("default:campfire_lit", {
+    description = "Campfire (lit)",
+    drawtype = "nodebox",
+    tiles = {
+        "default_tree_top.png^[colorize:#FF6600:80",  -- top (glowing)
+        "default_cobble.png",    -- bottom
+        "default_tree.png^[colorize:#FF3300:50",      -- sides (charred)
+    },
+    use_texture_alpha = "clip",
+    paramtype = "light",
+    light_source = 13,
+    sunlight_propagates = true,
+    walkable = false,
+    buildable_to = false,
+    drop = "default:campfire",
+    groups = {choppy = 3, oddly_breakable_by_hand = 1, not_in_creative_inventory = 1},
+    damage_per_second = 2,
+    node_box = {
+        type = "fixed",
+        fixed = {
+            -- Stone ring base
+            {-0.4, -0.5, -0.4, 0.4, -0.4, -0.3},  -- front
+            {-0.4, -0.5, 0.3, 0.4, -0.4, 0.4},    -- back
+            {-0.4, -0.5, -0.3, -0.3, -0.4, 0.3},  -- left
+            {0.3, -0.5, -0.3, 0.4, -0.4, 0.3},    -- right
+            -- Burning logs
+            {-0.25, -0.4, -0.05, 0.25, -0.35, 0.05},  -- log 1
+            {-0.05, -0.4, -0.25, 0.05, -0.35, 0.25},  -- log 2
+            {-0.2, -0.35, -0.2, 0.2, -0.3, -0.15},    -- log 3
+            {-0.2, -0.35, 0.15, 0.2, -0.3, 0.2},      -- log 4
+        },
+    },
+    selection_box = {
+        type = "fixed",
+        fixed = {-0.4, -0.5, -0.4, 0.4, 0.1, 0.4},
+    },
+    collision_box = {
+        type = "fixed",
+        fixed = {-0.4, -0.5, -0.4, 0.4, -0.3, 0.4},
+    },
+    sounds = default.node_sound_wood_defaults(),
+
+    on_timer = campfire_timer,
+
+    on_rightclick = function(pos, node, clicker, itemstack)
+        local item_name = itemstack:get_name()
+        local meta = minetest.get_meta(pos)
+        local fuel = meta:get_float("fuel")
+        local cooking_item = meta:get_string("cooking_item")
+
+        -- Add sticks as fuel
+        if item_name == "default:stick" then
+            local count = itemstack:get_count()
+            local add = math.min(count, 20 - math.floor(fuel))  -- Max 20 fuel
+            if add > 0 then
+                fuel = fuel + add
+                meta:set_float("fuel", fuel)
+                itemstack:take_item(add)
+                minetest.sound_play("default_place_node", {pos = pos, gain = 0.5})
+                meta:set_string("infotext", campfire_infotext(fuel, cooking_item,
+                    meta:get_float("cooking_progress"), meta:get_float("cooking_time")))
+            end
+            return itemstack
+        end
+
+        -- Add cookable item
+        if cooking_item == "" and campfire_recipes[item_name] then
+            local recipe = campfire_recipes[item_name]
+            meta:set_string("cooking_item", item_name)
+            meta:set_float("cooking_progress", 0)
+            meta:set_float("cooking_time", recipe.time)
+            itemstack:take_item(1)
+            minetest.sound_play("default_place_node", {pos = pos, gain = 0.3})
+            meta:set_string("infotext", campfire_infotext(fuel, item_name, 0, recipe.time))
+
+            -- Show cooking item entity
+            local item_pos = {x = pos.x, y = pos.y + 0.2, z = pos.z}
+            local obj = minetest.add_entity(item_pos, "default:campfire_cooking_item")
+            if obj then
+                obj:set_properties({textures = {item_name}})
+            end
+            return itemstack
+        end
+
+        return itemstack
+    end,
+
+    on_destruct = function(pos)
+        -- Remove fire node above
+        local fire_pos = {x = pos.x, y = pos.y + 1, z = pos.z}
+        if minetest.get_node(fire_pos).name == "fire:basic_flame" then
+            minetest.remove_node(fire_pos)
+        end
+        -- Remove any cooking item entities
+        for _, obj in pairs(minetest.get_objects_inside_radius(pos, 1)) do
+            local ent = obj:get_luaentity()
+            if ent and ent.name == "default:campfire_cooking_item" then
+                obj:remove()
+            end
+        end
+    end,
+})
+
+-- Entity to show cooking item visually on campfire
+minetest.register_entity("default:campfire_cooking_item", {
     initial_properties = {
         physical = false,
         collisionbox = {0, 0, 0, 0, 0, 0},
         visual = "wielditem",
-        visual_size = {x = 0.20, y = 0.20},
+        visual_size = {x = 0.3, y = 0.3},
         textures = {"default:stick"},
+        glow = 5,
     },
-    on_activate = function(self, staticdata)
-        self.object:set_rotation({x = 0, y = math.random(0, 360), z = 0})
+    on_step = function(self, dtime)
+        -- Check if campfire still exists and is cooking
+        local pos = self.object:get_pos()
+        local below = {x = pos.x, y = pos.y - 0.2, z = pos.z}
+        local node = minetest.get_node(below)
+        if node.name ~= "default:campfire_lit" then
+            self.object:remove()
+            return
+        end
+        -- Remove if cooking finished (timer cleared cooking_item)
+        local meta = minetest.get_meta(below)
+        if meta:get_string("cooking_item") == "" then
+            self.object:remove()
+            return
+        end
+        -- Slowly rotate
+        local rot = self.object:get_rotation()
+        rot.y = rot.y + dtime * 0.5
+        self.object:set_rotation(rot)
     end,
 })
 
--- Place a stick on the ground when right-clicked with a default stick
-minetest.register_on_placenode(function(pos, newnode, placer, oldnode, itemstack, pointed_thing)
-    if itemstack:get_name() == "default:stick" then
-        minetest.add_entity({x = pos.x, y = pos.y + 1, z = pos.z}, "default:ground_stick")
-        itemstack:take_item(1)
-        return itemstack
-    end
-end)
-
--- Function to manage fire and stick consumption
-local function manage_fire(pos)
-    local sticks = {}
-    for _, obj in pairs(minetest.get_objects_inside_radius(pos, 1)) do
-        if obj:get_luaentity() and obj:get_luaentity().name == "default:ground_stick" then
-            table.insert(sticks, obj)
-        end
-    end
-    if #sticks > 0 then
-        sticks[1]:remove()
-        minetest.after(30, manage_fire, pos)
-    else
-        minetest.remove_node(pos)
-    end
-end
-
-
--- Register the campfire node
-minetest.register_node("default:campfire", {
-    description = "Campfire",
-    tiles = {"default_cobble.png"},
-    on_rightclick = function(pos, node, clicker, itemstack)
-        local item_name = itemstack:get_name()
-
-        if item_name == "fire:flint_and_steel" then
-            minetest.add_node({x = pos.x, y = pos.y + 1, z = pos.z}, {name = "fire:basic_flame"})
-            minetest.after(30, manage_fire, {x = pos.x, y = pos.y + 1, z = pos.z})
-            itemstack:add_wear(1000)
-            return itemstack
-        elseif item_name == "fire:bowdrill" then
-            minetest.add_node({x = pos.x, y = pos.y + 1, z = pos.z}, {name = "fire:basic_flame"})
-            minetest.after(30, manage_fire, {x = pos.x, y = pos.y + 1, z = pos.z})
-            itemstack:add_wear(100)  -- Assuming bowdrill has significantly less wear
-            return itemstack
-        end
-    end,
+-- Craft recipe for campfire
+minetest.register_craft({
+    output = "default:campfire",
+    recipe = {
+        {"", "default:stick", ""},
+        {"default:stick", "default:stick", "default:stick"},
+        {"group:stone", "group:stone", "group:stone"},
+    }
 })
 
 minetest.register_chatcommand("rend", {
@@ -2698,30 +3217,20 @@ end)
 minetest.register_abm({
     label = "Check Gas Neighbors",
     nodenames = {"default:gas"},
-    interval = 1,
+    neighbors = {"default:torch", "fire:basic_flame", "default:wall_torch", "moretorches:clantern", "group:torch"},
+    interval = 2,
     chance = 1,
     action = function(pos)
-        local current_node = minetest.get_node(pos)
-        if current_node.name ~= "default:gas" then
-            return
-        end
-        
-        local fire_neighbors = minetest.find_nodes_in_area(
+        -- Ignite this gas and spread to neighbors
+        local neighbors = minetest.find_nodes_in_area(
             {x = pos.x - 1, y = pos.y - 1, z = pos.z - 1},
             {x = pos.x + 1, y = pos.y + 1, z = pos.z + 1},
-            {"default:torch", "fire:basic_flame", "default:wall_torch"}
+            {"default:gas"}
         )
-        
-        if #fire_neighbors > 0 then
-            local neighbors = minetest.find_nodes_in_area(
-                {x = pos.x - 1, y = pos.y - 1, z = pos.z - 1},
-                {x = pos.x + 1, y = pos.y + 1, z = pos.z + 1},
-                {"default:gas"}
-            )
-            for _, gas_node in ipairs(neighbors) do
-                minetest.set_node(gas_node, {name = "fire:basic_flame"})
-            end
+        for _, gas_node in ipairs(neighbors) do
+            minetest.set_node(gas_node, {name = "fire:basic_flame"})
         end
+        minetest.set_node(pos, {name = "fire:basic_flame"})
     end,
 })
 -- Execute after all other mods are loaded
@@ -2762,23 +3271,21 @@ function table.copy(orig)
     return copy
 	end
 	
-local river_noise = {
-    offset = 0,
-    scale = 1,
-    spread = {x = 300, y = 200, z = 100},
-    seed = 575959,
-    octaves = 3,
-    persist = 0.6
-}
 
 
 
 
+-- ── Aquifers ────────────────────────────────────────────────────────────────
+-- Porous strata (gravel/limestone/saprolite) between AQUIFER_Y_MIN and
+-- AQUIFER_Y_MAX hold ground water wherever a 2D noise exceeds a threshold.
+-- Membership is purely noise-derived — no per-node metadata at mapgen time and
+-- no global timers.  Only nodes that have actually seeped water store a small
+-- depletion counter, so the map database stays clean.
 
+local AQUIFER_Y_MIN, AQUIFER_Y_MAX = -340, -30
+local AQUIFER_THRESHOLD = 0.5
+local AQUIFER_CAPACITY = 25 -- water nodes one aquifer node can seep before running dry
 
-
-
--- Define a noise parameter for aquifer generation
 local aquifer_noise_params = {
     offset = 0,
     scale = 1,
@@ -2789,187 +3296,85 @@ local aquifer_noise_params = {
     lacunarity = 2.0,
 }
 
--- Function to check if a position should be an aquifer
+local aquifer_perlin
 local function is_aquifer_position(pos)
-    -- Check if y-coordinate is within the desired range (adjust to your needs)
-    if pos.y >= -340 and pos.y <= -30 then
-        local noise = minetest.get_perlin(aquifer_noise_params):get_2d({x = pos.x, y = pos.z})
-        return noise > 0.5 -- Adjust the threshold as needed for aquifer density
-    else
-        return false -- Outside the specified y-coordinate range
+    if pos.y < AQUIFER_Y_MIN or pos.y > AQUIFER_Y_MAX then
+        return false
     end
+    aquifer_perlin = aquifer_perlin or minetest.get_perlin(aquifer_noise_params)
+    return aquifer_perlin:get_2d({x = pos.x, y = pos.z}) > AQUIFER_THRESHOLD
 end
 
--- Function to determine if a node is eligible to be an aquifer
-local function is_eligible_for_aquifer(node_name)
-    local eligible_nodes = {
-        ["default:gravel"] = true,
-        ["default:limestone"] = true,
-        ["default:saprolite"] = true
-    }
-    return eligible_nodes[node_name] ~= nil
-end
+local aquifer_nodes = {"default:gravel", "default:limestone", "default:saprolite"}
 
--- Function to check if a node is exposed to air
-local function is_exposed_to_air(pos)
-    local sides = {{x=1, y=0, z=0}, {x=-1, y=0, z=0}, {x=0, y=0, z=1}, {x=0, y=0, z=-1}, {x=0, y=1, z=0}, {x=0, y=-1, z=0}}
-    for _, side in pairs(sides) do
-        if minetest.get_node(vector.add(pos, side)).name == "air" then
-            return true
+local seep_sides = {
+    {x=1,y=0,z=0}, {x=-1,y=0,z=0}, {x=0,y=0,z=1}, {x=0,y=0,z=-1},
+}
+
+-- Seepage: aquifer nodes exposed to air slowly expel water sources until their
+-- reserve is exhausted.  The ABM neighbour filter keeps this off the hot path.
+minetest.register_abm({
+    label = "aquifer seepage",
+    nodenames = aquifer_nodes,
+    neighbors = {"air"},
+    interval = 20,
+    chance = 12,
+    min_y = AQUIFER_Y_MIN,
+    max_y = AQUIFER_Y_MAX,
+    catch_up = false,
+    action = function(pos)
+        if not is_aquifer_position(pos) then
+            return
+        end
+        local meta = minetest.get_meta(pos)
+        local drained = meta:get_int("aquifer_drained")
+        if drained >= AQUIFER_CAPACITY then
+            return
+        end
+        for _, side in ipairs(seep_sides) do
+            local side_pos = vector.add(pos, side)
+            if minetest.get_node(side_pos).name == "air" then
+                minetest.set_node(side_pos, {name = "default:water_source"})
+                drained = drained + 1
+                meta:set_int("aquifer_drained", drained)
+                if drained >= AQUIFER_CAPACITY then
+                    meta:set_string("infotext", "This aquifer is dry.")
+                end
+                return
+            end
+        end
+    end,
+})
+
+-- Noise-only area query: is there aquifer stratum within `radius` of pos?
+local function aquifer_near(pos, radius, step)
+    for x = -radius, radius, step do
+        for z = -radius, radius, step do
+            if is_aquifer_position({x = pos.x + x, y = AQUIFER_Y_MAX, z = pos.z + z}) then
+                return true
+            end
         end
     end
     return false
 end
 
-local function process_aquifer(pos)
-    local meta = minetest.get_meta(pos)
-    local water_level = meta:get_int("water_level")
-
-    if water_level > 0 then
-        local sides = {{x=1,y=0,z=0}, {x=-1,y=0,z=0}, {x=0,y=0,z=1}, {x=0,y=0,z=-1}}
-        local water_expelled = false
-
-        -- Expel water to adjacent air or flowing water nodes
-        for _, side in ipairs(sides) do
-            local side_pos = vector.add(pos, side)
-            local side_node = minetest.get_node(side_pos).name
-            if side_node == "air" or side_node == "default:water_flowing" then
-                minetest.set_node(side_pos, {name = "default:water_source"})
-                water_level = water_level - 1
-                meta:set_int("water_level", water_level)
-                water_expelled = true
-                break
-            end
-        end
-
-        -- Pull water from adjacent aquifer nodes if water was expelled
-        if water_expelled then
-            for _, side in ipairs(sides) do
-                local side_pos = vector.add(pos, side)
-                local side_node = minetest.get_node(side_pos).name
-                if is_eligible_for_aquifer(side_node) then
-                    local side_meta = minetest.get_meta(side_pos)
-                    local side_water_level = side_meta:get_int("water_level")
-                    if side_water_level > 0 then
-                        side_meta:set_int("water_level", side_water_level - 1)
-                        water_level = water_level + 1
-                        meta:set_int("water_level", water_level)
-                        break
+-- Noise-only spiral search for the nearest aquifer column (used by /tp_aquifer)
+local function find_nearest_aquifer(pos)
+    local step = 8
+    for radius = 0, 200, step do
+        for x = -radius, radius, step do
+            for z = -radius, radius, step do
+                if math.abs(x) == radius or math.abs(z) == radius then
+                    local check = {x = pos.x + x, y = AQUIFER_Y_MAX, z = pos.z + z}
+                    if is_aquifer_position(check) then
+                        return check
                     end
                 end
             end
         end
-    elseif water_level == 0 then
-        meta:set_string("infotext", "This aquifer is dry.")
     end
+    return nil
 end
-
-local function process_aquifers()
-    for _, player in ipairs(minetest.get_connected_players()) do
-        local pos = player:get_pos()
-        local minp = vector.subtract(pos, 10)
-        local maxp = vector.add(pos, 10)
-        local nodes = minetest.find_nodes_in_area(minp, maxp, {"default:gravel", "default:limestone", "default:saprolite"})
-        for _, node_pos in ipairs(nodes) do
-            if is_aquifer_position(node_pos) then
-                process_aquifer(node_pos)
-            end
-        end
-    end
-    minetest.after(60, process_aquifers)
-end
-
-minetest.after(60, process_aquifers)
-
--- Function to process aquifer nodes in batches
-local function process_aquifer_batch(player_pos, radius, batch_size, step_callback, start_pos)
-    local total_processed = 0
-    local processed_this_step = 0
-    local start_x, start_y, start_z = unpack(start_pos)
-
-    for x = start_x, start_x + batch_size - 1 do
-        for y = start_y, start_y + batch_size - 1 do
-            for z = start_z, start_z + batch_size - 1 do
-                local check_pos = {x = player_pos.x + x, y = player_pos.y + y, z = player_pos.z + z}
-                local node_name = minetest.get_node(check_pos).name
-
-                if is_eligible_for_aquifer(node_name) and is_aquifer_position(check_pos) then
-                    local meta = minetest.get_meta(check_pos)
-                    if meta:get_int("water_level") == 0 then
-                        meta:set_int("water_level", 100)  -- Assign default water level
-                        processed_this_step = processed_this_step + 1
-
-                        if processed_this_step >= batch_size then
-                            minetest.after(0.1, step_callback, player_pos, radius, batch_size, {x, y, z})
-                            return
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    minetest.chat_send_all("Finished processing aquifers in current batch. Total processed: " .. (total_processed + processed_this_step))
-end
-
--- Function to retroactively assign water_level to existing aquifers in the world
-minetest.register_chatcommand("generate_aquifers", {
-    description = "Retroactively waterlog existing aquifers in the world",
-    privs = {server=true},  -- Restrict this to server operators
-    func = function(name, param)
-        local player = minetest.get_player_by_name(name)
-        if not player then
-            return false, "Player not found."
-        end
-
-        local pos = player:get_pos()  -- Get player's position
-        local radius = 100  -- Set the radius around the player for scanning nodes
-        local total_waterlogged = 0  -- Keep track of how many aquifers were updated
-
-        -- Scan in a radius around the player's position
-        for x = -radius, radius do
-            for y = -radius, radius do
-                for z = -radius, radius do
-                    local check_pos = {x = pos.x + x, y = pos.y + y, z = pos.z + z}
-                    local node_name = minetest.get_node(check_pos).name
-
-                    -- Check if the node is eligible to be an aquifer
-                    if is_eligible_for_aquifer(node_name) and is_aquifer_position(check_pos) then
-                        local meta = minetest.get_meta(check_pos)
-
-                        -- Check if the aquifer already has a water_level assigned
-                        if meta:get_int("water_level") == 0 then
-                            -- Assign a default water_level, e.g., 1 for waterlogged
-                            meta:set_int("water_level", 1)
-                            total_waterlogged = total_waterlogged + 1
-                        end
-                    end
-                end
-            end
-        end
-
-        -- Send a summary message with the total number of aquifers updated
-        return true, "Aquifers retroactively waterlogged: " .. total_waterlogged
-    end
-})
--- Register on_generated callback for aquifers
-minetest.register_on_generated(function(minp, maxp, seed)
-    if minp.y < -30 and maxp.y > -340 then
-        for z = minp.z, maxp.z do
-            for y = minp.y, maxp.y do
-                for x = minp.x, maxp.x do
-                    local pos = {x = x, y = y, z = z}
-                    local node_name = minetest.get_node(pos).name
-                    if is_eligible_for_aquifer(node_name) and is_aquifer_position(pos) then
-                        -- Assign water_level = 100 to all newly generated aquifers
-                        local meta = minetest.get_meta(pos)
-                        meta:set_int("water_level", 100)  -- Full water level
-                    end
-                end
-            end
-        end
-    end
-end)
 
 
 -- Chat command to teleport to the nearest aquifer
@@ -2998,35 +3403,10 @@ minetest.register_craftitem("default:dowsing_rod", {
     description = "Dowsing Rod",
     inventory_image = "default_stick.png",
     on_use = function(itemstack, user, pointed_thing)
-        -- Check if the pointed_thing is a node
+        -- The rod divines the aquifer stratum through rock: pure noise lookup,
+        -- no node scans.
         if pointed_thing.type == "node" then
-            local pos = pointed_thing.under
-            -- Define the range for checking aquifers
-            local horizontal_range = 32
-            local vertical_range = 300  -- Increased vertical range for deep aquifers
-            local found_aquifer = false
-
-            -- Check if there is an aquifer in the specified range
-            for x = -horizontal_range, horizontal_range do
-                for z = -horizontal_range, horizontal_range do
-                    for y = -vertical_range, vertical_range do
-                        local check_pos = {x = pos.x + x, y = pos.y + y, z = pos.z + z}
-                        if is_eligible_for_aquifer(minetest.get_node(check_pos).name) and is_aquifer_position(check_pos) then
-                            found_aquifer = true
-                            break
-                        end
-                    end
-                    if found_aquifer then
-                        break
-                    end
-                end
-                if found_aquifer then
-                    break
-                end
-            end
-
-            -- Display message to player
-            if found_aquifer then
+            if aquifer_near(pointed_thing.under, 32, 4) then
                 minetest.chat_send_player(user:get_player_name(), "There is an aquifer here.")
             else
                 minetest.chat_send_player(user:get_player_name(), "There is not an aquifer here.")
@@ -3044,28 +3424,6 @@ minetest.register_craft({
         {"", "default:stick", ""},
     }
 })
-
--- Delay setting "hammer_hit" metadata for wood nodes after world generation
-minetest.register_on_generated(function(minp, maxp, seed)
-    minetest.after(1, function()
-        for x = minp.x, maxp.x do
-            for y = minp.y, maxp.y do
-                for z = minp.z, maxp.z do
-                    local pos = {x = x, y = y, z = z}
-                    local node_name = minetest.get_node(pos).name
-                    
-                    -- Check if the node belongs to the group:wood
-                    if minetest.get_item_group(node_name, "wood") > 0 then
-                        local meta = minetest.get_meta(pos)
-                        
-                        -- Set the "hammer_hit" metadata to 1
-                        meta:set_int("hammer_hit", 1)
-                    end
-                end
-            end
-        end
-    end)
-end)
 
 -- Register the /identify command
 minetest.register_chatcommand("identify", {
@@ -3181,74 +3539,70 @@ minetest.register_craft({
 })
 
 
-minetest.register_craft({ 
-	output = 'craft_table:simple',
-	recipe = {
-		{'group:wood', 'group:wood'},
-		{'default:stick', 'default:stick'},
-	}
-})
-
-local function has_wood_nearby(pos, radius)
-    local minp = vector.subtract(pos, radius)
-    local maxp = vector.add(pos, radius)
-    local wood_nodes = minetest.find_nodes_in_area(minp, maxp, "group:wood")
-    return #wood_nodes > 0
+-- Support check: wood, tree trunks, or fences prevent cave-ins (early-exit, radius 12)
+local function has_support_nearby(pos)
+    return minetest.find_node_near(pos, 12, {"group:wood", "group:tree", "group:fence"}) ~= nil
 end
 
-local function replace_with_gravel(pos, radius)
-    local minp = vector.subtract(pos, radius)
-    local maxp = vector.add(pos, radius)
+local face_offsets = {
+    {x = 2, y = 0, z = 0}, {x = -2, y = 0, z = 0},
+    {x = 0, y = 2, z = 0}, {x = 0, y = -2, z = 0},
+    {x = 0, y = 0, z = 2}, {x = 0, y = 0, z = -2},
+}
+
+-- Stone cave-in: convert stone to gravel in radius-2 cube, single falling check
+local function replace_with_gravel(center, radius)
+    local minp = vector.subtract(center, radius)
+    local maxp = vector.add(center, radius)
     local stone_nodes = minetest.find_nodes_in_area(minp, maxp, "group:stone")
-    
+
     for _, node_pos in ipairs(stone_nodes) do
         minetest.set_node(node_pos, {name = "default:gravel"})
-        minetest.check_for_falling(node_pos)
+    end
+    if #stone_nodes > 0 then
+        minetest.check_for_falling(center)
     end
 end
 
-minetest.register_on_dignode(function(pos, oldnode, digger)
-    if minetest.get_item_group(oldnode.name, "stone") > 0 then
-        if not has_wood_nearby(pos, 12) and math.random() < 0.15 then
-            local face_centers = {
-                {x = pos.x + 2, y = pos.y, z = pos.z},
-                {x = pos.x - 2, y = pos.y, z = pos.z},
-                {x = pos.x, y = pos.y + 2, z = pos.z},
-                {x = pos.x, y = pos.y - 2, z = pos.z},
-                {x = pos.x, y = pos.y, z = pos.z + 2},
-                {x = pos.x, y = pos.y, z = pos.z - 2},
-            }
-            local center = face_centers[math.random(#face_centers)]
-            replace_with_gravel(center, 2)
+-- Dirt cave-in: stagger spawn_falling_node across ticks
+local function replace_with_falling_dirt(center, radius)
+    local minp = vector.subtract(center, radius)
+    local maxp = vector.add(center, radius)
+    local dirt_nodes = minetest.find_nodes_in_area(minp, maxp, {"default:dirt", "group:soil"})
+
+    local i = 1
+    local batch = 6
+    local function drop_batch()
+        for _ = 1, batch do
+            if i > #dirt_nodes then return end
+            local p = dirt_nodes[i]
+            if minetest.get_item_group(minetest.get_node(p).name, "soil") > 0 then
+                minetest.spawn_falling_node(p)
+            end
+            i = i + 1
+        end
+        if i <= #dirt_nodes then
+            minetest.after(0.15, drop_batch)
         end
     end
-end)
-local function replace_with_falling_dirt(pos, radius)
-    local minp = vector.subtract(pos, radius)
-    local maxp = vector.add(pos, radius)
-    local dirt_nodes = minetest.find_nodes_in_area(minp, maxp, {"default:dirt", "group:soil"})
-    
-    for _, node_pos in ipairs(dirt_nodes) do
-        -- Trigger the fall for each dirt node
-        minetest.spawn_falling_node(node_pos)
-    end
+    drop_batch()
 end
 
--- Register action for when dirt is mined
+-- Single dignode callback for both stone and dirt cave-ins
 minetest.register_on_dignode(function(pos, oldnode, digger)
+    if minetest.get_item_group(oldnode.name, "stone") > 0 then
+        if math.random() < 0.15 and not has_support_nearby(pos) then
+            local offset = face_offsets[math.random(#face_offsets)]
+            local center = vector.add(pos, offset)
+            minetest.after(0.3, replace_with_gravel, center, 2)
+        end
+        return
+    end
     if minetest.get_item_group(oldnode.name, "soil") > 0 then
-        -- 15% chance for dirt cave-in
         if math.random() < 0.15 then
-            local face_centers = {
-                {x = pos.x + 2, y = pos.y, z = pos.z},
-                {x = pos.x - 2, y = pos.y, z = pos.z},
-                {x = pos.x, y = pos.y + 2, z = pos.z},
-                {x = pos.x, y = pos.y - 2, z = pos.z},
-                {x = pos.x, y = pos.y, z = pos.z + 2},
-                {x = pos.x, y = pos.y, z = pos.z - 2},
-            }
-            local center = face_centers[math.random(#face_centers)]
-            replace_with_falling_dirt(center, 2)
+            local offset = face_offsets[math.random(#face_offsets)]
+            local center = vector.add(pos, offset)
+            minetest.after(0.3, replace_with_falling_dirt, center, 2)
         end
     end
 end)
@@ -3576,22 +3930,22 @@ local function spawn_multiple_steam(pos, remaining_spawns)
 end
 
 -- Modify the existing ABM to account for compressed steam creation
+-- Optimized: use neighbors parameter to only check water near lava
 minetest.register_abm({
     label = "Lava creates Steam or Compressed Steam",
     nodenames = {"default:water_source", "default:water_flowing"},
-    interval = 1,
+    neighbors = {"default:lava_source", "default:lava_flowing"},
+    interval = 2,
     chance = 1,
     action = function(pos)
-        if has_nearby_node(pos, {"default:lava_source", "default:lava_flowing"}, 2) then
-            local steam_pos = {x = pos.x, y = pos.y + 1, z = pos.z}
-            local node = minetest.get_node(steam_pos)
-            if node.name == "air" then
-                spawn_steam(steam_pos)  -- Create steam once, as before
-                minetest.remove_node(pos)  -- Remove the water node
-            elseif node.name == "default:steam" then
-                spawn_compressed_steam(steam_pos)  -- Convert existing steam into compressed steam
-                minetest.remove_node(pos)  -- Remove the water node
-            end
+        local steam_pos = {x = pos.x, y = pos.y + 1, z = pos.z}
+        local node = minetest.get_node(steam_pos)
+        if node.name == "air" then
+            spawn_steam(steam_pos)
+            minetest.remove_node(pos)
+        elseif node.name == "default:steam" then
+            spawn_compressed_steam(steam_pos)
+            minetest.remove_node(pos)
         end
     end,
 })

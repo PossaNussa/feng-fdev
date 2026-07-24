@@ -1067,6 +1067,14 @@ minetest.register_node("default:dirt_with_tin", {
 	sounds = default.node_sound_dirt_defaults(),
 })
 
+minetest.register_node("default:dirt_with_coal", {
+	description = ("Coal Ore"),
+	tiles = {"default_dirt.png^default_mineral_coal.png"},
+	groups = {crumbly = 3},
+	drop = "default:coal_lump",
+	sounds = default.node_sound_dirt_defaults(),
+})
+
 minetest.register_node("default:mud_with_coal", {
 	description = ("Coal Ore"),
 	tiles = {"mud.png^default_mineral_coal.png"},
@@ -1318,7 +1326,7 @@ end
 
 -- Register ABM for uranium ore
 minetest.register_abm({
-	nodenames = {"default:sandstone_with_uranium", "default:granite_with_uranium", "default:sandstone_with_uranium_dense", "default:granite_with_uranium", "industrialtest:uranium_block"},
+	nodenames = {"default:sandstone_with_uranium", "default:granite_with_uranium", "default:sandstone_with_uranium_dense", "default:granite_with_uranium_dense", "industrialtest:uranium_block"},
 	interval = 3,  -- operate every 3 seconds
 	chance = 1, -- 100% chance to operate the nodename(s)
 
@@ -2867,7 +2875,7 @@ minetest.register_ore({
 
     minetest.register_ore({
         ore_type = "stratum",
-        ore = "default:silt",
+        ore = "default:silt_with_coal",
         wherein = "default:stone_with_coal",
         clust_scarcity = 1,
         clust_size = 1,
@@ -2877,7 +2885,7 @@ minetest.register_ore({
 
     minetest.register_ore({
         ore_type = "stratum",
-        ore = "default:mud",
+        ore = "default:mud_with_coal",
         wherein = "default:stone_with_coal",
         clust_scarcity = 1,
         clust_size = 1,
@@ -2897,7 +2905,7 @@ minetest.register_ore({
 	
     minetest.register_ore({
         ore_type = "stratum",
-        ore = "default:mud",
+        ore = "default:mud_with_coal",
         wherein = "default:stone_with_coal",
         clust_scarcity = 1,
         clust_size = 1,
@@ -3818,6 +3826,198 @@ minetest.register_chatcommand("whereis_kyaw", {
     end
   end,
 })
+
+
+-----------------------------------------------------------------------
+-- DENSE ORE SYSTEM
+-- Auto-generates dense variants for ALL ore types (default:*_with_*)
+-- Dense ores form via LBM when an ore has 2+ ore neighbors (any type)
+-----------------------------------------------------------------------
+
+local dense_ore_count = 0
+local ore_set = {}          -- All ore names (regular + dense) for neighbor check
+local ore_to_dense = {}     -- Maps regular ore name -> dense ore name
+local lbm_nodenames = {}    -- List of regular ore names for the LBM
+
+-- Non-ore nodes with "_with_" that happen to have "^" in tiles[1]
+local dense_exclude = {
+    ["default:dirt_with_grass_footsteps"] = true,
+    ["default:permafrost_with_stones"] = true,
+    ["default:blueberry_bush_leaves_with_berries"] = true,
+}
+
+for name, def in pairs(minetest.registered_nodes) do
+    if name:match("^default:.*_with_")
+       and not name:match("_dense$")
+       and not dense_exclude[name] then
+
+        local tile1 = def.tiles and def.tiles[1]
+        if type(tile1) == "string" and tile1:find("^", 1, true) then
+            local caret = tile1:find("^", 1, true)
+            local base = tile1:sub(1, caret - 1)
+            local overlay = tile1:sub(caret + 1)
+
+            local dense_name = name .. "_dense"
+            local dense_tile = base .. "^" .. overlay
+                .. "^(" .. overlay .. "^[transformFX)"
+
+            -- Copy groups from base, add dense_ore marker
+            local groups = {}
+            if def.groups then
+                for k, v in pairs(def.groups) do
+                    groups[k] = v
+                end
+            end
+            groups.dense_ore = 1
+
+            -- Double the base ore's drop
+            local dense_drop
+            if type(def.drop) == "string" and def.drop ~= "" then
+                dense_drop = def.drop .. " 2"
+            else
+                -- nil/empty drop means node drops itself
+                dense_drop = name .. " 2"
+            end
+
+            minetest.register_node(dense_name, {
+                description = (def.description or name) .. " (Dense)",
+                tiles = {dense_tile},
+                groups = groups,
+                drop = dense_drop,
+                sounds = def.sounds,
+            })
+
+            ore_to_dense[name] = dense_name
+            ore_set[name] = true
+            ore_set[dense_name] = true
+            lbm_nodenames[#lbm_nodenames + 1] = name
+            dense_ore_count = dense_ore_count + 1
+        end
+    end
+end
+
+-----------------------------------------------------------------------
+-- GIANT ORE VEIN SYSTEM
+-- Rare, massive ore formations that are very rewarding to find
+-----------------------------------------------------------------------
+
+local giant_vein_ores = {
+    -- Common metals - large veins
+    {ore = "default:stone_with_coal", wherein = "default:stone",
+     y_max = 64, y_min = -500, scarcity = 80, size = 12, num = 30},
+    {ore = "default:stone_with_iron", wherein = "default:stone",
+     y_max = 0, y_min = -800, scarcity = 90, size = 10, num = 20},
+    {ore = "default:stone_with_copper", wherein = "default:stone",
+     y_max = -64, y_min = -600, scarcity = 85, size = 10, num = 18},
+    {ore = "default:stone_with_tin", wherein = "default:stone",
+     y_max = -32, y_min = -500, scarcity = 85, size = 9, num = 16},
+
+    -- Granite giant veins
+    {ore = "default:granite_with_coal", wherein = "default:granite",
+     y_max = 1024, y_min = -2000, scarcity = 75, size = 14, num = 35},
+    {ore = "default:granite_with_iron", wherein = "default:granite",
+     y_max = 800, y_min = -3000, scarcity = 85, size = 11, num = 22},
+    {ore = "default:granite_with_copper", wherein = "default:granite",
+     y_max = 500, y_min = -4000, scarcity = 80, size = 10, num = 20},
+    {ore = "default:granite_with_gold", wherein = "default:granite",
+     y_max = 200, y_min = -5000, scarcity = 100, size = 8, num = 14},
+    {ore = "default:granite_with_silver", wherein = "default:granite",
+     y_max = 200, y_min = -5000, scarcity = 100, size = 8, num = 14},
+    {ore = "default:granite_with_mithril", wherein = "default:granite",
+     y_max = -500, y_min = -6000, scarcity = 120, size = 6, num = 10},
+
+    -- Deep basalt giant veins (very rare, very valuable)
+    {ore = "default:basalt_with_titanium", wherein = "default:basalt",
+     y_max = -200, y_min = -1024, scarcity = 110, size = 7, num = 12},
+    {ore = "default:basalt_with_platinum", wherein = "default:basalt",
+     y_max = -400, y_min = -1024, scarcity = 130, size = 6, num = 10},
+    {ore = "default:basalt_with_mithril", wherein = "default:basalt",
+     y_max = -600, y_min = -1024, scarcity = 140, size = 5, num = 8},
+
+    -- Gneiss giant veins
+    {ore = "default:gneiss_with_gold", wherein = "default:gneiss",
+     y_max = -200, y_min = -900, scarcity = 95, size = 9, num = 16},
+    {ore = "default:gneiss_with_titanium", wherein = "default:gneiss",
+     y_max = -300, y_min = -900, scarcity = 100, size = 8, num = 14},
+    {ore = "default:gneiss_with_emerald", wherein = "default:gneiss",
+     y_max = -400, y_min = -900, scarcity = 110, size = 6, num = 10},
+
+    -- Mantle rock giant veins (deepest, rarest, most valuable)
+    {ore = "default:mantle_rock_with_platinum", wherein = "default:mantle_rock",
+     y_max = -800, y_min = -31000, scarcity = 120, size = 7, num = 12},
+    {ore = "default:mantle_rock_with_mithril", wherein = "default:mantle_rock",
+     y_max = -900, y_min = -31000, scarcity = 130, size = 6, num = 10},
+    {ore = "default:mantle_rock_with_adamant", wherein = "default:mantle_rock",
+     y_max = -1000, y_min = -31000, scarcity = 150, size = 5, num = 8},
+    {ore = "default:mantle_rock_with_diamond", wherein = "default:mantle_rock",
+     y_max = -1000, y_min = -31000, scarcity = 160, size = 5, num = 7},
+}
+
+-- Register giant ore veins
+local giant_vein_seed = 59842  -- Base seed for giant veins
+for i, vein in ipairs(giant_vein_ores) do
+    if minetest.registered_nodes[vein.ore] and minetest.registered_nodes[vein.wherein] then
+        minetest.register_ore({
+            ore_type = "blob",
+            ore = vein.ore,
+            wherein = vein.wherein,
+            clust_scarcity = vein.scarcity * vein.scarcity * vein.scarcity,
+            clust_size = vein.size,
+            clust_num_ores = vein.num,
+            y_max = vein.y_max,
+            y_min = vein.y_min,
+            noise_threshold = 0.5,
+            noise_params = {
+                offset = 0,
+                scale = 0.3,
+                spread = {x = 16, y = 16, z = 16},
+                seed = giant_vein_seed + i * 137,
+                octaves = 2,
+                persist = 0.6,
+            },
+        })
+    end
+end
+
+-----------------------------------------------------------------------
+-- DENSE ORE LBM
+-- Converts ores with 2+ ore neighbors to dense on first block load
+-----------------------------------------------------------------------
+
+local face_offsets = {
+    {x = 1, y = 0, z = 0}, {x = -1, y = 0, z = 0},
+    {x = 0, y = 1, z = 0}, {x = 0, y = -1, z = 0},
+    {x = 0, y = 0, z = 1}, {x = 0, y = 0, z = -1},
+}
+
+minetest.register_lbm({
+    name = "default:convert_to_dense_ore_v2",
+    nodenames = lbm_nodenames,
+    run_at_every_load = true,
+    action = function(pos, node)
+        local dense_name = ore_to_dense[node.name]
+        if not dense_name then return end
+
+        -- Skip player-placed ores
+        local meta = minetest.get_meta(pos)
+        if meta:get_int("player_placed") == 1 then return end
+
+        local count = 0
+        for _, off in ipairs(face_offsets) do
+            local npos = {x = pos.x + off.x, y = pos.y + off.y, z = pos.z + off.z}
+            if ore_set[minetest.get_node(npos).name] then
+                count = count + 1
+                if count >= 2 then
+                    minetest.swap_node(pos, {name = dense_name})
+                    return
+                end
+            end
+        end
+    end,
+})
+
+minetest.log("action", "[Dense Ore System] Registered " .. dense_ore_count .. " dense ore types")
+minetest.log("action", "[Giant Vein System] Registered " .. #giant_vein_ores .. " giant vein types")
 
 
 

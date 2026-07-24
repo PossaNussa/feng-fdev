@@ -27,7 +27,7 @@ public:
 	bool enable_mapgen_debug_info;
 	const int id; // Index of this thread
 
-	EmergeThread(Server *server, int ethreadid);
+	EmergeThread(Server *server, int ethreadid, EmergeManager *owner = nullptr);
 	~EmergeThread() = default;
 
 	void *run();
@@ -49,7 +49,9 @@ protected:
 
 private:
 	Server *m_server;
-	ServerMap *m_map;
+	EmergeManager *m_owner;      // EmergeManager that owns this thread (non-null)
+	ServerMap *m_map;            // Set in run(); may be overridden by m_map_override
+	ServerMap *m_map_override;   // If non-null, use this map instead of server's main map
 	EmergeManager *m_emerge;
 	Mapgen *m_mapgen;
 

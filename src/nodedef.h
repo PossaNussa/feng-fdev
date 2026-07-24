@@ -70,6 +70,8 @@ enum ContentParamType2 : u8
 	CPT2_4DIR,
 	// 6 bits of palette index, then 4dir
 	CPT2_COLORED_4DIR,
+	// 4 bits of palette index (upper nibble), then flowing liquid properties
+	CPT2_COLORFLOWINGLIQUID,
 	// Dummy for validity check
 	ContentParamType2_END
 };
@@ -374,8 +376,7 @@ struct ContentFeatures
 	bool sunlight_propagates;
 	// Amount of light the node emits
 	u8 light_source;
-	// Optional tint for Approach-A colored lighting (LOD tint)
-	video::SColor light_colour;
+	video::SColor light_colour; // FlashEng
 
 	// --- MAP GENERATION ---
 

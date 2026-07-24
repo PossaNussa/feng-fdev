@@ -57,6 +57,7 @@ mobs:register_mob("animalworld:monkey", {
 	lava_damage = 5,
 	light_damage = 0,
 	fear_height = 4,
+	pathfinding = true,
 	animation = {
 		speed_normal = 100,
 		stand_speed = 75,
@@ -94,6 +95,8 @@ min_light = 0,
 	min_height = 30,
 	max_height = 75,
 	day_toggle = true,
+	min_heat = 60, max_heat = 95,
+	min_humidity = 50, max_humidity = 100,
 
 		on_spawn = function(self, pos)
 

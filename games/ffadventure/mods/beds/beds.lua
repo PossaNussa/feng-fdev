@@ -114,12 +114,12 @@ minetest.register_craftitem("beds:blanket", {
     inventory_image = "blanket.png",
 })
 
--- Register the sleeping bag as a bed
+-- Register the sleeping bag as a bed (no spawn setting)
 beds.register_bed("beds:sleeping_bag", {
     description = "Sleeping Bag",
     inventory_image = "wool_green.png",
     wield_image = "wool_green.png",
-	recipe = {
+    recipe = {
         {"beds:blanket", "beds:blanket"}
     },
     tiles = {
@@ -138,13 +138,20 @@ beds.register_bed("beds:sleeping_bag", {
     },
     selectionbox = {-0.5, -0.5, -0.5, 0.5, -0.0625, 1.5},
 })
+-- Mark sleeping bag as no-spawn
+minetest.override_item("beds:sleeping_bag_bottom", {
+    groups = {choppy = 2, oddly_breakable_by_hand = 2, flammable = 3, bed = 1, bed_no_spawn = 1},
+})
 
--- Register the hammock as a bed
+-- Register the hammock as a bed (no spawn setting)
+-- The hammock is placed by right-clicking a tree trunk with the hammock item.
+-- It searches along the 4 cardinal axes for a second tree trunk 3 blocks away,
+-- placing the 2-node bed between the two trees with air required below.
 beds.register_bed("beds:hammock", {
     description = "Hammock",
     inventory_image = "wool_green.png",
     wield_image = "wool_green.png",
-	recipe = {
+    recipe = {
         {"beds:blanket"}
     },
     tiles = {
@@ -163,61 +170,94 @@ beds.register_bed("beds:hammock", {
     },
     selectionbox = {-0.5, -0.5, -0.5, 0.5, -0.0625, 1.5},
 })
+-- Hammock placement: override on_place to require two trees with air below
+-- Layout: tree | bed_bottom | bed_top | tree (3 blocks apart along one axis)
+-- Player right-clicks a tree trunk. We search the 4 cardinal directions for a
+-- second tree trunk exactly 3 blocks away. The two nodes between them become
+-- the hammock, and both must have air below.
+local cardinal_dirs = {
+    {x =  1, z =  0},
+    {x = -1, z =  0},
+    {x =  0, z =  1},
+    {x =  0, z = -1},
+}
 
--- Hammock placement logic
-minetest.register_on_placenode(function(pos, newnode, placer, oldnode, itemstack, pointed_thing)
-    if newnode.name == "beds:blanket" then
-        local found_tree = false
-        local end_pos = nil
-        local distance = 0
+-- Map cardinal direction to facedir so the hammock aligns head-to-foot along the axis
+-- facedir: 0 = +Z, 1 = +X, 2 = -Z, 3 = -X
+local dir_to_facedir = {
+    [{x =  1, z =  0}] = 1,
+    [{x = -1, z =  0}] = 3,
+    [{x =  0, z =  1}] = 0,
+    [{x =  0, z = -1}] = 2,
+}
+-- Build a lookup by string key since table keys don't match by value
+local facedir_lookup = {}
+for d, f in pairs(dir_to_facedir) do
+    facedir_lookup[d.x .. "," .. d.z] = f
+end
 
-        -- Search for trees
-        for dx = -3, 3 do
-            for dz = -3, 3 do
-                if dx ~= 0 or dz ~= 0 then
-                    local check_pos = {x=pos.x+dx, y=pos.y, z=pos.z+dz}
-                    local check_node = minetest.get_node(check_pos).name
-                    if check_node == "default:tree" then
-                        found_tree = true
-                        end_pos = check_pos
-                        distance = math.abs(dx) + math.abs(dz)
-                        break
-                    end
-                end
-            end
-            if found_tree then break end
-        end
+local function is_tree(pos)
+    return minetest.get_item_group(minetest.get_node(pos).name, "tree") > 0
+end
 
-        -- Place hammocks
-        if found_tree and end_pos and distance >= 2 and distance <= 4 then
-            local x_step = (end_pos.x - pos.x) / distance
-            local z_step = (end_pos.z - pos.z) / distance
+minetest.override_item("beds:hammock_bottom", {
+    groups = {choppy = 2, oddly_breakable_by_hand = 2, flammable = 3, bed = 1, bed_no_spawn = 1},
+    on_place = function(itemstack, placer, pointed_thing)
+        if not placer or not placer:is_player() then return itemstack end
+        if pointed_thing.type ~= "node" then return itemstack end
 
-            for i = 1, distance - 1 do
-                local hammock_pos = {x = pos.x + i * x_step, y = pos.y, z = pos.z + i * z_step}
-                minetest.set_node(hammock_pos, {name="beds:hammock", param2=1})  -- param2=1 for 90 degree rotation
-            end
-
-            minetest.remove_node(pos)
-            itemstack:take_item(1)
+        local tree1 = pointed_thing.under
+        if not is_tree(tree1) then
+            minetest.chat_send_player(placer:get_player_name(),
+                "Place the hammock against a tree trunk.")
             return itemstack
-        else
-            return
         end
-    end
-end)
 
--- Handle hammock removal
-minetest.register_on_dignode(function(pos, oldnode, digger)
-    if oldnode.name == "beds:hammock" then
-        for dx = -3, 3 do
-            for dz = -3, 3 do
-                local check_pos = {x=pos.x+dx, y=pos.y, z=pos.z+dz}
-                local check_node = minetest.get_node(check_pos).name
-                if check_node == "beds:hammock" then
-                    minetest.remove_node(check_pos)
+        local player_name = placer:get_player_name()
+
+        -- Try each cardinal direction from tree1 to find a second tree 3 blocks away
+        local placed = false
+        for _, d in ipairs(cardinal_dirs) do
+            local tree2 = {x = tree1.x + d.x * 3, y = tree1.y, z = tree1.z + d.z * 3}
+            if is_tree(tree2) then
+                -- The two hammock positions between the trees
+                local pos1 = {x = tree1.x + d.x,     y = tree1.y, z = tree1.z + d.z}
+                local pos2 = {x = tree1.x + d.x * 2, y = tree1.y, z = tree1.z + d.z * 2}
+                local below1 = {x = pos1.x, y = pos1.y - 1, z = pos1.z}
+                local below2 = {x = pos2.x, y = pos2.y - 1, z = pos2.z}
+
+                -- Both hammock positions must be air, and air below them
+                local n1 = minetest.get_node(pos1).name
+                local n2 = minetest.get_node(pos2).name
+                local b1 = minetest.get_node(below1).name
+                local b2 = minetest.get_node(below2).name
+                if (n1 == "air" and n2 == "air" and b1 == "air" and b2 == "air") then
+                    -- Protection check
+                    if minetest.is_protected(pos1, player_name) or
+                       minetest.is_protected(pos2, player_name) then
+                        minetest.record_protection_violation(pos1, player_name)
+                        return itemstack
+                    end
+
+                    -- facedir: bed_bottom at pos1, bed_top at pos2
+                    -- facedir_to_dir(param2) points from bottom toward top
+                    local facedir = facedir_lookup[d.x .. "," .. d.z]
+                    minetest.set_node(pos1, {name = "beds:hammock_bottom", param2 = facedir})
+                    minetest.set_node(pos2, {name = "beds:hammock_top",    param2 = facedir})
+
+                    if not minetest.is_creative_enabled(player_name) then
+                        itemstack:take_item()
+                    end
+                    placed = true
+                    break
                 end
             end
         end
-    end
-end)
+
+        if not placed then
+            minetest.chat_send_player(player_name,
+                "Need two tree trunks 3 blocks apart with air between and below.")
+        end
+        return itemstack
+    end,
+})

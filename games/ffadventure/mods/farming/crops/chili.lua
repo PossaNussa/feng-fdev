@@ -122,10 +122,13 @@ farming.registered_plants["farming:chili_pepper"] = {
 minetest.register_decoration({
 	deco_type = "simple",
 	place_on = {
-		"default:dirt_with_grass", "default:dirt_with_rainforest_litter",
+		"default:dry_dirt_with_dry_grass", "default:dirt_with_rainforest_litter",
+		"naturalbiomes:savannalitter", "naturalbiomes:mediterran_litter",
 		"mcl_core:dirt_with_grass"
 	},
 	sidelen = 16,
+	biomes = {"savanna", "naturalbiomes:wetsavanna", "naturalbiomes:mediterranean",
+			"rainforest"},
 	noise_params = {
 		offset = 0,
 		scale = farming.chili,
@@ -134,8 +137,8 @@ minetest.register_decoration({
 		octaves = 3,
 		persist = 0.6
 	},
-	y_min = 5,
-	y_max = 35,
+	y_min = 1,
+	y_max = 45,
 	decoration = {"farming:chili_8"},
 	spawn_by = "group:tree",
 	num_spawn_by = 1

@@ -9,79 +9,348 @@ local furnace_fire_sounds = {}
 --
 -- Formspecs
 --
+-- Soot texture: dark-tinted ash
+local soot_texture = "ash_ash.png^[colorize:#000000:204"
+local soot_step = 8
+
+-- Ceiling soot stage definitions
+local ceiling_soot_stages = {
+	{name = "default:soot_ceiling",   box = {-0.5, 0.375, -0.5, 0.5, 0.5, 0.5}},
+	{name = "default:soot_ceiling_2", box = {-0.5, 0.125, -0.5, 0.5, 0.5, 0.5}},
+	{name = "default:soot_ceiling_3", box = {-0.5, -0.125, -0.5, 0.5, 0.5, 0.5}},
+}
+
+-- Map ceiling soot node name to stage index
+local ceiling_soot_index = {}
+for i, stage in ipairs(ceiling_soot_stages) do
+	ceiling_soot_index[stage.name] = i
+end
+
+-- Register soot (floor, leveled)
+minetest.register_node("default:soot", {
+	description = "Soot",
+	tiles = {soot_texture},
+	inventory_image = soot_texture,
+	wield_image = soot_texture,
+	paramtype = "light",
+	paramtype2 = "leveled",
+	buildable_to = true,
+	walkable = false,
+	pointable = true,
+	floodable = true,
+	place_param2 = soot_step,
+	leveled = soot_step,
+	drawtype = "nodebox",
+	node_box = {
+		type = "leveled",
+		fixed = {-0.5, -0.5, -0.5, 0.5, -0.25, 0.5},
+	},
+	groups = {crumbly = 3, falling_node = 1},
+	sounds = default.node_sound_sand_defaults(),
+	node_placement_prediction = "",
+
+	on_dig = function(pos, node, digger)
+		local level = minetest.get_node_level(pos)
+		minetest.node_dig(pos, node, digger)
+		if minetest.get_node(pos).name == node.name or
+				not digger or not digger:is_player() then
+			return
+		end
+		local extra = math.max(0, level / soot_step - 1)
+		if extra > 0 then
+			core.handle_node_drops(pos, {ItemStack("default:soot " .. tostring(extra))}, digger)
+		end
+	end,
+
+	on_place = function(itemstack, placer, pointed_thing)
+		-- Ceiling placement: pointing at underside of a block
+		if pointed_thing.above.y < pointed_thing.under.y then
+			local ceil_pos = pointed_thing.above
+			local old_node = minetest.get_node(ceil_pos)
+			local old_name = old_node.name
+			local stage = ceiling_soot_index[old_name]
+			if stage then
+				-- Stack ceiling soot
+				if stage >= 3 then
+					minetest.swap_node(ceil_pos, {name = "default:sootblock"})
+				else
+					minetest.swap_node(ceil_pos, {name = ceiling_soot_stages[stage + 1].name})
+				end
+				itemstack:take_item()
+				return itemstack
+			elseif old_name == "air" then
+				minetest.set_node(ceil_pos, {name = "default:soot_ceiling"})
+				itemstack:take_item()
+				return itemstack
+			end
+			return itemstack
+		end
+
+		-- Floor placement: stack on existing soot
+		local place_to = pointed_thing.under
+		local old_node = minetest.get_node(place_to)
+		if old_node.name ~= "default:soot" then
+			local node_def = minetest.registered_nodes[old_node.name]
+			if node_def and node_def.buildable_to then
+				return minetest.item_place(itemstack, placer, pointed_thing)
+			end
+			place_to = pointed_thing.above
+			old_node = minetest.get_node(place_to)
+			if old_node.name ~= "default:soot" then
+				return minetest.item_place(itemstack, placer, pointed_thing)
+			end
+		end
+		local player_name = placer and placer:is_player()
+		player_name = player_name and placer:get_player_name() or ""
+		if minetest.is_protected(place_to, player_name) and
+				(player_name == "" or
+				not minetest.check_player_privs(placer, "protection_bypass")) then
+			if player_name == "" then return itemstack end
+			minetest.record_protection_violation(place_to, player_name)
+			return itemstack
+		end
+		local level = minetest.get_node_level(place_to)
+		level = level + soot_step
+		if level >= 64 then
+			minetest.swap_node(place_to, {name = "default:sootblock"})
+		else
+			minetest.set_node_level(place_to, level)
+		end
+		itemstack:take_item()
+		return itemstack
+	end,
+})
+
+-- Register sootblock (full block)
+minetest.register_node("default:sootblock", {
+	description = "Soot Block",
+	tiles = {soot_texture},
+	groups = {crumbly = 3},
+	sounds = default.node_sound_sand_defaults(),
+	is_ground_content = false,
+})
+
+-- Register ceiling soot stages in a loop
+for i, stage in ipairs(ceiling_soot_stages) do
+	minetest.register_node(stage.name, {
+		description = "Ceiling Soot",
+		tiles = {soot_texture},
+		paramtype = "light",
+		drawtype = "nodebox",
+		node_box = {
+			type = "fixed",
+			fixed = stage.box,
+		},
+		buildable_to = true,
+		walkable = false,
+		pointable = true,
+		groups = {crumbly = 3, ceiling_soot = 1, not_in_creative_inventory = (i > 1 and 1 or nil)},
+		sounds = default.node_sound_sand_defaults(),
+		drop = "default:soot",
+		is_ground_content = false,
+	})
+end
+
+-- ABM: ceiling soot gravity check — if block above isn't solid, drop as item
+minetest.register_abm({
+	label = "Ceiling soot gravity check",
+	nodenames = {"group:ceiling_soot"},
+	interval = 30,
+	chance = 1,
+	action = function(pos)
+		local above = {x = pos.x, y = pos.y + 1, z = pos.z}
+		local above_node = minetest.get_node(above)
+		local above_def = minetest.registered_nodes[above_node.name]
+		if not above_def or not above_def.walkable or above_def.buildable_to then
+			minetest.remove_node(pos)
+			minetest.add_item(pos, "default:soot")
+		end
+	end,
+})
+
+-- Convert smoke at pos into soot (ceiling or floor)
+local function smoke_to_soot(pos)
+	-- Check above BEFORE removing smoke to determine ceiling vs floor
+	local above = {x = pos.x, y = pos.y + 1, z = pos.z}
+	local above_node = minetest.get_node(above)
+	local above_def = minetest.registered_nodes[above_node.name]
+	local above_is_solid = above_def and above_def.walkable and not above_def.buildable_to
+	local above_is_ceiling_soot = ceiling_soot_index[above_node.name] ~= nil
+
+	-- Remove the smoke node
+	minetest.remove_node(pos)
+
+	-- Ceiling path: solid block above, or existing ceiling soot above (stack into it)
+	if above_is_ceiling_soot then
+		-- Stack into the ceiling soot node above
+		local stage = ceiling_soot_index[above_node.name]
+		if stage >= 3 then
+			minetest.set_node(above, {name = "default:sootblock"})
+		else
+			minetest.set_node(above, {name = ceiling_soot_stages[stage + 1].name})
+		end
+		return
+	end
+
+	if above_is_solid then
+		-- Place new ceiling soot at smoke's position
+		minetest.set_node(pos, {name = "default:soot_ceiling"})
+		return
+	end
+
+	-- Scan upward to find a ceiling (solid block with ceiling soot below it, or bare solid)
+	for dy = 2, 10 do
+		local scan = {x = pos.x, y = pos.y + dy, z = pos.z}
+		local scan_node = minetest.get_node(scan)
+		local scan_stage = ceiling_soot_index[scan_node.name]
+		if scan_stage then
+			-- Found existing ceiling soot higher up — stack into it
+			if scan_stage >= 3 then
+				minetest.set_node(scan, {name = "default:sootblock"})
+			else
+				minetest.set_node(scan, {name = ceiling_soot_stages[scan_stage + 1].name})
+			end
+			return
+		end
+		local scan_def = minetest.registered_nodes[scan_node.name]
+		if scan_def and scan_def.walkable and not scan_def.buildable_to then
+			-- Found a bare ceiling — place soot just below it
+			local below_ceil = {x = pos.x, y = pos.y + dy - 1, z = pos.z}
+			local below_node = minetest.get_node(below_ceil)
+			if below_node.name == "air" then
+				minetest.set_node(below_ceil, {name = "default:soot_ceiling"})
+			end
+			return
+		end
+		if scan_def and scan_def.walkable then
+			break -- hit something solid but buildable_to, stop scanning up
+		end
+	end
+
+	-- Floor soot: scan downward for walkable surface
+	for dy = 0, 49 do
+		local check_pos = {x = pos.x, y = pos.y - dy, z = pos.z}
+		local check_node = minetest.get_node(check_pos)
+		local check_def = minetest.registered_nodes[check_node.name]
+		if check_def and check_def.walkable and not check_def.buildable_to then
+			-- Place soot on top of this surface
+			local soot_pos = {x = pos.x, y = pos.y - dy + 1, z = pos.z}
+			local soot_node = minetest.get_node(soot_pos)
+			if soot_node.name == "default:soot" then
+				local level = minetest.get_node_level(soot_pos)
+				level = level + soot_step
+				if level >= 64 then
+					minetest.swap_node(soot_pos, {name = "default:sootblock"})
+				else
+					minetest.set_node_level(soot_pos, level)
+				end
+			elseif soot_node.name == "air" or soot_node.name == "ignore" then
+				minetest.set_node(soot_pos, {name = "default:soot", param2 = soot_step})
+			end
+			return
+		end
+	end
+	-- No ground found within 50 blocks — just discard
+end
+
 -- Function to find the next position for the smoke to move to
 local function find_next_smoke_position(pos)
-    for dy = 1, 1 do
-        local new_pos = {x = pos.x, y = pos.y + dy, z = pos.z}
-        local node = minetest.get_node(new_pos)
-        if node.name == "air" then
-            return new_pos
-        end
-    end
-    
-    for dx = -1, 1 do
-        local new_pos = {x = pos.x + dx, y = pos.y, z = pos.z}
-        local node = minetest.get_node(new_pos)
-        if node.name == "air" then
-            return new_pos
-        end
-    end
-    
-    for dz = -1, 1 do
-        local new_pos = {x = pos.x, y = pos.y, z = pos.z + dz}
-        local node = minetest.get_node(new_pos)
-        if node.name == "air" then
-            return new_pos
-        end
-    end
-    
-    return nil
+	for dy = 1, 1 do
+		local new_pos = {x = pos.x, y = pos.y + dy, z = pos.z}
+		local node = minetest.get_node(new_pos)
+		if node.name == "air" then
+			return new_pos
+		end
+	end
+
+	for dx = -1, 1 do
+		local new_pos = {x = pos.x + dx, y = pos.y, z = pos.z}
+		local node = minetest.get_node(new_pos)
+		if node.name == "air" then
+			return new_pos
+		end
+	end
+
+	for dz = -1, 1 do
+		local new_pos = {x = pos.x, y = pos.y, z = pos.z + dz}
+		local node = minetest.get_node(new_pos)
+		if node.name == "air" then
+			return new_pos
+		end
+	end
+
+	return nil
 end
 
 -- Function to move smoke
 local function move_smoke(pos)
-    local current_node = minetest.get_node(pos)
-    local elapsed_time = 0  -- initialize if nil
-    if current_node.name ~= "default:smoke" then
-        return
-    end
+	local current_node = minetest.get_node(pos)
+	if current_node.name ~= "default:smoke" then
+		return
+	end
 
-    if elapsed_time >= 300 then  -- 300 seconds = 5 minutes
-        minetest.remove_node(pos)
-        return
-    end
+	-- Check age via metadata
+	local meta = minetest.get_meta(pos)
+	local born = meta:get_int("smoke_born")
+	if born == 0 then
+		-- Missing birth time (shouldn't happen) — convert immediately
+		smoke_to_soot(pos)
+		return
+	end
 
-    local next_pos = find_next_smoke_position(pos)
-    
-    if next_pos then
-        minetest.remove_node(pos)
-        minetest.set_node(next_pos, {name = "default:smoke"})
-        minetest.after(3.0, function() move_smoke(next_pos) end)
-    else
-        minetest.after(3.0, function() move_smoke(pos) end)
-    end
+	local age = os.time() - born
+	if age >= 120 then
+		smoke_to_soot(pos)
+		return
+	end
+
+	local next_pos = find_next_smoke_position(pos)
+
+	if next_pos then
+		-- Transfer birth time to new position
+		minetest.remove_node(pos)
+		minetest.set_node(next_pos, {name = "default:smoke"})
+		local new_meta = minetest.get_meta(next_pos)
+		new_meta:set_int("smoke_born", born)
+		minetest.after(3.0, function() move_smoke(next_pos) end)
+	else
+		minetest.after(3.0, function() move_smoke(pos) end)
+	end
 end
 
 -- Register the smoke node
 minetest.register_node("default:smoke", {
-    description = "Smoke",
-    drawtype = "glasslike",
-    use_texture_alpha = true,
-    is_ground_content = false,
-    paramtype = "light",
-    tiles = {"default_smoke.png"},
-    groups = {smoke = 1},
-    walkable = false,
-    pointable = false,
-	damage_per_second = 1, -- contact damage
-    buildable_to = true,
+	description = "Smoke",
+	drawtype = "glasslike",
+	use_texture_alpha = true,
+	is_ground_content = false,
+	paramtype = "light",
+	tiles = {"default_smoke.png"},
+	groups = {smoke = 1},
+	walkable = false,
+	pointable = false,
+	damage_per_second = 1,
+	buildable_to = true,
 })
 
 -- Function to handle smoke logic
 local function spawn_smoke(pos)
-    minetest.set_node(pos, {name = "default:smoke"})
-    minetest.after(1.0, function() move_smoke(pos) end)
+	minetest.set_node(pos, {name = "default:smoke"})
+	local meta = minetest.get_meta(pos)
+	meta:set_int("smoke_born", os.time())
+	minetest.after(1.0, function() move_smoke(pos) end)
 end
+
+-- LBM: convert stale smoke on server load (timer chain broken by restart)
+minetest.register_lbm({
+	label = "Convert stale smoke to soot",
+	name = "default:stale_smoke_to_soot_v1",
+	nodenames = {"default:smoke"},
+	run_at_every_load = true,
+	action = function(pos, node)
+		smoke_to_soot(pos)
+	end,
+})
 
 local function spawn_torchfire(pos)
 	minetest.set_node(pos, {name = "fire:basic_flame"})
@@ -101,13 +370,18 @@ minetest.register_abm({
         end
     end,
 })
--- ABM to spawn smoke above fire
+-- ABM to spawn smoke above fire (excludes enclosed lanterns like clantern)
 minetest.register_abm({
     label = "Spawn Torchsmoke",
     nodenames = {"group:torch"},
     interval = 45,
     chance = 2,
     action = function(pos)
+        -- Skip enclosed lanterns that don't produce smoke
+        local torch_node = minetest.get_node(pos)
+        if torch_node.name:find("clantern") then
+            return
+        end
         local smoke_pos = {x = pos.x, y = pos.y + 1, z = pos.z}
         local node = minetest.get_node(smoke_pos)
         if node.name == "air" then
@@ -121,6 +395,11 @@ minetest.register_abm({
     interval = 45,
     chance = 111,
     action = function(pos)
+        -- Skip enclosed lanterns that don't cause fires
+        local torch_node = minetest.get_node(pos)
+        if torch_node.name:find("clantern") then
+            return
+        end
         local smoke_pos = {x = pos.x, y = pos.y + 1, z = pos.z}
         local node = minetest.get_node(smoke_pos)
         if node.name == "air" then

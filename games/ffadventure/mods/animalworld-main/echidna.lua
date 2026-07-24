@@ -89,6 +89,9 @@ mobs:spawn({
 	min_height = 5,
 	max_height = 50,
 	day_toggle = true,
+	biomes = {"naturalbiomes:outback"},
+	min_heat = 60, max_heat = 90,
+	min_humidity = 5, max_humidity = 40,
 })
 end
 

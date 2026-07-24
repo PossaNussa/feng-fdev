@@ -362,6 +362,21 @@ projectile.register_projectile("projectile:obsidian", "slingshot", "default:obsi
 	speed = 25
 })
 
+-- cs_pebbles stone pebbles work as slingshot ammo (same stats as rocks)
+if minetest.get_modpath("cs_pebbles") then
+	local pebble_stones = {
+		"limestone", "sandstone", "schist", "shale", "slate",
+		"granite", "gneiss", "quartz", "marble", "onyx", "pumice",
+	}
+	local rock_entity = projectile.registered_projectiles["slingshot"]["projectile:rock"]
+			or projectile.registered_projectiles["slingshot"]["hardtrees:rock"]
+	if rock_entity then
+		for _, stone in ipairs(pebble_stones) do
+			projectile.registered_projectiles["slingshot"]["cs_pebbles:" .. stone .. "_pebble"] = rock_entity
+		end
+	end
+end
+
 --The basic arrow, which has twice the power of a rock.
 projectile.register_projectile("projectile:arrow", "bow", "projectile:arrow", {
 	damage = 10,

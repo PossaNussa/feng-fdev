@@ -26,7 +26,7 @@ lootchests.register_lootchest({
     groups = {snappy = 2, oddly_breakable_by_hand = 2},
     ymax = 0,
     ymin = -256,
-    spawn_on_rarity = 700,
+    spawn_on_rarity = 1400,
     slot_spawn_chance = 35,
     slots = 24,
 })

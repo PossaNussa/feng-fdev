@@ -204,6 +204,13 @@ local function inv_fields(player, data, fields)
 
 	elseif fields.hide_debug_grid then
 		data.hide_debug_grid = not data.hide_debug_grid
+
+	elseif fields.craft_cycle_prev or fields.craft_cycle_next then
+		if recipe_cycle then
+			recipe_cycle.cycle(player, fields.craft_cycle_prev and -1 or 1)
+			-- Nudge craft slot so craft_predict fires and refreshes craftpreview.
+			inv:set_stack("craft", 1, inv:get_stack("craft", 1))
+		end
 	end
 end
 

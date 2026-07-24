@@ -42,6 +42,7 @@ mobs:register_mob("animalworld:camel", {
 	light_damage = 0,
         knock_back = false,
 	fear_height = 2,
+	pathfinding = true,
         stay_near = {{"livingdesert:date_palm_leaves", "livingdesert:yucca", "default:dry_shrub", "livingdesert:figcactus_trunk", "livingdesert:coldsteppe_grass1", "livingdesert:cactus", "livingdesert:cactus3", "livingdesert:cactus2", "livingdesert:cactus4"}, 5},
 	animation = {
 		speed_normal = 35,
@@ -85,6 +86,8 @@ mobs:spawn({
 	active_object_count = 3,
 	min_height = 0,
 	max_height = 40,
+	min_heat = 70, max_heat = 100,
+	min_humidity = 0, max_humidity = 20,
 
 		on_spawn = function(self, pos)
 

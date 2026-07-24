@@ -368,7 +368,57 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			
 		end
 	end
-	
+
+	-- Connect nearby magma veins to the volcano pipe with obsidian-lined lava tendrils
+	if magma_conduits.config.magma_veins then
+		local c_lava_vein = minetest.get_content_id("default:lava_source")
+		local TENDRIL_RANGE = 80  -- max horizontal reach from pipe wall
+
+		-- Find vein lava blocks in this chunk that are horizontally near the pipe,
+		-- only at depths where the pipe itself is lava-filled (keeps the air vent clear)
+		local vein_targets = {}
+		for vi2, x2, y2, z2 in area:iterp_xyz(minp, maxp) do
+			if data[vi2] == c_lava_vein and y2 <= depth_lava then
+				local dx = x2 - x_coord
+				local dz = z2 - z_coord
+				local horiz = math.sqrt(dx*dx + dz*dz)
+				if horiz > radius_lining + 1 and horiz <= TENDRIL_RANGE then
+					vein_targets[#vein_targets + 1] = {x=x2, y=y2, z=z2}
+				end
+			end
+		end
+
+		-- Carve a horizontal lava tendril from each vein pocket toward the pipe wall
+		for _, vp in ipairs(vein_targets) do
+			local dx = x_coord - vp.x
+			local dz = z_coord - vp.z
+			local len = math.sqrt(dx*dx + dz*dz)
+			if len > 1 then
+				local nx, nz = dx / len, dz / len
+				local steps = math.ceil(len - radius_vent)
+				for s = 0, steps do
+					local wx = math.floor(vp.x + nx * s + 0.5)
+					local wy = vp.y
+					local wz = math.floor(vp.z + nz * s + 0.5)
+					if area:contains(wx, wy, wz) then
+						local wvi = area:index(wx, wy, wz)
+						data[wvi] = c_lava
+						-- Line adjacent solid nodes with hot obsidian
+						for _, off in ipairs({{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}}) do
+							local lx, ly, lz = wx+off[1], wy+off[2], wz+off[3]
+							if area:contains(lx, ly, lz) then
+								local lvi = area:index(lx, ly, lz)
+								if data[lvi] ~= c_air and data[lvi] ~= c_lava and data[lvi] ~= c_lava_vein then
+									data[lvi] = c_hot_lining
+								end
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+
 	--send data back to voxelmanip
 	vm:set_data(data)
 	--calc lighting

@@ -157,9 +157,3 @@ minetest.register_on_respawnplayer(function(player)
 	return on_spawn(player)
 end)
 
--- Set the spawn point to (1, 1, 1) on server start
-minetest.register_on_mods_loaded(function()
-    minetest.after(1, function()
-        minetest.run_server_chatcommand("serverspawn", "1 1 1")
-    end)
-end)

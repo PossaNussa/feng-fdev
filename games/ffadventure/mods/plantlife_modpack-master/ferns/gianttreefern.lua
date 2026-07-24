@@ -172,6 +172,7 @@ minetest.register_node("ferns:tree_fern_leave_big", {
 	tiles = {
 		"ferns_tree_fern_leave_big.png",
 	},
+	use_texture_alpha = "clip",
 	walkable = false,
 	groups = {
 		snappy=3,

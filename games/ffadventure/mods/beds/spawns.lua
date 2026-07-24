@@ -57,6 +57,8 @@ function beds.set_spawns()
 		-- but don't change spawn location if borrowing a bed
 		if not minetest.is_protected(p, name) then
 			beds.spawn[name] = p
+			-- Keep alone mod in sync so its respawn callback uses the bed position
+			player:get_meta():set_string("alone:spawn", minetest.pos_to_string(p))
 		end
 	end
 	beds.save_spawns()
@@ -66,6 +68,11 @@ function beds.remove_spawns_at(pos)
 	for name, p in pairs(beds.spawn) do
 		if vector.equals(vector.round(p), pos) then
 			beds.spawn[name] = nil
+			-- Clear alone:spawn so the player falls back to alone's own logic
+			local player = minetest.get_player_by_name(name)
+			if player then
+				player:get_meta():set_string("alone:spawn", "")
+			end
 		end
 	end
 	beds.save_spawns()

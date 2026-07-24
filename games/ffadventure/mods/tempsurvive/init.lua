@@ -45,6 +45,7 @@ tempsurvive={
 		["default:river_water_source"]={add=-2,rad=2},
 		["igniter"]={add=6,rad=5},
 		["default:furnace_active"]={add=5,rad=10},
+		["moretorches:clantern"]={add=2,rad=4},
 	}
 }
 
@@ -52,6 +53,27 @@ dofile(minetest.get_modpath("tempsurvive") .. "/functions.lua")
 dofile(minetest.get_modpath("tempsurvive") .. "/nodes_items.lua")
 
 minetest.register_on_mods_loaded(function()
+	-- Hook into skinsdb/armor visual pipeline so clothing overlays
+	-- persist through armor updates (skinsdb handles model + textures,
+	-- we just append clothing overlays to the skin texture slot)
+	if minetest.global_exists("skins") and minetest.global_exists("armor") then
+		local orig_update_visuals = armor.update_player_visuals
+		armor.update_player_visuals = function(self, player)
+			orig_update_visuals(self, player)
+			if not player then return end
+			local name = player:get_player_name()
+			local p = tempsurvive.player[name]
+			if p and p.clothing_overlay and p.clothing_overlay ~= "" then
+				local ok, cur = pcall(player_api.get_textures, player)
+				if ok and cur then
+					local new_textures = table.copy(cur)
+					new_textures[1] = new_textures[1] .. p.clothing_overlay
+					player_api.set_textures(player, new_textures)
+				end
+			end
+		end
+	end
+
 	local groups_to_change={}
 	for i,v in pairs(tempsurvive.nodes) do
 		if string.find(i,":")==nil then

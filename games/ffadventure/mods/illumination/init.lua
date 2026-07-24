@@ -20,12 +20,19 @@ local function get_light_node(player)
 	if def and def.light_source then
 		light = def.light_source
 	end
+	-- Light from offhand item
+	local offhand_item = offhand.get_offhand(player):get_name()
+	local offhand_def = minetest.registered_items[offhand_item]
+	if offhand_def and offhand_def.light_source and offhand_def.light_source > light then
+		light = offhand_def.light_source
+	end
 	-- Light from armor or other worn items
 	local name = player:get_player_name()
 	local armor_light = player_lights[name].armor_light
 	if armor_light and armor_light > light then
 		light = armor_light
 	end
+	light = math.floor(light)
 	if light >= 14 then
 		return "illumination:light_14"
 	elseif light < 1 then

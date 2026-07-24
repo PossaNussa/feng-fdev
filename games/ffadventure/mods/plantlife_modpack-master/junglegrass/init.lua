@@ -2,8 +2,8 @@
 
 local spawn_delay = 2000 -- 2000
 local spawn_chance = 100 -- 100
-local grow_delay = 1000 -- 1000
-local grow_chance = 10 -- 10
+local grow_delay = 300 -- 300
+local grow_chance = 3 -- 3
 
 local grasses_list = {
         {"junglegrass:shortest","junglegrass:short" },
@@ -21,7 +21,7 @@ minetest.register_node(':junglegrass:medium', {
 	sunlight_propagates = true,
 	paramtype = 'light',
 	walkable = false,
-	groups = { snappy = 3, flammable=2, junglegrass=1 },
+	groups = { snappy = 3, flammable=2, junglegrass=1, attached_node = 1 },
 	sounds = default.node_sound_leaves_defaults(),
 	drop = 'default:junglegrass',
 
@@ -40,7 +40,7 @@ minetest.register_node(':junglegrass:short', {
 	sunlight_propagates = true,
 	paramtype = 'light',
 	walkable = false,
-	groups = { snappy = 3, flammable=2, junglegrass=1 },
+	groups = { snappy = 3, flammable=2, junglegrass=1, attached_node = 1 },
 	sounds = default.node_sound_leaves_defaults(),
 	drop = 'default:junglegrass',
 	selection_box = {
@@ -50,7 +50,7 @@ minetest.register_node(':junglegrass:short', {
 })
 
 minetest.register_node(':junglegrass:shortest', {
-	description = "Jungle Grass (very short)",
+	description = "Jungle Grass",
 	drawtype = 'plantlike',
 	tiles = { 'junglegrass_shortest.png' },
 	inventory_image = 'junglegrass_shortest.png',
@@ -58,9 +58,8 @@ minetest.register_node(':junglegrass:shortest', {
 	sunlight_propagates = true,
 	paramtype = 'light',
 	walkable = false,
-	groups = { snappy = 3, flammable=2, junglegrass=1 },
+	groups = { snappy = 3, flammable=2, junglegrass=1, attached_node = 1 },
 	sounds = default.node_sound_leaves_defaults(),
-	drop = 'default:junglegrass',
 	selection_box = {
 		type = "fixed",
 		fixed = {-0.3, -0.5, -0.3, 0.3, 0, 0.3},
@@ -98,15 +97,14 @@ minetest.register_decoration({
 })
 
 
--- 1) Hide/block player placement of default:junglegrass
+-- Hide default:junglegrass from creative inventory (players collect junglegrass:shortest instead)
 minetest.after(0, function()
   local def = minetest.registered_nodes["default:junglegrass"] or {}
   local g = def.groups and table.copy and table.copy(def.groups) or {}
   g.not_in_creative_inventory = 1
   minetest.override_item("default:junglegrass", {
     groups = g,
-    -- Do nothing on place (prevents manual placement)
-    on_place = function(itemstack, placer, pt) return itemstack end,
+    drop = "junglegrass:shortest",
   })
 end)
 

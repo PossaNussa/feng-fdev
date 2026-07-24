@@ -476,13 +476,19 @@ void ServerEnvironment::loadMeta()
 
 	// Open file and deserialize
 	auto is = open_ifstream(path.c_str(), true);
-	if (!is.good())
-		throw SerializationError("Couldn't load env meta");
+	if (!is.good()) {
+		warningstream << "ServerEnvironment::loadMeta(): couldn't open env_meta.txt, "
+			"using defaults" << std::endl;
+		loadDefaultMeta();
+		return;
+	}
 
 	Settings args("EnvArgsEnd");
 	if (!args.parseConfigLines(is)) {
-		throw SerializationError("ServerEnvironment::loadMeta(): "
-			"EnvArgsEnd not found!");
+		warningstream << "ServerEnvironment::loadMeta(): EnvArgsEnd not found "
+			"(file may be corrupted), using defaults" << std::endl;
+		loadDefaultMeta();
+		return;
 	}
 
 	try {

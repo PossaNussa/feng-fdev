@@ -1,0 +1,42 @@
+# textdomain: potted_farming
+Plantaintextdomain: potted_farming
+
+
+### items.lua ###
+
+Empty Watering Can=
+
+### lib.lua ###
+
+Pot with =
+
+Basil=
+Rosemary=
+Sage=
+Parsley=
+Mint=
+Oregano=
+Stem=
+Wild =
+
+Brown=
+Cantharellus=
+Boletus=
+
+Lemon=
+Orange=
+Apple=
+(Leaves)=
+
+### nodes.lua ###
+
+Pot with Soil=
+Pot with Shrub=
+Pot with Plantain=
+
+### tools.lua ###
+
+Watering Can=
+
+
+##### not used anymore #####

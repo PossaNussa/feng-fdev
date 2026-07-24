@@ -26,7 +26,8 @@ local def = {
 		handy = 1, snappy = 3, flammable = 2, plant = 1, attached_node = 1,
 		not_in_creative_inventory = 1, growing = 1
 	},
-	sounds = farming.sounds.node_sound_leaves_defaults()
+	sounds = farming.sounds.node_sound_leaves_defaults(),
+	_heat_min = 40, _heat_max = 70, _hum_min = 38, _hum_max = 75,
 }
 
 -- stage 1
@@ -59,19 +60,40 @@ farming.registered_plants["farming:parsley"] = {
 }
 
 -- mapgen
-minetest.register_decoration({
-	deco_type = "simple",
-	place_on = {"default:dirt_with_grass", "mcl_core:dirt_with_grass"},
-	sidelen = 16,
-	noise_params = {
-		offset = 0,
-		scale = farming.parsley,
-		spread = {x = 100, y = 100, z = 100},
-		seed = 23,
-		octaves = 3,
-		persist = 0.6
-	},
-	y_min = 10,
-	y_max = 40,
-	decoration = "farming:parsley_3"
-})
+minetest.register_on_mods_loaded(function()
+	-- temperate, moderate moisture (heat 40-70, hum 38-75)
+	local place_on, biomes, seen = {}, {}, {}
+	for bname, bdef in pairs(minetest.registered_biomes) do
+		if not bname:find('_under') then
+			local h = bdef.heat_point or -1
+			local w = bdef.humidity_point or -1
+			if h >= 40 and h <= 70 and w >= 38 and w <= 75 then
+				biomes[#biomes + 1] = bname
+				local top = bdef.node_top
+				if top and minetest.registered_nodes[top] and not seen[top] then
+					seen[top] = true
+					place_on[#place_on + 1] = top
+				end
+			end
+		end
+	end
+	if next(place_on) then
+		minetest.register_decoration({
+			deco_type = "simple",
+			place_on = place_on,
+			sidelen = 16,
+			biomes = biomes,
+			noise_params = {
+				offset = 0,
+				scale = farming.parsley,
+				spread = {x = 100, y = 100, z = 100},
+				seed = 23,
+				octaves = 3,
+				persist = 0.6
+			},
+			y_min = 5,
+			y_max = 50,
+			decoration = "farming:parsley_3"
+		})
+	end
+end)

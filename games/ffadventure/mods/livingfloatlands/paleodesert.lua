@@ -28,9 +28,9 @@ minetest.register_biome({
 		node_dungeon_alt = "default:desert_sandstone_brick",
 		node_dungeon_stair = "stairs:desert_sandstone_stair",
     y_max = 31000,
-    y_min = 1000,
-    heat_point = 96,
-    humidity_point = 15,
+    y_min = 1,
+    heat_point = 98,
+    humidity_point = 10,
 })
 
 minetest.register_node("livingfloatlands:paleodesert_fern", {

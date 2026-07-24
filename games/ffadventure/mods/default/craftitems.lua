@@ -330,81 +330,11 @@ minetest.register_craftitem("default:steel_ingot", {
 	description = ("Steel Bar"),
 	inventory_image = "default_steel_ingot.png"
 })
--- Register stick with on_use functionality to place sticks on the ground
+-- Register stick (simple, no entity placement)
 minetest.register_craftitem("default:stick", {
     description = "Stick",
     inventory_image = "default_stick.png",
     groups = {stick = 1, flammable = 2},
-    on_use = function(itemstack, user, pointed_thing)
-        if pointed_thing and pointed_thing.type == "node" then
-            local pos = pointed_thing.above
-            pos.y = pos.y - 0.5  -- Lower the position to place closer to the ground
-            local obj = minetest.add_entity(pos, "default:ground_stick")
-            obj:set_rotation({x = math.pi/2, y = math.random(0, 360), z = 0})  -- Make it lay flat
-            itemstack:take_item(1)
-            return itemstack
-        end
-    end
-})
-
--- Register ground stick entity
-minetest.register_entity("default:ground_stick", {
-    initial_properties = {
-        physical = false,
-        collisionbox = {0, 0, 0, 0, 0, 0},
-        visual = "wielditem",
-        visual_size = {x = 0.20, y = 0.20},
-        textures = {"default:stick"},
-    },
-})
-
--- Function to manage fire and stick consumption
-local function manage_fire(pos)
-    local sticks = {}
-    for _, obj in pairs(minetest.get_objects_inside_radius(pos, 1)) do
-        if obj:get_luaentity() and obj:get_luaentity().name == "default:ground_stick" then
-            table.insert(sticks, obj)
-        end
-    end
-    local flame_node = minetest.get_node(pos).name
-    if flame_node ~= "fire:basic_flame" then
-        if #sticks > 0 then
-            sticks[1]:remove()
-            minetest.add_node(pos, {name = "fire:basic_flame"})
-        else
-            return
-        end
-    end
-    minetest.after(19, manage_fire, pos)
-end
-
--- Register campfire node
-minetest.register_node("default:campfire", {
-    description = "Campfire",
-    tiles = {"default_cobble.png"},
-	groups = {cracky = 2},
-    on_rightclick = function(pos, node, clicker, itemstack)
-        local item_name = itemstack:get_name()
-        local flame_pos = {x = pos.x, y = pos.y + 0.5, z = pos.z}  -- Adjust flame position
-
-        if item_name == "fire:flint_and_steel" then
-            minetest.add_node(flame_pos, {name = "fire:basic_flame"})
-            minetest.after(1, manage_fire, flame_pos)
-            itemstack:add_wear(1000)
-            return itemstack
-        elseif item_name == "fire:bowdrill" then
-            minetest.add_node(flame_pos, {name = "fire:basic_flame"})
-            minetest.after(1, manage_fire, flame_pos)
-            itemstack:add_wear(100)  -- Assuming bowdrill has less wear
-            return itemstack
-        end
-    end,
-})
--- Register shapeless recipe for campfire
-minetest.register_craft({
-    output = "default:campfire",
-    recipe = {"default:stick", "default:flint"},
-    type = "shapeless",
 })
 
 -- Register deletion stick with on_use functionality to delete entities

@@ -12,8 +12,8 @@
 #include "util/container.h"
 #include <utility>
 
-#define MAPGEN_DEFAULT MAPGEN_V7
-#define MAPGEN_DEFAULT_NAME "v7"
+#define MAPGEN_DEFAULT MAPGEN_V8
+#define MAPGEN_DEFAULT_NAME "v8"
 
 /////////////////// Mapgen flags
 #define MG_CAVES       0x02
@@ -95,7 +95,9 @@ private:
 
 // Order must match the order of 'static MapgenDesc g_reg_mapgens[]' in mapgen.cpp
 enum MapgenType {
-	MAPGEN_V7,
+	
+	MAPGEN_V8,
+MAPGEN_V7,
 	MAPGEN_VALLEYS,
 	MAPGEN_CARPATHIAN,
 	MAPGEN_V5,

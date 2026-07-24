@@ -15,8 +15,8 @@
 		node_dungeon_alt = "default:snowblock",
 		y_max = 31000,
 		y_min = 40,
-		heat_point = 2,
-		humidity_point = 43,
+		heat_point = 8,
+		humidity_point = 40,
 	})
 
 minetest.register_decoration({

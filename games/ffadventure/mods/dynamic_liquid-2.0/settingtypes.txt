@@ -54,6 +54,13 @@ dynamic_liquid_falling_obsidian (Falling obsidian) bool false
 #rather than destroying it.
 dynamic_liquid_displace_liquid (Displace liquid) bool true
 
+[Flow Push]
+
+#Acceleration (m/s²) applied to players standing in a flowing liquid source.
+#Mimics Minecraft's water current: pushes toward the nearest drop-off or open channel.
+#Set to 0 to disable. Default 5 gives a noticeable nudge without being overwhelming.
+dynamic_liquid_push_accel (Water current push acceleration) float 5.0 0.0 30.0
+
 [Flow Rates]
 
 #Sets the probability of water flow per block per second.

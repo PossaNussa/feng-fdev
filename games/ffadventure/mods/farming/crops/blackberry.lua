@@ -67,8 +67,11 @@ farming.registered_plants["farming:blackberry"] = {
 -- mapgen
 minetest.register_decoration({
 	deco_type = "simple",
-	place_on = {"default:dirt_with_grass", "mcl_core:dirt_with_grass"},
+	place_on = {"default:dirt_with_grass", "default:dirt_with_coniferous_litter",
+			"mcl_core:dirt_with_grass"},
 	sidelen = 16,
+	biomes = {"deciduous_forest", "coniferous_forest", "grassland",
+			"grove", "sakura_forest"},
 	noise_params = {
 		offset = 0,
 		scale = farming.blackberry,
@@ -78,6 +81,6 @@ minetest.register_decoration({
 		persist = 0.6
 	},
 	y_min = 3,
-	y_max = 20,
+	y_max = 30,
 	decoration = "farming:blackberry_4"
 })

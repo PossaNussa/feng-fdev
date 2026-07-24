@@ -115,7 +115,7 @@ minetest.register_node("nettle:giant_hogweed", {
 minetest.register_abm({
 	nodenames = {"group:spreading_dirt_type", "default:dirt", "group:ethereal_grass"},
 	interval = 240,
-	chance = 50,
+	chance = 200,
 	action = function(pos, node)
 		local above = {x=pos.x, y=pos.y+1, z=pos.z}
 		if minetest.get_node(above).name ~= "air" then
@@ -180,7 +180,7 @@ end
 minetest.register_abm({
 	nodenames = {"group:nettle_weed"},
 	interval = 120,
-	chance = 10,
+	chance = 15,
 	action = function(pos, node)
 		if node.name == "nettle:nettle" then
 			if count_nodes(pos, "nettle:nettle") >= 4 then
@@ -313,7 +313,7 @@ minetest.register_abm({
 minetest.register_abm({
 	nodenames = {"group:spreading_dirt_type", "default:saprolite", "default:dirt_with_rainforest_litter", "default:rhyolite"},
 	interval = 240,
-	chance = 2048, -- Adjusted for a 1% chance (100% / 10000 = 0.01%)
+	chance = 4096,
 	action = function(pos, node)
 		local above = {x=pos.x, y=pos.y+1, z=pos.z}
 		if minetest.get_node(above).name ~= "air" then
@@ -350,7 +350,7 @@ minetest.register_abm({
 minetest.register_abm({
 	nodenames = {"group:spreading_dirt_type", "default:dirt", "group:ethereal_grass"},
 	interval = 240,
-	chance = 2048, -- Adjusted for a 1% chance (100% / 10000 = 0.01%)
+	chance = 4096,
 	action = function(pos, node)
 		local above = {x=pos.x, y=pos.y+1, z=pos.z}
 		if minetest.get_node(above).name ~= "air" then

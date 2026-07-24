@@ -53,7 +53,7 @@ for i = 1, VARIANT_COUNT do
 		local name = BLOCK_PREFIX .. i
 		local index = i
 		if i < 10 then index = "0" .. i end
-		local texture = "weather_puddle_" .. index .. ".png^[opacity:24"
+		local texture = "weather_puddle_" .. index .. ".png^[opacity:160"
 		if flip == 1 then
 			name = name .. "_flipped"
 			texture = texture .. "^[transformFX"
@@ -69,7 +69,7 @@ for i = 1, VARIANT_COUNT do
 			sunlight_propagates = true,
 			paramtype = "light",
 			paramtype2 = "facedir",
-			use_texture_alpha = "blend",
+			use_texture_alpha = "clip",
 			node_box = node_box,
 			groups = {
 				not_in_creative_inventory = 1,

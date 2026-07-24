@@ -3818,6 +3818,7 @@ mobs:register_mob("zombies:buffpig", {
 	attack_animals = false,
 	attack_npcs = false,
 	attack_type = "dogfight",
+	group_attack = { "mobf_trader:trader", "zombies:buffpig", "lottmobs:pigman_trader" },
 	drops = {
 		{name = "farming:wheat",
 		chance = 1,
@@ -3858,15 +3859,17 @@ mobs:register_mob("zombies:buffpig", {
 })
 
 -- Register spawn egg
-mobs:register_egg("zombies:buffpig", ("Snowman"), "#3b3b3b", "#f57223", false)
+mobs:register_egg("zombies:buffpig", ("Buff Pigman"), "#e8b0a0", "#8b4513", false)
 
+-- Spawn buff pigs as village guardians (like iron golems in Minecraft)
 mobs:spawn({
 	name = "zombies:buffpig",
-	nodes = {"mg_villages:plotmarker"},
+	nodes = {"mg_villages:plotmarker", "mg_villages:road"},
 	min_light = 0,
-	max_light = 15, -- 14
-	chance = 50000,
-	active_object_count =3,
+	max_light = 15,
+	chance = 12000,
+	active_object_count = 3,
+	max_height = 200,
 })
 mobs:register_mob("default:mosasaurus", {
     type = "monster",
@@ -3960,6 +3963,15 @@ mobs:register_mob("default:mosasaurus", {
 
 	
 do_custom = function(self, dtime)
+    -- Water entity: abandon targets and stop moving when beached.
+    -- Use standing_in (mobs API field) not isinliquid (mobkit field, never set here).
+    local in_water = self.standing_in and
+        minetest.get_item_group(self.standing_in, "liquid") > 0
+    if not in_water then
+        self.attack = nil
+        self.object:set_velocity({x = 0, y = self.object:get_velocity().y, z = 0})
+        return
+    end
     self.kill_count = self.kill_count or 0
     local pos = self.object:get_pos()
     local all_objects = minetest.get_objects_inside_radius(pos, 30)
@@ -3978,7 +3990,8 @@ do_custom = function(self, dtime)
 
                     self.kill_count = self.kill_count + 1
                     self.object:set_hp(self.object:get_hp() + hp_increase)
-                    self.object:set_properties({visual_size = {x=1 + growth_factor*self.kill_count, y=1 + growth_factor*self.kill_count}})
+                    local curr = self.object:get_properties().visual_size
+                    self.object:set_properties({visual_size = {x=curr.x + growth_factor, y=curr.y + growth_factor}})
                     obj:remove()
                 elseif ent.name == "boats:boat" or ent.name == "sailing:canoe" then
                     -- Handle boats
@@ -4064,7 +4077,7 @@ mobs:spawn({
 	min_light = 0,
 	max_light = 15,
 	interval = 10,
-	chance = 300,
+	chance = 345,
 	active_object_count = 5,
 	min_height = -31000,
 	max_height = 31000,
@@ -5080,4 +5093,82 @@ function zombies_awards.end_horde()
   H.kills_by_player = {}
   H.died = {}
 end
+
+-----------------------------------------------------------------------
+-- ZOMBIE SCENT SYSTEM
+-- Zombies and draugr slowly sniff out the nearest player at any range.
+-- Cheap: only iterates connected players every ~20s when idle.
+-- Once within normal view_range, standard general_attack() takes over.
+-----------------------------------------------------------------------
+
+local SCENT_INTERVAL = 20  -- seconds between sniff checks
+local SCENT_GIVE_UP = 200  -- stop wandering toward stale scent after this distance
+
+local function zombie_scent(self, dtime)
+	self._scent_timer = (self._scent_timer or 0) + dtime
+	if self._scent_timer < SCENT_INTERVAL then return end
+	self._scent_timer = 0
+
+	-- Only sniff when idle (not already attacking or running away)
+	if self.state == "attack" or self.state == "runaway" then return end
+
+	local pos = self.object:get_pos()
+	if not pos then return end
+
+	-- Find nearest player
+	local nearest, nearest_dist
+	for _, player in ipairs(minetest.get_connected_players()) do
+		local ppos = player:get_pos()
+		local d = vector.distance(pos, ppos)
+		if not nearest_dist or d < nearest_dist then
+			nearest = player
+			nearest_dist = d
+		end
+	end
+
+	if not nearest or not nearest_dist then return end
+
+	-- Already within view_range — let normal detection handle it
+	if nearest_dist <= (self.view_range or 20) then return end
+
+	-- Too far away to bother (would never reach before despawn)
+	if nearest_dist > SCENT_GIVE_UP then return end
+
+	-- Face toward the player and start walking
+	local ppos = nearest:get_pos()
+	local yaw = minetest.dir_to_yaw(vector.direction(pos, ppos))
+	self:set_yaw(yaw, 0)
+	self.state = "walk"
+	self:set_animation("walk")
+end
+
+-- Mob names to receive scent tracking (zombies + draugr, NOT mummies/vampires)
+local scent_mobs = {
+	"zombies:zombie", "zombies:1arm", "zombies:crawler",
+	"zombies:normal", "zombies:draugr",
+	"zombies:seazombie", "zombies:seamonster",
+	"runner:runner", "tankzombie:tankzombie",
+	"spitterzombie:spitterzombie",
+}
+
+-- Patch do_custom onto each mob after all mods load
+minetest.after(0, function()
+	for _, mob_name in ipairs(scent_mobs) do
+		local def = minetest.registered_entities[mob_name]
+		if def then
+			local old_custom = def.do_custom
+			if old_custom then
+				-- Wrap existing do_custom so both run
+				def.do_custom = function(self, dtime, moveresult)
+					zombie_scent(self, dtime)
+					return old_custom(self, dtime, moveresult)
+				end
+			else
+				def.do_custom = function(self, dtime)
+					zombie_scent(self, dtime)
+				end
+			end
+		end
+	end
+end)
 

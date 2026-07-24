@@ -1,0 +1,38 @@
+0.2.1 
+- Release version
+
+0.2.2
+- Added recipes for mineclonia/voxelibre and Minetest.
+- Medium and long curtains (click on one curtain while holding another curtain to add them)
+
+0.2.3 
+- Fix the "Hanging Pot" recipe in Minetest
+
+0.2.4
+- Add recipe for stool
+
+0.3
+- Added more colors for the curtains
+- Added bench
+- Added upholstered chair
+- Added sofa chair
+- Added stacked books
+- Added globe (Click to see its position)
+- Wooden Window
+
+0.4
+- Fixed the stool group
+- Fixed the Wooden Window recipe
+- Fixed the Stacked Books recipe
+- Added Wooden Counter
+- Added Cookie Jar (It's not possible to put cookies in it yet)
+- Added Broom
+- Added Statue
+- Added Hourglass
+- Added Placeable Apple 
+
+0.4.5
+- Fixed upholstered chair groups
+- Fixed the "Placeable Apple" apple selection box
+- Added "Chicken on a Board" recipes for use with mods such as: "animalia", "mobs animals", "mcl mobs", "better Minetest"
+- Added "Bread on a Board" recipes for use with mods such as: "farming" and "mcl farming"

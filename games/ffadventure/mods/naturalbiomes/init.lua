@@ -36,7 +36,7 @@ dofile(path .. "wetsavanna.lua") --
 dofile(path .. "alpine.lua") --
 --dofile(path .. "bambooforest.lua") --
 dofile(path .. "palmbeach.lua") --
---dofile(path .. "outback.lua") --
+dofile(path .. "outback.lua") --
 dofile(path .. "mediterranean.lua") --
 dofile(path .. "crafting.lua") --
 dofile(path .. "heath.lua") --

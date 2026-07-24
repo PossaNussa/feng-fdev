@@ -27,6 +27,7 @@ minetest.register_abm({
 })
 
 -- This Spawns A Base Trunk That The Tree Will Grow From
+-- Modified for giant redwoods: places 2x2 block arrangement
 function default.dt_redwood_main_trunk_base_2x2_replace_sapling(pos, node)
 	while node.name == "dynamic_trees:redwood_tree_canopy_base" do
 		pos.y = pos.y + -1
@@ -35,7 +36,12 @@ function default.dt_redwood_main_trunk_base_2x2_replace_sapling(pos, node)
 	if node.name ~= "dynamic_trees:redwood_tree_sapling" then
 		return
 	end
-	minetest.set_node(pos, {name = "dynamic_trees:redwood_tree_main_trunk_base_2x2"})
+	-- Place 2x2 trunk blocks
+	local trunk = "dynamic_trees:redwood_tree_main_trunk_base_2x2"
+	minetest.set_node(pos, {name = trunk})
+	minetest.set_node({x = pos.x + 1, y = pos.y, z = pos.z}, {name = trunk})
+	minetest.set_node({x = pos.x, y = pos.y, z = pos.z + 1}, {name = trunk})
+	minetest.set_node({x = pos.x + 1, y = pos.y, z = pos.z + 1}, {name = trunk})
 	return true
 end
 
@@ -214,17 +220,38 @@ minetest.register_abm({
 })
 
 -- This Is Where The New Growth Is Handled
--- Main Trunk Base 2x2 Grows 2x2 Trunk
+-- Main Trunk Base 2x2 Grows 2x2 Trunk (modified for giant 2x2 block trunks)
 function default.dt_redwood_main_trunk_base_2x2_grows_2x2_trunk(pos, node)
-	while node.name == "dynamic_trees:redwood_tree_main_trunk_base_2x2" do
-		pos.y = pos.y + 1
-		node = minetest.get_node(pos)
+	-- Find SW corner of 2x2 base
+	local base = "dynamic_trees:redwood_tree_main_trunk_base_2x2"
+	local trunk = "dynamic_trees:redwood_tree_main_trunk_2x2"
+	local corner = {x = pos.x, y = pos.y, z = pos.z}
+	if minetest.get_node({x = corner.x - 1, y = corner.y, z = corner.z}).name == base then
+		corner.x = corner.x - 1
 	end
-	if node.name ~= "dynamic_trees:redwood_tree_canopy_base" and node.name ~= "dynamic_trees:redwood_tree_canopy_1"
-	and node.name ~= "dynamic_trees:redwood_tree_canopy_2" and node.name ~= "air" then
+	if minetest.get_node({x = corner.x, y = corner.y, z = corner.z - 1}).name == base then
+		corner.z = corner.z - 1
+	end
+	-- Find top of trunk column from corner
+	local top = {x = corner.x, y = corner.y, z = corner.z}
+	local top_node = minetest.get_node(top)
+	while top_node.name == base or top_node.name == trunk do
+		top.y = top.y + 1
+		top_node = minetest.get_node(top)
+	end
+	if top_node.name ~= "dynamic_trees:redwood_tree_canopy_base" and top_node.name ~= "dynamic_trees:redwood_tree_canopy_1"
+	and top_node.name ~= "dynamic_trees:redwood_tree_canopy_2" and top_node.name ~= "air" then
 		return
 	end
-	minetest.set_node(pos, {name = "dynamic_trees:redwood_tree_main_trunk_2x2"})
+	-- Check if trunk already placed (another block beat us)
+	if top_node.name == trunk then
+		return
+	end
+	-- Place 2x2 trunk at top, aligned with base
+	minetest.set_node({x = corner.x, y = top.y, z = corner.z}, {name = trunk})
+	minetest.set_node({x = corner.x + 1, y = top.y, z = corner.z}, {name = trunk})
+	minetest.set_node({x = corner.x, y = top.y, z = corner.z + 1}, {name = trunk})
+	minetest.set_node({x = corner.x + 1, y = top.y, z = corner.z + 1}, {name = trunk})
 	return true
 end
 
@@ -232,7 +259,7 @@ minetest.register_abm({
 	label = "DT redwood Main Trunk Base 2x2 Grows 2x2 Trunk",
 	nodenames = {"dynamic_trees:redwood_tree_main_trunk_base_2x2"},
 	interval = 10,
-	chance = 15,
+	chance = 30,
 	action = function(...)
 		default.dt_redwood_main_trunk_base_2x2_grows_2x2_trunk(...)
 	end
@@ -336,15 +363,35 @@ minetest.register_abm({
 
 -- Main Trunk Base 4x4 Grows 2x2 Trunk
 function default.dt_redwood_main_trunk_base_4x4_grows_2x2_trunk(pos, node)
-	while node.name == "dynamic_trees:redwood_tree_main_trunk_base_4x4" do
-		pos.y = pos.y + 1
-		node = minetest.get_node(pos)
+	-- Find SW corner of 2x2 base
+	local base = "dynamic_trees:redwood_tree_main_trunk_base_4x4"
+	local trunk = "dynamic_trees:redwood_tree_main_trunk_2x2"
+	local corner = {x = pos.x, y = pos.y, z = pos.z}
+	if minetest.get_node({x = corner.x - 1, y = corner.y, z = corner.z}).name == base then
+		corner.x = corner.x - 1
 	end
-	if node.name ~= "dynamic_trees:redwood_tree_canopy_base" and node.name ~= "dynamic_trees:redwood_tree_canopy_1"
-	and node.name ~= "dynamic_trees:redwood_tree_canopy_2" and node.name ~= "air" then
+	if minetest.get_node({x = corner.x, y = corner.y, z = corner.z - 1}).name == base then
+		corner.z = corner.z - 1
+	end
+	-- Find top of trunk column
+	local top = {x = corner.x, y = corner.y, z = corner.z}
+	local top_node = minetest.get_node(top)
+	while top_node.name == base or top_node.name == trunk do
+		top.y = top.y + 1
+		top_node = minetest.get_node(top)
+	end
+	if top_node.name ~= "dynamic_trees:redwood_tree_canopy_base" and top_node.name ~= "dynamic_trees:redwood_tree_canopy_1"
+	and top_node.name ~= "dynamic_trees:redwood_tree_canopy_2" and top_node.name ~= "air" then
 		return
 	end
-	minetest.set_node(pos, {name = "dynamic_trees:redwood_tree_main_trunk_2x2"})
+	if top_node.name == trunk then
+		return
+	end
+	-- Place 2x2 trunk aligned with base
+	minetest.set_node({x = corner.x, y = top.y, z = corner.z}, {name = trunk})
+	minetest.set_node({x = corner.x + 1, y = top.y, z = corner.z}, {name = trunk})
+	minetest.set_node({x = corner.x, y = top.y, z = corner.z + 1}, {name = trunk})
+	minetest.set_node({x = corner.x + 1, y = top.y, z = corner.z + 1}, {name = trunk})
 	return true
 end
 
@@ -352,7 +399,7 @@ minetest.register_abm({
 	label = "DT redwood Main Trunk Base 4x4 Grows 2x2 Trunk",
 	nodenames = {"dynamic_trees:redwood_tree_main_trunk_base_4x4"},
 	interval = 10,
-	chance = 3,
+	chance = 25,
 	action = function(...)
 		default.dt_redwood_main_trunk_base_4x4_grows_2x2_trunk(...)
 	end
@@ -454,17 +501,37 @@ minetest.register_abm({
 	end
 })
 
--- Main Trunk 4x4 Grows 2x2 Trunk
+-- Main Trunk 4x4 Grows 2x2 Trunk (modified for giant 2x2 block trunks)
 function default.dt_redwood_main_trunk_4x4_grows_2x2_trunk(pos, node)
-	while node.name == "dynamic_trees:redwood_tree_main_trunk_4x4" do
-		pos.y = pos.y + 1
-		node = minetest.get_node(pos)
+	-- Find SW corner of 2x2
+	local base = "dynamic_trees:redwood_tree_main_trunk_4x4"
+	local trunk = "dynamic_trees:redwood_tree_main_trunk_2x2"
+	local corner = {x = pos.x, y = pos.y, z = pos.z}
+	if minetest.get_node({x = corner.x - 1, y = corner.y, z = corner.z}).name == base then
+		corner.x = corner.x - 1
 	end
-	if node.name ~= "dynamic_trees:redwood_tree_canopy_base" and node.name ~= "dynamic_trees:redwood_tree_canopy_1"
-	and node.name ~= "dynamic_trees:redwood_tree_canopy_2" and node.name ~= "air" then
+	if minetest.get_node({x = corner.x, y = corner.y, z = corner.z - 1}).name == base then
+		corner.z = corner.z - 1
+	end
+	-- Find top of trunk column
+	local top = {x = corner.x, y = corner.y, z = corner.z}
+	local top_node = minetest.get_node(top)
+	while top_node.name == base or top_node.name == trunk do
+		top.y = top.y + 1
+		top_node = minetest.get_node(top)
+	end
+	if top_node.name ~= "dynamic_trees:redwood_tree_canopy_base" and top_node.name ~= "dynamic_trees:redwood_tree_canopy_1"
+	and top_node.name ~= "dynamic_trees:redwood_tree_canopy_2" and top_node.name ~= "air" then
 		return
 	end
-	minetest.set_node(pos, {name = "dynamic_trees:redwood_tree_main_trunk_2x2"})
+	if top_node.name == trunk then
+		return
+	end
+	-- Place 2x2 trunk aligned with base
+	minetest.set_node({x = corner.x, y = top.y, z = corner.z}, {name = trunk})
+	minetest.set_node({x = corner.x + 1, y = top.y, z = corner.z}, {name = trunk})
+	minetest.set_node({x = corner.x, y = top.y, z = corner.z + 1}, {name = trunk})
+	minetest.set_node({x = corner.x + 1, y = top.y, z = corner.z + 1}, {name = trunk})
 	return true
 end
 
@@ -472,7 +539,7 @@ minetest.register_abm({
 	label = "DT redwood Main Trunk 4x4 Grows 2x2 Trunk",
 	nodenames = {"dynamic_trees:redwood_tree_main_trunk_4x4"},
 	interval = 10,
-	chance = 3,
+	chance = 25,
 	action = function(...)
 		default.dt_redwood_main_trunk_4x4_grows_2x2_trunk(...)
 	end
@@ -19585,7 +19652,7 @@ minetest.register_abm({
 	label = "DT redwood Canopy Base Above Main Trunk 2x2",
 	nodenames = {"dynamic_trees:redwood_tree_main_trunk_2x2"},
 	interval = 10,
-	chance = 10,
+	chance = 20,
 	action = function(...)
 		default.dt_redwood_canopy_base_above_main_trunk_2x2(...)
 	end
@@ -19608,7 +19675,7 @@ minetest.register_abm({
 	label = "DT redwood Canopy Base Minus X Main Trunk 2x2",
 	nodenames = {"dynamic_trees:redwood_tree_main_trunk_2x2"},
 	interval = 10,
-	chance = 10,
+	chance = 20,
 	action = function(...)
 		default.dt_redwood_canopy_base_minus_x_main_trunk_2x2(...)
 	end
@@ -19631,7 +19698,7 @@ minetest.register_abm({
 	label = "DT redwood Canopy Base Plus X Main Trunk 2x2",
 	nodenames = {"dynamic_trees:redwood_tree_main_trunk_2x2"},
 	interval = 10,
-	chance = 10,
+	chance = 20,
 	action = function(...)
 		default.dt_redwood_canopy_base_plus_x_main_trunk_2x2(...)
 	end
@@ -19654,7 +19721,7 @@ minetest.register_abm({
 	label = "DT redwood Canopy Base Minus Z Main Trunk 2x2",
 	nodenames = {"dynamic_trees:redwood_tree_main_trunk_2x2"},
 	interval = 10,
-	chance = 10,
+	chance = 20,
 	action = function(...)
 		default.dt_redwood_canopy_base_minus_z_main_trunk_2x2(...)
 	end
@@ -19677,7 +19744,7 @@ minetest.register_abm({
 	label = "DT redwood Canopy Base Plus Z Main Trunk 2x2",
 	nodenames = {"dynamic_trees:redwood_tree_main_trunk_2x2"},
 	interval = 10,
-	chance = 10,
+	chance = 20,
 	action = function(...)
 		default.dt_redwood_canopy_base_plus_z_main_trunk_2x2(...)
 	end

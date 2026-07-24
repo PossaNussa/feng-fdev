@@ -21,11 +21,15 @@
 -- Contact sapier a t gmx net
 -------------------------------------------------------------------------------
 
+-- Store current trader context for each player (for formspec callbacks)
+lottmobs.trader_context = {}
+
 function lottmobs.allow_move(inv, from_list, from_index, to_list, to_index, count, player)
 	if to_list ~= "selection" or
 		from_list == "price" or
 		from_list == "payment" or
 		from_list == "takeaway" or
+		from_list == "sellprice" or
 		from_list == "identifier" then
 		return 0
 	end
@@ -41,12 +45,16 @@ function lottmobs.allow_put(inv, listname, index, stack, player)
 	if listname == "payment" then
 		return 99
 	end
+	if listname == "selling" then
+		return 99
+	end
 	return 0
 end
 
 function lottmobs.allow_take(inv, listname, index, stack, player)
 	if listname == "takeaway" or
-		listname == "payment" then
+		listname == "payment" or
+		listname == "sellprice" then
 		return 99
 	else
 		return 0
@@ -57,6 +65,9 @@ function lottmobs.on_put(inv, listname, index, stack)
 	if listname == "payment" then
 		lottmobs.update_takeaway(inv)
 	end
+	if listname == "selling" then
+		lottmobs.update_sellprice(inv)
+	end
 end
 
 function lottmobs.on_take(inv, listname, count, index, stack, player)
@@ -65,7 +76,7 @@ function lottmobs.on_take(inv, listname, count, index, stack, player)
             local amount = inv:get_stack("payment", 1):get_count()
             local price = inv:get_stack("price", 1):get_count()
             local thing = inv:get_stack("payment", 1):get_name()
-            
+
             inv:set_stack("selection", 1, nil)
             inv:set_stack("price", 1, nil)
             inv:set_stack("takeaway", 1, nil)
@@ -88,6 +99,17 @@ function lottmobs.on_take(inv, listname, count, index, stack, player)
             inv:set_stack("takeaway", 1, nil)
         end
     end
+
+    -- Handle taking coins from sell price slot (completing sell)
+    if listname == "sellprice" then
+        inv:set_stack("selling", 1, nil)
+        inv:set_stack("sellprice", 1, nil)
+    end
+
+    -- If player takes item back from selling slot
+    if listname == "selling" then
+        inv:set_stack("sellprice", 1, nil)
+    end
 end
 
 
@@ -100,6 +122,99 @@ function lottmobs.update_takeaway(inv)
 		end
 	else
 		inv.set_stack(inv,"takeaway",1,nil)
+	end
+end
+
+-- Calculate sell price for an item (half of buy price)
+function lottmobs.update_sellprice(inv)
+	local selling = inv:get_stack("selling", 1)
+	if selling:is_empty() then
+		inv:set_stack("sellprice", 1, nil)
+		return
+	end
+
+	local item_name = selling:get_name()
+	local item_count = selling:get_count()
+
+	-- Search through all trader goods to find a matching item and its price
+	local sell_price = 0
+	local price_per_unit = 0
+
+	-- Check all race item lists (regular traders + pigman traders)
+	local races = {
+		lottmobs.dwarf, lottmobs.elf, lottmobs.human, lottmobs.mung_trader,
+		-- Pigman traders (may be nil if pigman_traders.lua hasn't loaded yet)
+		lottmobs.pigman_blacksmith, lottmobs.pigman_baker, lottmobs.pigman_butcher,
+		lottmobs.pigman_farmer, lottmobs.pigman_innkeeper, lottmobs.pigman_stonemason,
+		lottmobs.pigman_lumberjack, lottmobs.pigman_toolmaker, lottmobs.pigman_clothier,
+		lottmobs.pigman_general
+	}
+	for _, race in ipairs(races) do
+		if race and race.items then
+			for _, item_data in ipairs(race.items) do
+				local goods_stack = ItemStack(item_data[1])
+				if goods_stack:get_name() == item_name then
+					local price_stack = ItemStack(item_data[2])
+					-- Only handle coin prices for selling
+					if price_stack:get_name() == "simplecoins:coins" then
+						local new_price_per_unit = price_stack:get_count() / goods_stack:get_count()
+						-- Use the highest price found (best deal for player)
+						if new_price_per_unit > price_per_unit then
+							price_per_unit = new_price_per_unit
+						end
+					end
+				end
+			end
+		end
+	end
+
+	if price_per_unit > 0 then
+		-- Sell price is half the buy price, minimum 1
+		sell_price = math.max(1, math.floor((price_per_unit * item_count) / 2))
+		inv:set_stack("sellprice", 1, "simplecoins:coins " .. sell_price)
+	else
+		-- Item not found in trader's goods, can't sell
+		inv:set_stack("sellprice", 1, nil)
+	end
+end
+
+-- Clear the current selection and return item to goods
+function lottmobs.clear_selection(inv)
+	local selection = inv:get_stack("selection", 1)
+	if not selection:is_empty() then
+		-- Find an empty slot in goods or stack with same item
+		local goods_size = inv:get_size("goods")
+		local added = false
+
+		-- First try to find existing stack of same item
+		for i = 1, goods_size do
+			local goods_stack = inv:get_stack("goods", i)
+			if goods_stack:get_name() == selection:get_name() then
+				local leftover = goods_stack:add_item(selection)
+				inv:set_stack("goods", i, goods_stack)
+				if leftover:is_empty() then
+					added = true
+					break
+				end
+			end
+		end
+
+		-- If not added, find empty slot
+		if not added then
+			for i = 1, goods_size do
+				local goods_stack = inv:get_stack("goods", i)
+				if goods_stack:is_empty() then
+					inv:set_stack("goods", i, selection)
+					added = true
+					break
+				end
+			end
+		end
+
+		-- Clear selection and price
+		inv:set_stack("selection", 1, nil)
+		inv:set_stack("price", 1, nil)
+		inv:set_stack("takeaway", 1, nil)
 	end
 end
 
@@ -291,29 +406,92 @@ local function lottmobs_trader(self, clicker, entity, race, image, priv)
 		lottmobs.trader_inventory.set_size(lottmobs.trader_inventory,"selection",1)
 		lottmobs.trader_inventory.set_size(lottmobs.trader_inventory,"price",1)
 		lottmobs.trader_inventory.set_size(lottmobs.trader_inventory,"payment",1)
+		lottmobs.trader_inventory.set_size(lottmobs.trader_inventory,"selling",1)
+		lottmobs.trader_inventory.set_size(lottmobs.trader_inventory,"sellprice",1)
 		lottmobs.add_goods(entity, race)
 	end
+
+	-- Store context for formspec callbacks
+	lottmobs.trader_context[player] = {
+		inv_name = unique_entity_id,
+		trader_name = self.game_name
+	}
+
 	minetest.chat_send_player(player, "[NPC] <Trader " .. self.game_name .. "> Hello, " .. player .. ", have a look at my wares.")
-	minetest.show_formspec(player, "trade",
-		"size[8,10;]" ..
-		 "background[5,5;1,1;" .. image .. ";true]" ..
+	minetest.show_formspec(player, "lottmobs:trade",
+		"size[10,10.5;]" ..
+		"background[5,5;1,1;" .. image .. ";true]" ..
 		"label[0,0;Trader " .. self.game_name .. "'s stock:]" ..
-		"list[detached:" .. unique_entity_id .. ";goods;.5,.5;3,5;]" ..
-		"label[4.5,0.5;Selection]" ..
-		"list[detached:" .. unique_entity_id .. ";selection;4.5,1;5.5,2;]" ..
-		"label[6,0.5;Price]" ..
-		"list[detached:" .. unique_entity_id .. ";price;6,1;7,2;]" ..
-		"label[4.5,3.5;Payment]" ..
-		"list[detached:" .. unique_entity_id .. ";payment;4.5,4;5.5,5;]" ..
-		"label[6,3.5;Brought items]" ..
-		"list[detached:" .. unique_entity_id .. ";takeaway;6,4;7.5,5.5;]" ..
-		"list[current_player;main;0,6;8,4;]"
+		"list[detached:" .. unique_entity_id .. ";goods;0.25,0.5;3,5;]" ..
+
+		-- Buy section
+		"label[4,0;== BUY ==]" ..
+		"label[4,0.5;Selection]" ..
+		"list[detached:" .. unique_entity_id .. ";selection;4,1;1,1;]" ..
+		"button[5.1,1;1.5,0.8;clear;Clear]" ..
+		"label[6.7,0.5;Price]" ..
+		"list[detached:" .. unique_entity_id .. ";price;6.7,1;1,1;]" ..
+		"label[4,2.1;Payment]" ..
+		"list[detached:" .. unique_entity_id .. ";payment;4,2.6;1,1;]" ..
+		"label[5.5,2.1;You receive]" ..
+		"list[detached:" .. unique_entity_id .. ";takeaway;5.5,2.6;1,1;]" ..
+
+		-- Sell section
+		"label[4,3.8;== SELL (1/2 price) ==]" ..
+		"label[4,4.3;Your item]" ..
+		"list[detached:" .. unique_entity_id .. ";selling;4,4.8;1,1;]" ..
+		"label[5.5,4.3;You get]" ..
+		"list[detached:" .. unique_entity_id .. ";sellprice;5.5,4.8;1,1;]" ..
+
+		-- Player inventory
+		"list[current_player;main;0,6.2;8,4;]" ..
+		"listring[detached:" .. unique_entity_id .. ";goods]" ..
+		"listring[detached:" .. unique_entity_id .. ";selection]" ..
+		"listring[current_player;main]" ..
+		"listring[detached:" .. unique_entity_id .. ";selling]"
 	)
     else
         -- Handle the case where unique_entity_id is nil
         minetest.log("error", "unique_entity_id is nil in lottmobs_trader.")
     end
 end
+
+-- Handle formspec button clicks (Clear button)
+minetest.register_on_player_receive_fields(function(player, formname, fields)
+	if formname ~= "lottmobs:trade" then
+		return false
+	end
+
+	local pname = player:get_player_name()
+	local context = lottmobs.trader_context[pname]
+
+	if not context then
+		return false
+	end
+
+	-- Handle Clear button
+	if fields.clear then
+		local inv = minetest.get_inventory({type = "detached", name = context.inv_name})
+		if inv then
+			lottmobs.clear_selection(inv)
+			-- Also clear sell section and return item to player
+			local selling = inv:get_stack("selling", 1)
+			if not selling:is_empty() then
+				local player_inv = player:get_inventory()
+				local leftover = player_inv:add_item("main", selling)
+				if not leftover:is_empty() then
+					-- Drop on ground if player inventory full
+					minetest.add_item(player:get_pos(), leftover)
+				end
+				inv:set_stack("selling", 1, nil)
+			end
+			inv:set_stack("sellprice", 1, nil)
+		end
+		return true
+	end
+
+	return false
+end)
 
 mobs:register_mob("lottmobs:elf_trader", {
 	type = "npc",
@@ -359,6 +537,7 @@ mobs:register_mob("lottmobs:elf_trader", {
 		attack = "mobs_slash_attack",
 	},
 	attacks_monsters = true,
+	attack_npcs = false,
 	peaceful = true,
 	group_attack = true,
 	step = 1,
@@ -412,6 +591,7 @@ mobs:register_mob("lottmobs:human_trader", {
 		attack = "default_punch2",
 	},
 	attacks_monsters = true,
+	attack_npcs = false,
 	peaceful = true,
 	group_attack = true,
 	step = 1,
@@ -467,6 +647,7 @@ mobs:register_mob("lottmobs:dwarf_trader", {
 		attack = "default_punch2",
 	},
 	attacks_monsters = true,
+	attack_npcs = false,
 	peaceful = true,
 	group_attack = true,
 	step = 1,
@@ -514,6 +695,7 @@ mobs:register_mob("lottmobs:mung_trader", {
 		attack = "default_punch2",
 	},
 	attacks_monsters = true,
+	attack_npcs = false,
 	peaceful = true,
 	group_attack = true,
 	step = 1,

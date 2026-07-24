@@ -27,7 +27,7 @@ function M.hud_clamp(value)
     elseif value > 20 then
         return 20
     else
-        return math.ceil(value)
+        return math.floor(value)
     end
 end
 

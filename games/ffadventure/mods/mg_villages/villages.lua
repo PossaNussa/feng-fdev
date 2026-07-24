@@ -48,18 +48,19 @@ mg_villages.villages_at_point = function(minp, noise1)
 	if( not( mg_villages.village_type_data[ village_type ] )) then
 		mg_villages.village_type_data[  village_type ] = { min = mg_villages.VILLAGE_MIN_SIZE, max = mg_villages.VILLAGE_MAX_SIZE };
 	end
-	local size = pr:next(mg_villages.village_type_data[ village_type ].min, mg_villages.village_type_data[ village_type ].max) 
---	local height = pr:next(5, 20)
-	local height = pr:next(1, 5)
-	-- villages of a size >= 40 are always placed at a height of 1
+	local size = pr:next(mg_villages.village_type_data[ village_type ].min, mg_villages.village_type_data[ village_type ].max)
+	-- Initial height estimate - this will be recalculated based on actual terrain
+	-- Using values that match typical terrain heights (y=8-15) to prevent crater formation
+	-- The mapgen will adjust this based on measured terrain heights at village borders
+	local height = pr:next(8, 15)
+	-- Larger villages need more consistent heights, but still terrain-appropriate
 	if(     size >= 40 ) then
-		height = 1;
-	-- slightly smaller but still relatively large villages have a deterministic height now as well
+		height = pr:next(8, 12);  -- More consistent for large villages
 	elseif( size >= 30 ) then
-		height = 40-height;
+		height = pr:next(8, 14);
 	elseif( size >= 25 ) then
-		height = 35-height;
-	-- even smaller villages need to have a height depending on their sourroundings (at least they're pretty small!)
+		height = pr:next(8, 15);
+	-- smaller villages will adapt more to their surroundings via mapgen
 	end
 
 --	print("A village of type \'"..tostring( village_type ).."\' of size "..tostring( size ).." spawned at: x = "..x..", z = "..z)

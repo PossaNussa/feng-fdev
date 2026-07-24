@@ -680,3 +680,32 @@ if minetest.get_modpath("bonemeal") then
 	})
 end
 
+-- Coconut regrowth
+-- Periodically spawns new coconuts on living coconut palms
+minetest.register_abm({
+	label = "Coconut palm fruit regrowth",
+	nodenames = {"naturalbiomes:palm_leaves"},
+	neighbors = {"air"},
+	interval = 300,
+	chance = 12,
+	action = function(pos)
+		-- Confirm the tree is alive (trunk within leafdecay radius)
+		local trunk = minetest.find_node_near(pos, 6, {"naturalbiomes:palm_trunk"})
+		if not trunk then return end
+
+		-- Cap coconuts per tree
+		local fruits = minetest.find_nodes_in_area(
+			vector.subtract(trunk, 6),
+			vector.add(trunk, 6),
+			{"naturalbiomes:coconut"}
+		)
+		if #fruits >= 3 then return end
+
+		-- Place coconut in air below this leaf
+		local below = vector.offset(pos, 0, -1, 0)
+		if minetest.get_node(below).name == "air" then
+			minetest.set_node(below, {name = "naturalbiomes:coconut"})
+		end
+	end,
+})
+

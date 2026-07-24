@@ -32,8 +32,8 @@ if minetest.get_modpath("default") then
 	-- add the pipeworks switch into the default chest formspec
 	local old_get_chest_formspec = default.chest.get_chest_formspec
 	-- luacheck: ignore 122
-	default.chest.get_chest_formspec = function(pos)
-		local old_fs = old_get_chest_formspec(pos)
+	default.chest.get_chest_formspec = function(pos, player_name)
+		local old_fs = old_get_chest_formspec(pos, player_name)
 		local node = minetest.get_node(pos)
 		-- not all chests using this formspec necessary connect to pipeworks
 		if pipeworks.chests[node.name] then
@@ -63,7 +63,7 @@ if minetest.get_modpath("default") then
 			fs_helpers.on_receive_fields(pos, fields)
 			minetest.show_formspec(pn,
 				"default:chest",
-				default.chest.get_chest_formspec(pos))
+				default.chest.get_chest_formspec(pos, pn))
 		end
 		-- Do NOT return true here, the callback from default still needs to run
 		return false

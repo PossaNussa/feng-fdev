@@ -252,6 +252,35 @@ minetest.register_node("livingdesert:date_palm_fruits", {
 	end
 })
 
+-- Date palm fruit regrowth
+-- Periodically spawns new date fruits on living date palms
+minetest.register_abm({
+	label = "Date palm fruit regrowth",
+	nodenames = {"livingdesert:date_palm_leaves"},
+	neighbors = {"air"},
+	interval = 300,
+	chance = 12,
+	action = function(pos)
+		-- Confirm the tree is alive (trunk within leafdecay radius)
+		local trunk = minetest.find_node_near(pos, 3, {"livingdesert:date_palm_trunk"})
+		if not trunk then return end
+
+		-- Cap fruits per tree
+		local fruits = minetest.find_nodes_in_area(
+			vector.subtract(trunk, 3),
+			vector.add(trunk, 3),
+			{"livingdesert:date_palm_fruits"}
+		)
+		if #fruits >= 4 then return end
+
+		-- Place fruit in air below this leaf
+		local below = vector.offset(pos, 0, -1, 0)
+		if minetest.get_node(below).name == "air" then
+			minetest.set_node(below, {name = "livingdesert:date_palm_fruits"})
+		end
+	end,
+})
+
 -- Tree generation
 --
 
@@ -698,6 +727,48 @@ minetest.register_node("livingdesert:figcactus_fruit", {
 			minetest.set_node(pos, {name = "livingdesert:figcactus_fruit", param2 = 1})
 		end
 	end
+})
+
+-- Fig cactus fruit regrowth
+-- Periodically spawns new fruits on living fig cacti
+minetest.register_abm({
+	label = "Fig cactus fruit regrowth",
+	nodenames = {"livingdesert:figcactus_flower"},
+	neighbors = {"air"},
+	interval = 300,
+	chance = 12,
+	action = function(pos)
+		-- Confirm the cactus is alive (trunk within leafdecay radius)
+		local trunk = minetest.find_node_near(pos, 3, {"livingdesert:figcactus_trunk"})
+		if not trunk then return end
+
+		-- Cap fruits per cactus
+		local fruits = minetest.find_nodes_in_area(
+			vector.subtract(trunk, 3),
+			vector.add(trunk, 3),
+			{"livingdesert:figcactus_fruit"}
+		)
+		if #fruits >= 3 then return end
+
+		-- Place fruit in a random adjacent air node
+		local dirs = {
+			vector.new(1,0,0), vector.new(-1,0,0),
+			vector.new(0,1,0), vector.new(0,-1,0),
+			vector.new(0,0,1), vector.new(0,0,-1),
+		}
+		-- Shuffle to pick a random direction
+		for i = #dirs, 2, -1 do
+			local j = math.random(i)
+			dirs[i], dirs[j] = dirs[j], dirs[i]
+		end
+		for _, d in ipairs(dirs) do
+			local p = vector.add(pos, d)
+			if minetest.get_node(p).name == "air" then
+				minetest.set_node(p, {name = "livingdesert:figcactus_fruit"})
+				return
+			end
+		end
+	end,
 })
 
 minetest.register_node("livingdesert:yucca", {

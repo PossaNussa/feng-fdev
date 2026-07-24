@@ -69,9 +69,10 @@ XBows = {
         x_bows_show_3d_quiver = minetest.settings:get_bool('x_bows_show_3d_quiver', true)
     },
     charge_sound_after_job = {},
-    fallback_quiver = not minetest.global_exists('sfinv')
-        and not minetest.global_exists('unified_inventory')
-        and not minetest.global_exists('i3')
+    -- Always search main inventory for arrows as fallback (was restricted to no-sfinv setups)
+    fallback_quiver = true,
+    -- Hold-to-fire state tracking (Skyrim-style controls)
+    player_draw_state = {}
 }
 
 XBows.__index = XBows
@@ -397,7 +398,7 @@ function XBows.register_quiver(self, name, def)
     def.custom.name_open = 'x_bows:' .. name .. '_open'
     def.description = def.description or name
     def.short_description = def.short_description or name
-    def.groups = mergeTables({ quiver = 1, flammable = 1 }, def.groups or {})
+    def.groups = mergeTables({ quiver = 1, flammable = 1, armor_quiver = 1 }, def.groups or {})
     def.custom.groups_charged = mergeTables({
             quiver = 1, quiver_open = 1, flammable = 1, not_in_creative_inventory = 1
         },
@@ -575,6 +576,15 @@ function XBows.load(self, itemstack, user, pointed_thing)
     if itemstack_arrow and bow_def then
         local _tool_capabilities = self.registered_arrows[itemstack_arrow:get_name()].custom.tool_capabilities
 
+        -- Initialize hold-to-fire draw state
+        if not self.player_draw_state[player_name] then
+            self.player_draw_state[player_name] = {}
+        end
+        self.player_draw_state[player_name].drawing = true
+        self.player_draw_state[player_name].draw_start = minetest.get_us_time()
+        self.player_draw_state[player_name].full_charge_time = _tool_capabilities.full_punch_interval
+        self.player_draw_state[player_name].bow_name = bow_name
+
         ---@param v_user ObjectRef
         ---@param v_bow_name string
         ---@param v_itemstack_arrow ItemStack
@@ -749,15 +759,9 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
     -- remove arrow meta to prevent multiple shots while waiting for async `after`
     meta:set_string('arrow_itemstack_string', '')
 
-    ---stop punching close objects/nodes when shooting
-    minetest.after(0.2, function()
-        local wield_item = user:get_wielded_item()
-
-        if wield_item:get_count() > 0 and wield_item:get_name() == itemstack:get_name() then
-            local new_stack = ItemStack(mergeTables(itemstack:to_table(), { name = bow_name }))
-            user:set_wielded_item(new_stack)
-        end
-    end)
+    ---reset bow immediately after shooting (removed 0.2s delay for snappier feel)
+    local new_stack = ItemStack(mergeTables(itemstack:to_table(), { name = bow_name }))
+    user:set_wielded_item(new_stack)
 
     local player_pos = user:get_pos()
     local obj = minetest.add_entity(
@@ -1154,7 +1158,7 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                 )
                 or (
                     pointed_thing.ref:get_luaentity()
-                    and pointed_thing.ref:get_luaentity().physical
+                    and pointed_thing.ref:get_properties().physical
                     and pointed_thing.ref:get_luaentity().name ~= '__builtin:item'
                 )
             )
@@ -1194,7 +1198,7 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                 _damage = _damage
                     + base_damage
                     * limit(selfObj._tflp / selfObj._tool_capabilities.full_punch_interval, 0.0, 1.0)
-                    * ((target_armor_groups[group] or 0) + get_3d_armor_armor(pointed_thing.ref)) / 100.0
+                    * ((target_armor_groups[group] or 100) - get_3d_armor_armor(pointed_thing.ref)) / 100.0
             end
 
             -- crits
@@ -1254,6 +1258,24 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
             selfObj._caused_knockback = knockback
 
             XBows:show_damage_numbers(selfObj.object:get_pos(), _damage, selfObj._is_critical_hit)
+
+            -- Spawn impact particles for satisfying hit feedback
+            local impact_pos = ip_pos or selfObj.object:get_pos()
+            if selfObj._is_critical_hit then
+                self:get_particle_effect_for_arrow('impact_crit', impact_pos)
+                minetest.sound_play('x_bows_bow_shoot_crit', {
+                    pos = impact_pos,
+                    gain = 0.8,
+                    max_hear_distance = 16
+                }, true)
+            else
+                self:get_particle_effect_for_arrow('impact', impact_pos)
+                minetest.sound_play('x_bows_arrow_successful_hit', {
+                    pos = impact_pos,
+                    gain = 0.6,
+                    max_hear_distance = 12
+                }, true)
+            end
 
             -- already dead (entity)
             if not pointed_thing.ref:get_luaentity() and not pointed_thing.ref:is_player() then

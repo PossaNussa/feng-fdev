@@ -60,6 +60,8 @@ public:
 	v3s16 max_pos =  MAX_MAP_GENERATION_LIMIT_V3;
 	float heat_point     = 0.0f;
 	float humidity_point = 0.0f;
+	float amplify_terrain = 1.0f;
+	float amplify_features = 1.0f;
 	s16 vertical_blend = 0;
 	float weight = 1.0f;
 

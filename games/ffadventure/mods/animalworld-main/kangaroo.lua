@@ -39,6 +39,7 @@ mobs:register_mob("animalworld:kangaroo", {
 	lava_damage = 5,
 	light_damage = 0,
 	fear_height = 4,
+	pathfinding = true,
 	animation = {
 		speed_normal = 100,
 		stand_speed = 40,
@@ -82,7 +83,10 @@ mobs:spawn({
 	min_height = 5,
 	max_height = 45,
 	day_toggle = true,
-		
+	biomes = {"naturalbiomes:outback", "badlands"},
+	min_heat = 65, max_heat = 92,
+	min_humidity = 5, max_humidity = 35,
+
 on_spawn = function(self, pos)
 
 			local nods = minetest.find_nodes_in_area_under_air(

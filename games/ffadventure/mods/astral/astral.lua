@@ -342,37 +342,30 @@ end
 
 
 
--- Set all sky features
+-- Set moon phase textures only (sky color owned by skygen, scale owned by skygen)
 local function set_player_sky( player )
-	player:set_sky( {
-		type = "regular",
-		sky_color = {
-			day_sky = day_sky_color,
-			day_horizon = day_horizon_color,
-			night_sky = night_sky_color,
-			night_horizon = night_horizon_color
-		}
-	} )
-	
+	-- Skip if player is in space (space mod owns sky there)
+	local name = player:get_player_name()
+	if space and space.player and space.player[name] and space.player[name] > 0 then
+		return
+	end
+
+	-- Don't call set_sky — skygen owns sky colors
+	-- Don't set scale — skygen owns sun/moon scale
+
 	player:set_stars( {
-		--count = 1000,
 		star_color = star_color
 	} )
-	
+
 	player:set_moon( {
 		visible = moon_visible,
 		texture = moon_texture,
-		scale = moon_scale
 	} )
 
 	player:set_sun( {
 		visible = true,
 		texture = sun_texture,
-		scale = sun_scale or 3
 	} )
-	
-	-- This causes bugs (Minetest 5.3.0)
-	--player:set_clouds( { density = cloud_density } )
 end
 
 

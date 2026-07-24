@@ -303,9 +303,15 @@ mg_villages.get_replacement_table = function( housetype, pr, replacements )
 	if( not( replacements )) then
 		replacements = mg_villages.get_replacement_list( housetype, pr );
 	end
-	-- it is very problematic if the torches on houses melt snow and cause flooding; thus, we use a torch that is not hot
-	if( mg_villages.USE_DEFAULT_3D_TORCHES == false ) then
-		table.insert( replacements, {'default:torch', 'mg_villages:torch'});
+	-- replace all torches with copper lanterns (moretorches:clantern)
+	table.insert( replacements, {'default:torch', 'moretorches:clantern'});
+	table.insert( replacements, {'default:torch_wall', 'moretorches:clantern_wall'});
+	table.insert( replacements, {'default:torch_ceiling', 'moretorches:clantern_ceiling'});
+	-- also replace real_torch burnt-out torches with lanterns
+	if minetest.get_modpath("real_torch") then
+		table.insert( replacements, {'real_torch:torch', 'moretorches:clantern'});
+		table.insert( replacements, {'real_torch:torch_wall', 'moretorches:clantern_wall'});
+		table.insert( replacements, {'real_torch:torch_ceiling', 'moretorches:clantern_ceiling'});
 	end
 
 	-- make charachoal villages safe from spreading fire

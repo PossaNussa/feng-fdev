@@ -147,8 +147,8 @@ if ENABLE_KUDZU_BIOME then
 		depth_filler = 2,
 		y_min = -31000,
 		y_max = 31000,
-		heat_point = 50,
-		humidity_point = 75,
+		heat_point = 56,
+		humidity_point = 82,
 	})
 end
 

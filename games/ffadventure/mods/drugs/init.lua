@@ -53,14 +53,68 @@ minetest.register_node("drugs:weed_bloom", {
 	},
 })
 
-minetest.register_decoration({
-	deco_type = "simple",
-	place_on = {"default:dirt_with_grass"},
-	sidelen = 16,
-	fill_ratio = 0.001,
-	height = 1,
-	decoration = "drugs:weed_bloom",
-})
+-- Climate-aware wild spawn: warm (heat 55-88) + moderately humid (42-82)
+-- mirrors the elysflowers on_generated pattern so the plant only appears in
+-- appropriate subtropical/warm-temperate biomes.
+minetest.register_on_generated(function(minp, maxp, seed)
+	if maxp.y < 1 then return end
+
+	local heatmap     = minetest.get_mapgen_object("heatmap")
+	local humiditymap = minetest.get_mapgen_object("humiditymap")
+	local heightmap   = minetest.get_mapgen_object("heightmap")
+	if not (heatmap and humiditymap and heightmap) then return end
+
+	local vm, emin, emax = minetest.get_mapgen_object("voxelmanip")
+	local data = vm:get_data()
+	local area = VoxelArea:new({ MinEdge = emin, MaxEdge = emax })
+
+	local c_air     = minetest.CONTENT_AIR
+	local c_weed    = minetest.get_content_id("drugs:weed_bloom")
+	local c_grass   = minetest.get_content_id("default:dirt_with_grass")
+	local c_drgrass = minetest.get_content_id("default:dirt_with_dry_grass")
+
+	local w  = maxp.x - minp.x + 1
+	local d  = maxp.z - minp.z + 1
+	local pr = PseudoRandom(seed + 5791)
+
+	local STEP      = 8
+	local CHANCE    = 800
+	local HEAT_MIN  = 55
+	local HEAT_MAX  = 88
+	local HUMID_MIN = 42
+	local HUMID_MAX = 82
+
+	local ox = pr:next(0, STEP - 1)
+	local oz = pr:next(0, STEP - 1)
+
+	for dz = oz, d - 1, STEP do
+		for dx = ox, w - 1, STEP do
+			local idx   = dz * w + dx + 1
+			local heat  = heatmap[idx]
+			local humid = humiditymap[idx]
+			if heat and humid
+					and heat  >= HEAT_MIN and heat  <= HEAT_MAX
+					and humid >= HUMID_MIN and humid <= HUMID_MAX then
+				local y = heightmap[idx]
+				if y and y >= 1 then
+					local px = minp.x + dx
+					local pz = minp.z + dz
+					local vi_below = area:index(px, y,     pz)
+					local vi_above = area:index(px, y + 1, pz)
+					local cid_below = data[vi_below]
+					if (cid_below == c_grass or cid_below == c_drgrass)
+							and data[vi_above] == c_air
+							and pr:next(1, CHANCE) == 1 then
+						data[vi_above] = c_weed
+					end
+				end
+			end
+		end
+	end
+
+	vm:set_data(data)
+	vm:write_to_map()
+end)
 
 minetest.register_craftitem("drugs:weed_leaves", {
 	description = "Weed Leaves",
@@ -88,6 +142,29 @@ minetest.register_tool("drugs:weed_joint", {
 		--minetest.item_eat(2)
 		local oldhp = user:get_hp()
 		user:set_hp(oldhp + 3)
+
+		-- Smoke puff from the player's head
+		minetest.add_particlespawner({
+			amount   = 10,
+			time     = 4,
+			minpos   = {x=pos.x-0.1, y=pos.y+1.4, z=pos.z-0.1},
+			maxpos   = {x=pos.x+0.1, y=pos.y+1.7, z=pos.z+0.1},
+			minvel   = {x=-0.1, y=0.3, z=-0.1},
+			maxvel   = {x= 0.1, y=0.7, z= 0.1},
+			minacc   = {x=0, y=0.03, z=0},
+			maxacc   = {x=0, y=0.08, z=0},
+			minexptime = 1.5,
+			maxexptime = 3.0,
+			minsize  = 0.6,
+			maxsize  = 1.8,
+			collisiondetection = false,
+			texture  = "default_smoke.png",
+		})
+
+		-- Achievement: Red-eyed & Bleary
+		if minetest.global_exists("awards") then
+			awards.give_achievement(user:get_player_name(), "drugs_red_eyed_bleary")
+		end
 		--[[ -- old effect of randomizing nodes
 		--for i=1,coramt do
 			local corpos = {x=pos.x+math.random(-corrad,corrad), y=pos.y+math.random(-corrad,corrad), z=pos.z+math.random(-corrad,corrad)}
@@ -143,12 +220,29 @@ minetest.register_craft({
 	}
 })
 
+if minetest.global_exists("awards") then
+	awards.register_achievement("drugs_red_eyed_bleary", {
+		title       = "Red-eyed & Bleary",
+		description = "Smoke a joint.",
+		image       = "joint.png",
+		icon        = "joint.png",
+	})
+end
+
 minetest.register_abm({ --TODO:light and ground and air checks? no
 	nodenames = {"drugs:weed_seeds", "drugs:weed_stem", "drugs:weed_plant"},
 	interval = 5,
 	chance = 5 * 5,
 	catch_up = false,
 	action = function(pos)
+		-- Only grow within the same heat band the wild spawner uses (55-88).
+		-- Outside that range the plant simply stalls; it won't die.
+		local bd = minetest.get_biome_data(pos)
+		if bd then
+			local heat = bd.heat
+			if heat < 55 or heat > 88 then return end
+		end
+
 		local old = minetest.get_node(pos).name
 		if old == "drugs:weed_seeds" then
 			minetest.set_node(pos, {name="drugs:weed_stem"})

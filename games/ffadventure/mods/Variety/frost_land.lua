@@ -37,8 +37,8 @@ minetest.register_craft({
 		node_dungeon_alt = "default:snowblock",
 		y_max = 31000,
 		y_min = 4,
-		heat_point = 2,
-		humidity_point = 89,
+		heat_point = 6,
+		humidity_point = 91,
 	})
 
 	minetest.register_biome({

@@ -46,6 +46,7 @@ local modpath = minetest.get_modpath(minetest.get_current_modname())
 dofile(modpath.."/cooling_lava.lua")
 dofile(modpath.."/dynamic_liquids.lua")
 dofile(modpath.."/flow_through.lua")
+dofile(modpath.."/flow_push.lua")
 dofile(modpath.."/springs.lua")
 dofile(modpath.."/mapgen_prefill.lua")
 

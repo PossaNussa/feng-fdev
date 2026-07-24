@@ -413,7 +413,13 @@ local function get_group_items(name)
 	return i3.groups[name:sub(7)].items or groups_to_items(groups)
 end
 
+local function near_workbench(player)
+	local pos = player:get_pos()
+	return core.find_node_near(pos, 3, {"craft_table:simple", "xdecor:workbench"}) ~= nil
+end
+
 local function craft_stack(player, data, craft_rcp)
+	if not near_workbench(player) then return end
 	local inv = player:get_inventory()
 	local rcp_usg = craft_rcp and "recipe" or "usage"
 	local rcp_def = rcp_usg == "recipe" and data.recipes[data.rnum] or data.usages[data.unum]
@@ -680,6 +686,8 @@ local function update_inv_size(player, data)
 
 	local inv = player:get_inventory()
 	inv:set_size("main", data.inv_size)
+	inv:set_size("craft", 4)
+	inv:set_width("craft", 2)
 
 	player:hud_set_hotbar_itemcount(data.hotbar_len)
 
@@ -771,6 +779,7 @@ local _ = {
 	-- Inventory
 	get_stack = get_stack,
 	craft_stack = craft_stack,
+	near_workbench = near_workbench,
 	update_inv_size = update_inv_size,
 	get_detached_inv = get_detached_inv,
 	get_bag_description = get_bag_description,

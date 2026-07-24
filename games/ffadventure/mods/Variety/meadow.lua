@@ -15,8 +15,8 @@ local S = minetest.get_translator("variety")
 		node_dungeon_alt = "default:granitebrick",
 		y_max = 31000,
 		y_min = 1,
-		heat_point = 60,
-		humidity_point = 30,
+		heat_point = 57,
+		humidity_point = 28,
 	})
 	
 

@@ -1,0 +1,15 @@
+white
+grey
+dark_grey
+black
+violet
+blue
+cyan
+dark_green
+green
+yellow
+brown
+orange
+red
+magenta
+pink

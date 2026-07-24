@@ -45,14 +45,8 @@ skins.http = nil
 		local skin = skins.get_player_skin(minetest.get_player_by_name(name))
 		return skin:get_preview()
 	end
-	armor.update_player_visuals = function(self, player)
-		if not player then
-			return
-		end
-		local skin = skins.get_player_skin(player)
-		skin:apply_skin_to_player(player)
-		armor:run_callbacks("on_update", player)
-	end
+	-- Let 3d_armor's original update_player_visuals handle model/textures.
+	-- armor.get_player_skin (overridden above) feeds the correct skin texture.
 
 if minetest.global_exists("clothing") and clothing.player_textures then
 	skins.clothing_loaded = true

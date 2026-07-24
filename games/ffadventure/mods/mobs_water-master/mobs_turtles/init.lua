@@ -60,10 +60,11 @@ if mobs.mod and mobs.mod == "redo" then
 		end
 	})
 	--name, nodes, neighbours, minlight, maxlight, interval, chance, active_object_count, min_height, max_height
+	-- heat 45-90: warm-temperate to desert (turtles don't spawn in cold biomes)
 	mobs:spawn_specific("mobs_turtles:turtle",
 		{"default:dirt_with_grass","default:jungle_grass","default:sand","default:desert_sand"},
 		{"default:dirt_with_grass","default:jungle_grass","default:sand","default:desert_sand","default:papyrus","default:cactus","dryplants:juncus","dryplants:reedmace"},
-		5, 20, 30, l_spawn_chance, 1, 1, 31000)
+		5, 20, 30, l_spawn_chance, 1, 1, 31000, nil, nil, nil, nil, 45, 90)
 	mobs:register_egg("mobs_turtles:turtle", "Turtle", "default_grass.png", 1)
 
 -- sea turtle
@@ -99,10 +100,11 @@ if mobs.mod and mobs.mod == "redo" then
 		end
 	})
 	--name, nodes, neighbours, minlight, maxlight, interval, chance, active_object_count, min_height, max_height
+	-- heat 55-90: subtropical to tropical oceans only (sea turtles are warm-water animals)
 	mobs:spawn_specific("mobs_turtles:seaturtle",
 		{"default:water_flowing","default:water_source"},
 		{"default:water_flowing","default:water_source","group:seaplants","seawrecks:woodship","seawrecks:uboot"},
-		5, 20, 30, l_spawn_chance, 1, -31000, 0)
+		5, 20, 30, l_spawn_chance, 1, -31000, 0, nil, nil, nil, nil, 55, 90)
 	mobs:register_egg("mobs_turtles:seaturtle", "Sea Turtle", "default_water.png", 1)
 
 end

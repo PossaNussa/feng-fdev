@@ -57,11 +57,34 @@ for _, glass_name in ipairs(to_color) do
 		core.override_item(glass_name, {
 			paramtype2 = "color",
 			palette = "unifieddyes_palette_extended.png",
+			place_param2 = 240,
 			groups = groups,
 			on_dig = unifieddyes.on_dig,
 		})
 	end
 end
+
+-- Fix mapgen/schematic-placed glass that has param2=0 (pink tint).
+-- Index 0 in the unifieddyes palette is light pink; white is index 240.
+local glass_node_names = {}
+for _, glass_name in ipairs(to_color) do
+	if core.registered_nodes[glass_name] then
+		glass_node_names[#glass_node_names + 1] = glass_name
+	end
+end
+
+core.register_lbm({
+	label = "Fix colorable glass param2 (pink to white)",
+	name = "glass:fix_param2",
+	nodenames = glass_node_names,
+	run_at_every_load = true,
+	action = function(pos, node)
+		if node.param2 == 0 then
+			node.param2 = 240  -- white in unifieddyes_palette_extended
+			core.swap_node(pos, node)
+		end
+	end,
+})
 
 -- backward compat (1.0)
 if core.registered_nodes["default:glass"] then

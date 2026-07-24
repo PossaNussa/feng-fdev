@@ -31,6 +31,7 @@
 #include "itemdef.h"
 #include "craftdef.h"
 #include "emerge.h"
+#include "dimension_manager.h"
 #include "mapgen/mapgen.h"
 #include "mapgen/mg_biome.h"
 #include "content_mapnode.h"
@@ -492,6 +493,11 @@ void Server::init()
 	// Must be created before mod loading because we have some inventory creation
 	m_inventory_mgr = std::make_unique<ServerInventoryManager>();
 
+	// Dimension manager must exist before mods load so that
+	// minetest.register_dimension() works during mod initialisation.
+	// (Full emerge/map setup happens later; registerDimension() does its own init.)
+	m_dim_mgr = std::make_unique<DimensionManager>(this, m_metrics_backend.get());
+
 	m_script->loadBuiltin();
 
 	m_gamespec.checkAndLog();
@@ -522,6 +528,10 @@ void Server::init()
 
 	// unmap node names in cross-references
 	m_nodedef->resolveCrossrefs();
+
+	// Now that node resolution is complete, initialize any dimensions that
+	// were registered by mods during loading.
+	m_dim_mgr->finalizeRegistrations();
 
 	// init the recipe hashes to speed up crafting
 	m_craftdef->initHashes(this);
@@ -2482,7 +2492,14 @@ void Server::SendBlocks(float dtime)
 
 			total_sending += client->getSendingCount();
 			const auto old_count = queue.size();
-			client->GetNextBlocks(m_env, m_emerge.get(), dtime, queue);
+			// Route block emergence to the player's dimension emerge manager (if any)
+			EmergeManager *client_emerge = m_emerge.get();
+			if (m_dim_mgr) {
+				EmergeManager *dim_emerge = m_dim_mgr->getEmergeForPeer(client_id);
+				if (dim_emerge)
+					client_emerge = dim_emerge;
+			}
+			client->GetNextBlocks(m_env, client_emerge, dtime, queue);
 			unique_clients += queue.size() > old_count ? 1 : 0;
 		}
 	}
@@ -2500,7 +2517,7 @@ void Server::SendBlocks(float dtime)
 		g_settings->getU32("max_simultaneous_block_sends_per_client") / 4 + 1;
 
 	ScopeProfiler sp(g_profiler, "Server::SendBlocks(): Send to clients");
-	Map &map = m_env->getMap();
+	Map &main_map = m_env->getMap();
 
 	SerializedBlockCache cache, *cache_ptr = nullptr;
 	if (unique_clients > 1) {
@@ -2512,7 +2529,14 @@ void Server::SendBlocks(float dtime)
 		if (total_sending >= max_blocks_to_send)
 			break;
 
-		MapBlock *block = map.getBlockNoCreateNoEx(block_to_send.pos);
+		// Use the player's dimension map if they are in a dimension
+		Map *block_map = &main_map;
+		if (m_dim_mgr) {
+			ServerMap *dim_map = m_dim_mgr->getMapForPeer(block_to_send.peer_id);
+			if (dim_map)
+				block_map = dim_map;
+		}
+		MapBlock *block = block_map->getBlockNoCreateNoEx(block_to_send.pos);
 		if (!block)
 			continue;
 
@@ -2527,6 +2551,14 @@ void Server::SendBlocks(float dtime)
 		client->SentBlock(block_to_send.pos);
 		total_sending++;
 	}
+}
+
+void Server::clearClientSentBlocks(session_t peer_id)
+{
+	ClientInterface::AutoLock clientlock(m_clients);
+	RemoteClient *client = m_clients.lockedGetClientNoEx(peer_id, CS_Active);
+	if (client)
+		client->clearSentBlocks();
 }
 
 bool Server::SendBlock(session_t peer_id, const v3s16 &blockpos)

@@ -824,6 +824,7 @@ if default_loaded then
 	minetest.register_node("aotearoa:raupo", {
 		description = "Raupo\n".. minetest.colorize("#adaba0","(Typha orientalis)"),
 		drawtype = "plantlike",
+		use_texture_alpha = "clip",
 		waving = 1,
 		tiles = {"aotearoa_raupo.png"},
 		inventory_image = "aotearoa_raupo.png",
@@ -846,6 +847,7 @@ elseif zero_loaded then
 	minetest.register_node("aotearoa:raupo", {
 		description = "Raupo\n".. minetest.colorize("#adaba0","(Typha orientalis)"),
 		drawtype = "plantlike",
+		use_texture_alpha = "clip",
 		waving = 1,
 		tiles = {"aotearoa_raupo.png"},
 		inventory_image = "aotearoa_raupo.png",
@@ -877,6 +879,7 @@ if default_loaded then
 	minetest.register_node("aotearoa:raupo_flower", {
 		description = "Raupo Flower\n".. minetest.colorize("#adaba0","(Typha orientalis)"),
 		drawtype = "plantlike",
+		use_texture_alpha = "clip",
 		waving = 1,
 		tiles = {"aotearoa_raupo_flower.png"},
 		inventory_image = "aotearoa_raupo_flower.png",
@@ -896,6 +899,7 @@ elseif zero_loaded then
 	minetest.register_node("aotearoa:raupo_flower", {
 		description = "Raupo Flower\n".. minetest.colorize("#adaba0","(Typha orientalis)"),
 		drawtype = "plantlike",
+		use_texture_alpha = "clip",
 		waving = 1,
 		tiles = {"aotearoa_raupo_flower.png"},
 		inventory_image = "aotearoa_raupo_flower.png",
@@ -927,6 +931,7 @@ if default_loaded then
 	minetest.register_node("aotearoa:pipi", {
 		description = "Pipi\n".. minetest.colorize("#adaba0","(Paphies australis)"),
 		drawtype = "plantlike",
+		use_texture_alpha = "clip",
 		paramtype = "light",
 		visual_scale = 0.6,
 		tiles = {"aotearoa_pipi.png"},
@@ -961,6 +966,7 @@ elseif zero_loaded then
 	minetest.register_node("aotearoa:pipi", {
 		description = "Pipi\n".. minetest.colorize("#adaba0","(Paphies australis)"),
 		drawtype = "plantlike",
+		use_texture_alpha = "clip",
 		paramtype = "light",
 		visual_scale = 0.6,
 		tiles = {"aotearoa_pipi.png"},
@@ -1051,6 +1057,7 @@ if default_loaded then
 	minetest.register_node("aotearoa:cockle", {
 		description = "Cockle\n".. minetest.colorize("#adaba0","(Austrovenus stutchburyi)"),
 		drawtype = "plantlike",
+		use_texture_alpha = "clip",
 		paramtype = "light",
 		visual_scale = 0.6,
 		tiles = {"aotearoa_cockle.png"},
@@ -1082,6 +1089,7 @@ elseif zero_loaded then
 	minetest.register_node("aotearoa:cockle", {
 		description = "Cockle\n".. minetest.colorize("#adaba0","(Austrovenus stutchburyi)"),
 		drawtype = "plantlike",
+		use_texture_alpha = "clip",
 		paramtype = "light",
 		visual_scale = 0.6,
 		tiles = {"aotearoa_cockle.png"},
@@ -1935,6 +1943,7 @@ for i in ipairs(aotearoa.treelist) do
 		minetest.register_node("aotearoa:"..treename.."_sapling", {
 			description = treedesc.." Sapling"..sci_name,
 			drawtype = "plantlike",
+			use_texture_alpha = "clip",
 			tiles = {"aotearoa_"..treename.."_sapling.png"},
 			inventory_image = "aotearoa_"..treename.."_sapling.png",
 			paramtype = "light",
@@ -1978,6 +1987,7 @@ for i in ipairs(aotearoa.treelist) do
 		minetest.register_node("aotearoa:"..treename.."_sapling", {
 			description = treedesc.." Sapling"..sci_name,
 			drawtype = "plantlike",
+			use_texture_alpha = "clip",
 			tiles = {"aotearoa_"..treename.."_sapling.png"},
 			inventory_image = "aotearoa_"..treename.."_sapling.png",
 			paramtype = "light",
@@ -2025,6 +2035,7 @@ for i in ipairs(aotearoa.treelist) do
 		minetest.register_node("aotearoa:"..treename.."_leaves", {
 			description = treedesc.." Leaves"..sci_name,
 			drawtype = "allfaces_optional",
+			use_texture_alpha = "clip",
 			tiles ={"aotearoa_"..treename.."_leaves.png"},
 			paramtype = "light",
 			is_ground_content = false,
@@ -2045,6 +2056,7 @@ for i in ipairs(aotearoa.treelist) do
 		minetest.register_node("aotearoa:"..treename.."_leaves", {
 			description = treedesc.." Leaves"..sci_name,
 			drawtype = "allfaces_optional",
+			use_texture_alpha = "clip",
 			tiles ={"aotearoa_"..treename.."_leaves.png"},
 			paramtype = "light",
 			is_ground_content = false,
@@ -2167,6 +2179,7 @@ for i in ipairs(aotearoa.treelist) do
 			minetest.register_node(fruitname, {
 				description = fruitdesc..sci_name,
 				drawtype = "plantlike",
+				use_texture_alpha = "clip",
 				paramtype2 = "meshoptions",
 				place_param2 = 0 + 0x08,
 				tiles = {"aotearoa_"..fruit..".png"},
@@ -2212,6 +2225,7 @@ for i in ipairs(aotearoa.treelist) do
 			minetest.register_node(fruitname, {
 				description = fruitdesc..sci_name,
 				drawtype = "plantlike",
+				use_texture_alpha = "clip",
 				paramtype2 = "meshoptions",
 				place_param2 = 0 + 0x08,
 				tiles = {"aotearoa_"..fruit..".png"},
@@ -2370,6 +2384,7 @@ for i in ipairs(aotearoa.shrublist) do
 		minetest.register_node("aotearoa:"..treename.."_sapling", {
 			description = treedesc.." Sapling"..sci_name,
 			drawtype = "plantlike",
+			use_texture_alpha = "clip",
 			tiles = {"aotearoa_"..treename.."_sapling.png"},
 			inventory_image = "aotearoa_"..treename.."_sapling.png",
 			paramtype = "light",
@@ -2432,6 +2447,7 @@ for i in ipairs(aotearoa.shrublist) do
 		minetest.register_node("aotearoa:"..treename.."_sapling", {
 			description = treedesc.." Sapling"..sci_name,
 			drawtype = "plantlike",
+			use_texture_alpha = "clip",
 			tiles = {"aotearoa_"..treename.."_sapling.png"},
 			inventory_image = "aotearoa_"..treename.."_sapling.png",
 			paramtype = "light",
@@ -2479,6 +2495,7 @@ for i in ipairs(aotearoa.shrublist) do
 		minetest.register_node("aotearoa:"..treename.."_leaves", {
 			description = treedesc.." Leaves"..sci_name,
 			drawtype = "allfaces_optional",
+			use_texture_alpha = "clip",
 			tiles ={"aotearoa_"..treename.."_leaves.png"},
 			paramtype = "light",
 			is_ground_content = false,
@@ -2510,6 +2527,7 @@ for i in ipairs(aotearoa.shrublist) do
 			minetest.register_node(fruitname, {
 				description = fruitdesc ..sci_name,
 				drawtype = "plantlike",
+				use_texture_alpha = "clip",
 				paramtype2 = "meshoptions",
 				place_param2 = 0 + 0x08,
 				tiles = {"aotearoa_"..fruit..".png"},
@@ -2558,6 +2576,7 @@ for i in ipairs(aotearoa.shrublist) do
 		minetest.register_node("aotearoa:"..treename.."_leaves", {
 			description = treedesc.." Leaves"..sci_name,
 			drawtype = "allfaces_optional",
+			use_texture_alpha = "clip",
 			tiles ={"aotearoa_"..treename.."_leaves.png"},
 			paramtype = "light",
 			is_ground_content = false,
@@ -2589,6 +2608,7 @@ for i in ipairs(aotearoa.shrublist) do
 			minetest.register_node(fruitname, {
 				description = fruitdesc ..sci_name,
 				drawtype = "plantlike",
+				use_texture_alpha = "clip",
 				paramtype2 = "meshoptions",
 				place_param2 = 0 + 0x08,
 				tiles = {"aotearoa_"..fruit..".png"},
@@ -2792,6 +2812,7 @@ for i in ipairs(aotearoa.plantlist) do
 			minetest.register_node("aotearoa:"..plantname, {
 				description = plantdesc ..sci_name,
 				drawtype = "plantlike",
+				use_texture_alpha = "clip",
 				waving = waves,
 				visual_scale = vscale,
 				tiles = {"aotearoa_"..plantname..".png"},
@@ -2855,6 +2876,7 @@ for i in ipairs(aotearoa.plantlist) do
 			minetest.register_node("aotearoa:"..plantname, {
 				description = plantdesc ..sci_name,
 				drawtype = "plantlike",
+				use_texture_alpha = "clip",
 				waving = waves,
 				visual_scale = vscale,
 				tiles = {"aotearoa_"..plantname..".png"},
@@ -2950,6 +2972,7 @@ for i in ipairs(aotearoa.bushlist) do
 		minetest.register_node("aotearoa:"..plantname.."_sapling", {
 			description = plantdesc.." Sapling"..sci_name,
 			drawtype = "plantlike",
+			use_texture_alpha = "clip",
 			tiles = {"aotearoa_"..plantname.."_sapling.png"},
 			inventory_image = "aotearoa_"..plantname.."_sapling.png",
 			paramtype = "light",
@@ -2987,6 +3010,7 @@ for i in ipairs(aotearoa.bushlist) do
 		minetest.register_node("aotearoa:"..plantname.."_sapling", {
 			description = plantdesc.." Sapling"..sci_name,
 			drawtype = "plantlike",
+			use_texture_alpha = "clip",
 			tiles = {"aotearoa_"..plantname.."_sapling.png"},
 			inventory_image = "aotearoa_"..plantname.."_sapling.png",
 			paramtype = "light",
@@ -3027,6 +3051,7 @@ for i in ipairs(aotearoa.bushlist) do
 		minetest.register_node("aotearoa:"..plantname, {
 			description = plantdesc.. " Leaves"..sci_name,
 			drawtype = "allfaces_optional",
+			use_texture_alpha = "clip",
 			node_box = {
 				type = "fixed",
 				fixed = {
@@ -3054,6 +3079,7 @@ for i in ipairs(aotearoa.bushlist) do
 		minetest.register_node("aotearoa:"..plantname, {
 			description = plantdesc.. " Leaves"..sci_name,
 			drawtype = "allfaces_optional",
+			use_texture_alpha = "clip",
 			node_box = {
 				type = "fixed",
 				fixed = {
@@ -3084,6 +3110,7 @@ for i in ipairs(aotearoa.bushlist) do
 		minetest.register_node("aotearoa:"..plantname.."_stem", {
 			description = plantdesc.." Stem"..sci_name,
 			drawtype = "plantlike",
+			use_texture_alpha = "clip",
 			visual_scale = 1.41,
 			tiles = {"aotearoa_"..plantname.."_stem.png"},
 			inventory_image = "aotearoa_"..plantname.."_stem.png",
@@ -3115,6 +3142,7 @@ for i in ipairs(aotearoa.bushlist) do
 		minetest.register_node("aotearoa:"..plantname.."_stem", {
 			description = plantdesc.." Stem"..sci_name,
 			drawtype = "plantlike",
+			use_texture_alpha = "clip",
 			visual_scale = 1.41,
 			tiles = {"aotearoa_"..plantname.."_stem.png"},
 			inventory_image = "aotearoa_"..plantname.."_stem.png",
@@ -3406,6 +3434,7 @@ for i in ipairs(aotearoa.tfernlist) do
 		minetest.register_node("aotearoa:"..treename.."_crown", {
 			description = treedesc.." Crown "..sci_name,
 			drawtype = "plantlike",
+			use_texture_alpha = "clip",
 			visual_scale = crownscale,
 			paramtype = "light",
 			paramtype2 = "meshoptions",
@@ -3433,6 +3462,7 @@ for i in ipairs(aotearoa.tfernlist) do
 		minetest.register_node("aotearoa:"..treename.."_crown", {
 			description = treedesc.." Crown "..sci_name,
 			drawtype = "plantlike",
+			use_texture_alpha = "clip",
 			visual_scale = crownscale,
 			paramtype = "light",
 			paramtype2 = "meshoptions",

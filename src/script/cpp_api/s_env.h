@@ -21,7 +21,9 @@ public:
 	void environment_Step(float dtime);
 
 	// Called after generating a piece of map
-	void environment_OnGenerated(v3s16 minp, v3s16 maxp, u32 blockseed);
+	// dim_name is "" for the main world, or the dimension name for dimensions.
+	void environment_OnGenerated(v3s16 minp, v3s16 maxp, u32 blockseed,
+		const std::string &dim_name = "");
 
 	// Called on player event
 	void player_event(ServerActiveObject *player, const std::string &type);

@@ -578,41 +578,63 @@ minetest.register_node('x_farming:bee', {
     end
 })
 
--- Spawn bees on flowers
+-- Spawn bees on flowers (sporadic, density-limited)
+local bee_spawn_timer = 0
 minetest.register_globalstep(function(dtime)
-    local abr = minetest.get_mapgen_setting('active_block_range') or 4
-    local spawn_reduction = 0.5
-    local spawn_rate = 0.0005
-    local spawnpos, liquidflag = x_farming.get_spawn_pos_abr(dtime * 10, 3, abr * 16, spawn_rate, spawn_reduction)  -- Multiply dtime by 10
-    local tod = minetest.get_timeofday()
-    local is_day = false
+    bee_spawn_timer = bee_spawn_timer + dtime
+    if bee_spawn_timer < 10 then return end  -- check only every 10 seconds
+    bee_spawn_timer = 0
 
-    if tod > 0.2 and tod < 0.805 then
-        is_day = true
+    local tod = minetest.get_timeofday()
+    if tod < 0.2 or tod > 0.805 then return end  -- daytime only
+
+    local players = minetest.get_connected_players()
+    if #players == 0 then return end
+
+    -- Pick one random player
+    local player = players[math.random(#players)]
+    local pos = player:get_pos()
+
+    -- Check if player is in a meadow biome (10x spawn rate there)
+    local biome_data = minetest.get_biome_data(pos)
+    local in_meadow = false
+    if biome_data then
+        local biome_name = minetest.get_biome_name(biome_data.biome)
+        if biome_name and biome_name:find("meadow") then
+            in_meadow = true
+        end
     end
 
-    if spawnpos and not liquidflag and is_day then
-        local bees = minetest.find_node_near(spawnpos, abr * 16 * 1.1, { 'group:bee' }) or {}
+    local spawn_chance = in_meadow and 1.0 or 0.10
+    local density_cap = in_meadow and 20 or 2
 
-        if #bees > 1 then
-            return
-        end
+    if math.random() > spawn_chance then return end
 
-        local flower_positions = minetest.find_nodes_in_area_under_air(
-            vector.add(spawnpos, 5),
-            vector.subtract(spawnpos, 5),
-            { 'group:flower' }
-        )
+    -- Density cap
+    local check_radius = 48
+    local minp = vector.subtract(pos, check_radius)
+    local maxp = vector.add(pos, check_radius)
+    local existing_bees = minetest.find_nodes_in_area(minp, maxp, {"x_farming:bee"})
+    if #existing_bees >= density_cap then return end
 
-        if flower_positions and #flower_positions > 1 then
-            local rand_pos = flower_positions[rand:next(1, #flower_positions)]
-            local bee_pos = vector.new(rand_pos.x, rand_pos.y + 1, rand_pos.z)
+    -- Find flowers near the spawn point
+    local flower_positions = minetest.find_nodes_in_area_under_air(
+        vector.subtract(pos, 24),
+        vector.add(pos, 24),
+        { 'group:flower' }
+    )
 
-            minetest.swap_node(bee_pos, { name = 'x_farming:bee', param2 = rand:next(0, 3) })
-            tick_bee(spawnpos)
+    if flower_positions and #flower_positions > 0 then
+        local rand_pos = flower_positions[rand:next(1, #flower_positions)]
+        local bee_pos = vector.new(rand_pos.x, rand_pos.y + 1, rand_pos.z)
 
-            minetest.log('action', '[x_farming] Added Bee at ' .. minetest.pos_to_string(bee_pos))
-        end
+        -- Don't place on top of an existing node
+        if minetest.get_node(bee_pos).name ~= "air" then return end
+
+        minetest.swap_node(bee_pos, { name = 'x_farming:bee', param2 = rand:next(0, 3) })
+        tick_bee(bee_pos)
+
+        minetest.log('action', '[x_farming] Added Bee at ' .. minetest.pos_to_string(bee_pos))
     end
 end)
 

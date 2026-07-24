@@ -24,23 +24,12 @@ function skygen.set_biome_sky(player, biome_name)
         moon_scale = ((heat/100) + 0.1)*4
     end
 
-    player:set_clouds({
-        density = humidity/150,
-        color = cloud_color,
-        thickness = humidity * 0.8
-    })
+    player:set_clouds({density = 0})
     player:set_sun({
         texture = sun_texture,
         scale = sun_scale,
     })
-    player:set_moon({
-        texture = moon_texture,
-        scale = moon_scale,
-    })
-    player:set_stars({
-        count = (150 - humidity) * 0.4,
-        star_color = star_color
-    })
+    -- moon/stars owned by astral mod
 end
 
 function skygen.set_sky_colors(player, biome_name)
@@ -128,23 +117,12 @@ function skygen.apply_transition_step(player, step, base_data, diff_data)
     if skygen.read(name, "star_coloring") == "true" then
         star_color = sun_tint
     end
-    player:set_clouds({
-        density = humidity/150,
-        color = cloud_color,
-        thickness = humidity * 0.8
-    })
+    player:set_clouds({density = 0})
     player:set_sun({
         texture = sun_texture,
         scale = sun_scale,
     })
-    player:set_moon({
-        texture = moon_texture,
-        scale = moon_scale,
-    })
-    player:set_stars({
-        count = (150 - humidity) * 0.4,
-        star_color = star_color
-    })
+    -- moon/stars owned by astral mod
 end
 
 function skygen.get_param_diffs(prev_biome_name, biome_name)

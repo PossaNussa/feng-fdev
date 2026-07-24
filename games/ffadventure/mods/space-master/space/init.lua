@@ -13,7 +13,7 @@ minetest.register_globalstep(function(dtime)
 	local pos
 	local name
 	for i, player in pairs(minetest.get_connected_players()) do
-		pos=player:getpos().y
+		pos=player:get_pos().y
 		name=player:get_player_name()
 		if pos<space.y and space.player[name]~=0 then
 			space.toggle(player)
@@ -27,24 +27,21 @@ end)
 
 space.toggle=function(player)
 	local name=player:get_player_name()
-	local pos=player:getpos().y
+	local pos=player:get_pos().y
 	if pos<space.y then
 		space.player[name]=0
 		space.setgrav(player,1)
+		-- Don't call set_sky here — let skygen handle ground-level sky
+		-- Just restore sky defaults (graphical clouds disabled, using node clouds)
 		minetest.after(0.1,function()
-			player:set_sky({r=0, g=0, b=0},"regular",{})
-			player:set_clouds({
-				thickness=16,
-				color={r=240, g=240, b=255, a=229},
-				ambient={r=0, g=0, b=0, a=255},
-				density=0.4,
-				height=120,
-				speed={y=-2,x=0}
-			})
+			player:set_sky({type = "regular"})
+			player:set_clouds({density=0})
 		end)
 	elseif pos<space.y2 then
 		space.player[name]=1
 		space.setgrav(player,0.1)
+		-- Clear skygen's active biome so it re-applies on return to ground
+		if skygen and skygen.active_biome then skygen.active_biome[name] = nil end
 		minetest.after(0.1,function()
 			player:set_sky({r=0, g=0, b=0},"skybox",{"space_sky.png","space_sky2.png","space_sky.png","space_sky.png","space_sky.png","space_sky.png"})
 			player:set_clouds({density=0,speed=0})

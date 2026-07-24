@@ -70,7 +70,7 @@ minetest.override_item('default:dirt_with_grass', {
 		'',
 		'awg_grass_side.png'
 	},
-	use_texture_alpha = 'blend',
+	use_texture_alpha = 'clip',
 	paramtype2 = 'color',
 	color = '#4AA432',
 	palette = 'awg_grass_colormap.png',
@@ -103,6 +103,7 @@ if dead_grass then
 		groups = {crumbly = 3, soil = 1},
 		palette = 'awg_dead_grass_colormap.png',
 		color = '#594a28',
+		use_texture_alpha = 'clip',
 		tiles = {
 			{name = 'default_dirt.png', color = 'white'},
 			{name = 'default_dirt.png', color = 'white'},
@@ -178,3 +179,36 @@ end
 	end
 end
 end
+
+-- Fix footprints:dirt_with_grass to respect our colour palette.
+--
+-- footprints loads *before* always_greener (always_greener calls footprints'
+-- API during its own load), so the deep_copy inside register_trample_node
+-- runs before our override_item, and the trampled node ends up without
+-- paramtype2="color" or the awg palette.
+--
+-- register_on_mods_loaded fires after every mod has finished initialising,
+-- letting us correct the trampled node definition in one shot.
+minetest.register_on_mods_loaded(function()
+	if not minetest.get_modpath("footprints") then return end
+	if not minetest.registered_nodes["footprints:dirt_with_grass"] then return end
+
+	minetest.override_item("footprints:dirt_with_grass", {
+		-- Re-apply the awg top tile with the footprint overlay baked in.
+		-- Opacity 64 matches footprints' default for dirt_with_grass.
+		tiles = {
+			{name = "awg_grass.png^(footprints_footprint.png^[opacity:64)"},
+			{name = "default_dirt.png", color = "white"},
+			{name = "default_dirt.png", color = "white"},
+		},
+		overlay_tiles = {
+			"",
+			"",
+			"awg_grass_side.png",
+		},
+		use_texture_alpha = "clip",
+		paramtype2 = "color",
+		color = "#4AA432",
+		palette = "awg_grass_colormap.png",
+	})
+end)

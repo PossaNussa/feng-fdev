@@ -319,12 +319,12 @@ void set_default_settings()
     // updates. Mods may override this default via setting "inventory_update_interval".
     // Reduce inventory update interval to improve responsiveness (with slightly higher network traffic)
 	settings->setDefault("inventory_update_interval", "0.25");
+settings->setDefault("enable_colored_lighting_tint", "true");
+settings->setDefault("colored_lighting_samples", "8");
+settings->setDefault("colored_lighting_max_distance", "2");
+settings->setDefault("max_particles", "20000");
 
-	settings->setDefault("enable_colored_lighting_tint","true");
-settings->setDefault("colored_lighting_samples","8");
-settings->setDefault("colored_lighting_max_distance","2");
-settings->setDefault("max_particles","20000");
-// Level‑of‑detail (LOD) distance in nodes.  When a mapblock's centre is farther
+	// Level‑of‑detail (LOD) distance in nodes.  When a mapblock's centre is farther
 	// than this many nodes from the camera, the engine draws a simplified
 	// representation: it skips decorative drawtypes and only draws the top faces
 	// of solid/liquid nodes.  This reduces rendering load for distant terrain.
@@ -545,7 +545,7 @@ settings->setDefault("max_particles","20000");
 	settings->setDefault("liquid_update", "1.0");
 
 	// Mapgen
-	settings->setDefault("mg_name", "v7");
+	settings->setDefault("mg_name", "v8");
 	settings->setDefault("water_level", "1");
 	settings->setDefault("mapgen_limit", "31007");
 	settings->setDefault("chunksize", "5");
@@ -620,4 +620,3 @@ settings->setDefault("max_particles","20000");
 	// Tablets >= 6.0 use non-Android defaults for these settings
 #endif
 }
-

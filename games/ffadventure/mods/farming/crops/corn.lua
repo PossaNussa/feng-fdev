@@ -183,8 +183,11 @@ farming.registered_plants["farming:corn"] = {
 -- mapgen
 minetest.register_decoration({
 	deco_type = "simple",
-	place_on = {"default:dirt_with_grass", "mcl_core:dirt_with_grass"},
+	place_on = {"default:dirt_with_grass", "default:dry_dirt_with_dry_grass",
+			"mcl_core:dirt_with_grass"},
 	sidelen = 16,
+	biomes = {"grassland", "deciduous_forest", "grove", "savanna",
+			"naturalbiomes:mediterranean"},
 	noise_params = {
 		offset = 0,
 		scale = farming.corn,
@@ -193,7 +196,7 @@ minetest.register_decoration({
 		octaves = 3,
 		persist = 0.6
 	},
-	y_min = 12,
-	y_max = 25,
+	y_min = 5,
+	y_max = 35,
 	decoration = "farming:corn_7"
 })

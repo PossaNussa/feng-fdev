@@ -835,6 +835,7 @@ void read_content_features(lua_State *L, ContentFeatures &f, int index)
 	lua_getfield(L, index, "light_color");
 	read_color(L, -1, &f.light_colour);
 	lua_pop(L, 1);
+
 	read_color(L, -1, &f.post_effect_color);
 	lua_pop(L, 1);
 
@@ -858,7 +859,8 @@ void read_content_features(lua_State *L, ContentFeatures &f, int index)
 			f.param_type_2 == CPT2_COLORED_FACEDIR ||
 			f.param_type_2 == CPT2_COLORED_WALLMOUNTED ||
 			f.param_type_2 == CPT2_COLORED_DEGROTATE ||
-			f.param_type_2 == CPT2_COLORED_4DIR))
+			f.param_type_2 == CPT2_COLORED_4DIR ||
+			f.param_type_2 == CPT2_COLORFLOWINGLIQUID))
 		warningstream << "Node " << f.name.c_str()
 			<< " has a palette, but not a suitable paramtype2." << std::endl;
 

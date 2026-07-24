@@ -30,6 +30,7 @@ x_farming.register_plant('x_farming:soybean', {
     fertility = { 'grassland' },
     groups = { flammable = 4 },
     place_param2 = 3,
+    heat_min = 48, heat_max = 88, hum_min = 30, hum_max = 75,
 })
 
 -- needed
@@ -90,29 +91,21 @@ minetest.register_on_mods_loaded(function()
     local deco_place_on = {}
     local deco_biomes = {}
 
-    -- MTG
-    if minetest.get_modpath('default') then
-        table.insert(deco_place_on, 'default:dirt_with_grass')
-        table.insert(deco_biomes, 'grassland')
-        table.insert(deco_biomes, 'deciduous_forest')
-        table.insert(deco_place_on, 'default:dry_dirt_with_dry_grass')
-        table.insert(deco_biomes, 'savanna')
-        table.insert(deco_place_on, 'default:dirt_with_rainforest_litter')
-        table.insert(deco_biomes, 'rainforest')
-        table.insert(deco_place_on, 'biomes_island:dirt_with_island_litter')
-        table.insert(deco_biomes, 'islands')
-    end
-
-    -- Everness
-    if minetest.get_modpath('everness') then
-        table.insert(deco_place_on, 'everness:dirt_with_crystal_grass')
-        table.insert(deco_biomes, 'everness_crystal_forest')
-    end
-
-    -- MCL
-    if minetest.get_modpath('mcl_core') then
-        table.insert(deco_place_on, 'mcl_core:dirt_with_grass')
-        table.insert(deco_biomes, 'Plains')
+    -- warm temperate, moderate to good moisture (heat 48-88, hum 30-75)
+    local seen_nodes = {}
+    for bname, bdef in pairs(minetest.registered_biomes) do
+        if not bname:find('_under') then
+            local h = bdef.heat_point or -1
+            local w = bdef.humidity_point or -1
+            if h >= 48 and h <= 88 and w >= 30 and w <= 75 then
+                table.insert(deco_biomes, bname)
+                local top = bdef.node_top
+                if top and minetest.registered_nodes[top] and not seen_nodes[top] then
+                    seen_nodes[top] = true
+                    table.insert(deco_place_on, top)
+                end
+            end
+        end
     end
 
     if next(deco_place_on) and next(deco_biomes) then

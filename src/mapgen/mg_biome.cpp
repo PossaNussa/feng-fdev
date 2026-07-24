@@ -314,6 +314,8 @@ ObjDef *Biome::clone() const
 	obj->humidity_point = humidity_point;
 	obj->vertical_blend = vertical_blend;
 	obj->weight = weight;
+	obj->amplify_terrain = amplify_terrain;
+	obj->amplify_features = amplify_features;
 
 	return obj;
 }

@@ -288,6 +288,16 @@ function x_farming.node_sound_pillow_defaults(table)
     return table
 end
 
+-- Returns 1.0 if pos is within the crop's optimal climate range, down to 0.15 if very far outside.
+local function climate_factor(pos, def)
+    if not def._heat_min then return 1.0 end
+    local bd = minetest.get_biome_data(pos)
+    if not bd then return 1.0 end
+    local hd = math.max(0, def._heat_min - bd.heat, bd.heat - def._heat_max)
+    local wd = math.max(0, def._hum_min - bd.humidity, bd.humidity - def._hum_max)
+    return math.max(0.15, 1.0 - (hd + wd) / 80)
+end
+
 ---how often node timers for plants will tick, +/- some random value
 function x_farming.tick_block(pos)
     minetest.get_node_timer(pos):start(math.random(498, 1287))
@@ -790,6 +800,13 @@ x_farming.grow_plant = function(pos, elapsed)
         return
     end
 
+    -- check climate — skip this tick with probability proportional to how far outside optimal range
+    local cf = climate_factor(pos, def)
+    if cf < 1.0 and math.random() > cf then
+        x_farming.tick(pos)
+        return
+    end
+
     -- grow
     local placenode = { name = def.next_plant }
     if def.place_param2 then
@@ -902,6 +919,10 @@ x_farming.register_plant = function(name, def)
         on_timer = def.on_timer or x_farming.grow_plant,
         minlight = def.minlight,
         maxlight = def.maxlight,
+        _heat_min = def.heat_min,
+        _heat_max = def.heat_max,
+        _hum_min = def.hum_min,
+        _hum_max = def.hum_max,
         _mcl_blast_resistance = 0,
         _mcl_hardness = 0,
     })
@@ -987,6 +1008,10 @@ x_farming.register_plant = function(name, def)
             on_timer = def.on_timer or x_farming.grow_plant,
             minlight = def.minlight,
             maxlight = def.maxlight,
+            _heat_min = def.heat_min,
+            _heat_max = def.heat_max,
+            _hum_min = def.hum_min,
+            _hum_max = def.hum_max,
             _mcl_blast_resistance = 0,
             _mcl_hardness = 0,
             after_destruct = def.after_destruct or nil,

@@ -371,17 +371,12 @@ minetest.register_craft({
 })
 
 minetest.register_craft({
-	output = "moretorches:junipertorch 4",
+	output = "moretorches:clantern",
 	recipe = {
-		{"default:coal_lump"},
-		{"naturalbiomes:heath_juniper_wood"},
+		{"", "default:copper_ingot", ""},
+		{"default:copper_ingot", "default:coal_lump", "default:copper_ingot"},
+		{"", "default:copper_ingot", ""},
 	}
-})
-
-minetest.register_craft({
-	type = "fuel",
-	recipe = "moretorches:junipertorch",
-	burntime = 4,
 })
 
 minetest.register_craft({

@@ -220,8 +220,8 @@ mg_villages.plotmarker_formspec = function( pos, formname, fields, player )
 		local formspec = "";
 	local ifinhabit = "";
 
-	-- Get Price
-	local price = "default:gold_ingot 2";
+	-- Get Price (gold coins - medieval fantasy pricing)
+	local price = "simplecoins:coins 2000";
 
 	if (btype ~= 'road' and mg_villages.BUILDINGS[btype]) then
 		local plot_descr = S('Plot No.')..' '..tostring( plot_nr ).. ' '..S('with')..' '..tostring( mg_villages.BUILDINGS[btype].scm)
@@ -366,6 +366,14 @@ end
 
 mg_villages.form_input_handler = function( player, formname, fields)
 --	mg_villages.print(mg_villages.DEBUG_LEVEL_NORMAL,minetest.serialize(fields));
+
+	-- always allow plotmarker interactions (buy/sell plots) even if protection is disabled
+	if( (formname == "mg_villages:formspec_plotmarker") and fields.pos2str and not( fields.abort )) then
+		local pos = minetest.string_to_pos( fields.pos2str );
+		mg_villages.plotmarker_formspec( pos, formname, fields, player );
+		return true;
+	end
+
 	if( not( mg_villages.ENABLE_PROTECTION )) then
 		return false;
 	end
@@ -380,7 +388,7 @@ mg_villages.form_input_handler = function( player, formname, fields)
 			-- teleport the player to the target position
 			player:move_to( { x=pos.x, y=(pos.y+1), z=pos.z }, false);
 		else
-			minetest.chat_sned_player( pname, S("Sorry. You do not have the teleport privilege."));
+			minetest.chat_send_player( pname, S("Sorry. You do not have the teleport privilege."));
 		end
 		-- do not abort; continue with showing the formspec
 	end
@@ -534,11 +542,6 @@ mg_villages.form_input_handler = function( player, formname, fields)
 		return true;
 	end
 
-	if( (formname == "mg_villages:formspec_plotmarker") and fields.pos2str and not( fields.abort )) then
-		local pos = minetest.string_to_pos( fields.pos2str );
-		mg_villages.plotmarker_formspec( pos, formname, fields, player );
-		return true;
-	end
 	return false;
 end
 

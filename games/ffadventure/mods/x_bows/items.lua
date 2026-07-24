@@ -30,6 +30,9 @@ XBows:register_bow('bow_wood', {
     custom = {
         uses = 385,
         crit_chance = 10,
+        strength = 50,        -- Arrow speed (was default ~30)
+        strength_min = 45,
+        strength_max = 55,
         recipe = {
             { '', 'default:stick', 'farming:string' },
             { 'default:stick', '', 'farming:string' },
@@ -38,9 +41,12 @@ XBows:register_bow('bow_wood', {
         fuel_burntime = 3,
         allowed_ammunition = {
             'x_bows:arrow_wood',
+            'x_bows:arrow_bone',
             'x_bows:arrow_stone',
+            'x_bows:arrow_copper',
             'x_bows:arrow_bronze',
             'x_bows:arrow_steel',
+            'x_bows:arrow_csteel',
             'x_bows:arrow_mese',
             'x_bows:arrow_diamond'
         }
@@ -58,7 +64,7 @@ XBows:register_arrow('arrow_wood', {
             { arrow_tail_recipe_material }
         },
         tool_capabilities = {
-            full_punch_interval = 1,
+            full_punch_interval = 0.4,  -- Faster charge (was 1.0)
             max_drop_level = 0,
             damage_groups = { fleshy = 2 }
         },
@@ -78,7 +84,7 @@ XBows:register_arrow('arrow_bone', {
             { arrow_tail_recipe_material }
         },
         tool_capabilities = {
-            full_punch_interval = 1.1,
+            full_punch_interval = 0.45,  -- Faster charge (was 1.1)
             max_drop_level = 0,
             damage_groups = { fleshy = 3 }
         },
@@ -96,7 +102,7 @@ XBows:register_arrow('arrow_stone', {
             { arrow_tail_recipe_material }
         },
         tool_capabilities = {
-            full_punch_interval = 1.2,
+            full_punch_interval = 0.5,  -- Faster charge (was 1.2)
             max_drop_level = 0,
             damage_groups = { fleshy = 4 }
         }
@@ -114,7 +120,7 @@ XBows:register_arrow('arrow_bronze', {
             { arrow_tail_recipe_material }
         },
         tool_capabilities = {
-            full_punch_interval = 0.8,
+            full_punch_interval = 0.35,  -- Faster charge (was 0.8)
             max_drop_level = 1,
             damage_groups = { fleshy = 6 }
         }
@@ -132,7 +138,7 @@ XBows:register_arrow('arrow_copper', {
             { arrow_tail_recipe_material }
         },
         tool_capabilities = {
-            full_punch_interval = 1,
+            full_punch_interval = 0.4,  -- Faster charge (was 1.0)
             max_drop_level = 1,
             damage_groups = { fleshy = 5 }
         }
@@ -150,7 +156,7 @@ XBows:register_arrow('arrow_steel', {
             { arrow_tail_recipe_material }
         },
         tool_capabilities = {
-            full_punch_interval = 0.7,
+            full_punch_interval = 0.3,  -- Faster charge (was 0.7)
             max_drop_level = 1,
             damage_groups = { fleshy = 6 }
         }
@@ -168,7 +174,7 @@ XBows:register_arrow('arrow_csteel', {
             { arrow_tail_recipe_material }
         },
         tool_capabilities = {
-            full_punch_interval = 0.5,
+            full_punch_interval = 0.25,  -- Faster charge (was 0.5)
             max_drop_level = 1,
             damage_groups = { fleshy = 7.5 }
         }
@@ -186,7 +192,7 @@ XBows:register_arrow('arrow_mese', {
             { arrow_tail_recipe_material }
         },
         tool_capabilities = {
-            full_punch_interval = 0.7,
+            full_punch_interval = 0.3,  -- Faster charge (was 0.7)
             max_drop_level = 1,
             damage_groups = { fleshy = 7 }
         }
@@ -204,7 +210,7 @@ XBows:register_arrow('arrow_diamond', {
             { arrow_tail_recipe_material }
         },
         tool_capabilities = {
-            full_punch_interval = 0.7,
+            full_punch_interval = 0.25,  -- Faster charge (was 0.7)
             max_drop_level = 1,
             damage_groups = { fleshy = 8 }
         }

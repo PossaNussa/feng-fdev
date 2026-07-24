@@ -163,12 +163,49 @@ function workbench.construct(pos)
 	workbench:set_formspec(meta, 1)
 end
 
-function workbench.fields(pos, _, fields)
-	if fields.quit then return end
+-- Return craft grid items to player inventory before shrinking
+local function return_craft_to_inv(player)
+	local inv = player:get_inventory()
+	for i = 1, inv:get_size("craft") do
+		local stack = inv:get_stack("craft", i)
+		if not stack:is_empty() then
+			local leftover = inv:add_item("main", stack)
+			if not leftover:is_empty() then
+				minetest.add_item(player:get_pos(), leftover)
+			end
+			inv:set_stack("craft", i, "")
+		end
+	end
+end
+
+function workbench.fields(pos, _, fields, sender)
+	if fields.quit then
+		if sender then
+			return_craft_to_inv(sender)
+			local inv = sender:get_inventory()
+			inv:set_size("craft", 4)
+			inv:set_width("craft", 2)
+		end
+		return
+	end
 
 	local meta = minetest.get_meta(pos)
 	local id = fields.back and 1 or fields.craft and 2 or fields.storage and 3
 	if not id then return end
+
+	if sender then
+		local inv = sender:get_inventory()
+		if id == 2 then
+			-- Expand craft grid to 3x3 for the crafting tab
+			inv:set_size("craft", 9)
+			inv:set_width("craft", 3)
+		else
+			-- Return craft items before shrinking back to 2x2
+			return_craft_to_inv(sender)
+			inv:set_size("craft", 4)
+			inv:set_width("craft", 2)
+		end
+	end
 
 	workbench:set_formspec(meta, id)
 end

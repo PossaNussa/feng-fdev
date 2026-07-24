@@ -7,7 +7,8 @@ dofile(modpath .. "mars_plants.lua")
 dofile(modpath .. "crystals.lua")
 dofile(modpath .. "space_nodes.lua")
 dofile(modpath .. "crafting.lua")
-dofile(modpath .. "skybox.lua")
+-- skybox.lua disabled: conflicts with skygen + astral + space mods
+-- dofile(modpath .. "skybox.lua")
 
 -- required helpers for mapgen options below
 dofile(modpath .. "asteroid_layer_helpers.lua")

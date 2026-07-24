@@ -92,7 +92,7 @@ abdecor._place_schematic_check = function(args)
 
 	args.rotation = args.rotation or "random"
 	args.replacements = args.replacements or {}
-	args.force_placement = (args.force_placement == nil) and false or true
+	args.force_placement = args.force_placement or false
 	args.flags = args.flags or ""
 
 	-- Arguments are good
@@ -111,6 +111,9 @@ minetest.register_on_generated(function(minp, maxp, seed)
 		if not is_mapgen_init then
 			mapgen.vm, mapgen.emin, mapgen.emax = minetest.get_mapgen_object("voxelmanip")
 			mapgen.va = VoxelArea:new({MinEdge = mapgen.emin, MaxEdge = mapgen.emax})
+			mapgen.calc_lighting = function(p1, p2, propagate_shadow)
+				return mapgen.vm:calc_lighting(p1, p2, propagate_shadow)
+			end
 			is_mapgen_init = true
 		end
 	end
@@ -148,11 +151,18 @@ minetest.register_on_generated(function(minp, maxp, seed)
 		end
 	end
 
-	mapgen.calc_lighting = function(p1,p2,propagate_shadow)
-		return mapgen.vm:calc_lighting(p1,p2,propagate_shadow)
-	end
-
 	local is_liquid = false
+
+	-- Precompute chunk-level 2D index helper once per chunk (© FaceDeer 2018, MIT, mapgen_helper)
+	local stride_x = maxp.x - minp.x + 1
+	local minp_x, minp_z = minp.x, minp.z
+	local function chunk_index2d(x, z)
+		if type(x) == "table" then
+			z = x.z
+			x = x.x
+		end
+		return x - minp_x + stride_x * (z - minp_z) + 1
+	end
 
 	-- Place any targeted decorations that were generated
 	local gennotify = minetest.get_mapgen_object("gennotify")
@@ -191,16 +201,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					seed = seed,
 					place_schematic = mapgen.place_schematic,
 					calc_lighting = mapgen.calc_lighting,
-					index2d = function(x,z) -- (portions of this function © FaceDeer 2018, licensed MIT, copied from https://github.com/minetest-mods/mapgen_helper/blob/2521562a42472271d9d761f2b1e84ead59250a14/noise_manager.lua)
-						if type(x) == "table" then -- accept x/y/z pos table
-							z = x.z
-							x = x.x
-						end
-						return x - minp.x +
-						(maxp.x - minp.x + 1)
-						*(z - minp.z)
-						+ 1
-					end,
+					index2d = chunk_index2d,
 				})
 			end
 		end

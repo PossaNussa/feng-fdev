@@ -23,76 +23,100 @@ local function tbl_copy(t)
   return r
 end
 
--- Place 'name' only if the current node is not air and 'name' is registered
-local function set_if_solid(p, name)
-  if not name or not minetest.registered_nodes[name] then return end
-  local nn = minetest.get_node(p).name
-  if nn ~= "air" then
-    minetest.set_node(p, { name = name })
-  end
-end
-
 -- ========= Geode core generator =========
 -- Carves a hollow sphere, lines inner rim with crystals, builds shell layers.
+-- Uses VoxelManip so the entire geode is one bulk read + one bulk write.
 local function generate_geode(center, radius, core, core_alt, core_alt_chance, shell, center_node, wherein)
-  -- Filter shell list to registered nodes (placement-time check also done)
   local shell_layers = {}
+  local shell_all_registered = true
   for i = 1, #shell do
     local m = shell[i]
     if minetest.registered_nodes[m] then
       shell_layers[#shell_layers + 1] = m
+    else
+      shell_all_registered = false
     end
   end
   if #shell_layers == 0 then
-    -- Fallback so we still carve a cavity even if shell nodes aren't ready
     shell_layers = tbl_copy(shell)
+    shell_all_registered = false
   end
 
-  local R = math.max(2, radius)  -- ensure minimum interior
+  local R       = math.max(2, radius)
   local R_outer = R + #shell_layers
 
-  for dx = -R_outer, R_outer do
-    for dy = -R_outer, R_outer do
-      for dz = -R_outer, R_outer do
-        local p = vector.add(center, { x = dx, y = dy, z = dz })
-        local d = math.sqrt(dx * dx + dy * dy + dz * dz)
+  -- Pre-compute squared thresholds — sqrt only needed in the shell band
+  local ro05sq = (R_outer + 0.5) * (R_outer + 0.5)
+  local ri05sq = (R       + 0.5) * (R       + 0.5)
+  local rm05sq = (R       - 0.5) * (R       - 0.5)
 
-        if d <= R_outer + 0.5 then
-          if d <= R + 0.5 then
-            -- Inside the geode
-            if d >= R - 0.5 then
-              -- Thin inner rim: place crystals sparsely
-              if math.random(1, 100) <= 65 then
-                local name = core
-                if core_alt and core_alt_chance and core_alt_chance > 1 then
-                  if math.random(1, core_alt_chance) == 1 then
-                    name = core_alt
+  -- Load the entire bounding box in one VoxelManip call
+  local minp = { x = center.x - R_outer, y = center.y - R_outer, z = center.z - R_outer }
+  local maxp = { x = center.x + R_outer, y = center.y + R_outer, z = center.z + R_outer }
+  local vm         = minetest.get_voxel_manip(minp, maxp)
+  local emin, emax = vm:get_emerged_area()
+  local data       = vm:get_data()
+  local area       = VoxelArea:new({ MinEdge = emin, MaxEdge = emax })
+
+  -- Pre-fetch all content IDs once
+  local c_air    = minetest.get_content_id("air")
+  local c_ignore = minetest.get_content_id("ignore")
+  local c_core   = minetest.registered_nodes[core]   and minetest.get_content_id(core)
+  local c_coralt = core_alt and minetest.registered_nodes[core_alt] and minetest.get_content_id(core_alt)
+  local c_where  = wherein  and minetest.registered_nodes[wherein]  and minetest.get_content_id(wherein)
+  local c_shell  = {}
+  for i = 1, #shell_layers do
+    local m = shell_layers[i]
+    c_shell[i] = (shell_all_registered or minetest.registered_nodes[m])
+                 and minetest.get_content_id(m)
+  end
+
+  local cx = center.x
+  local cy = center.y
+  local cz = center.z
+
+  for dx = -R_outer, R_outer do
+    local dxsq = dx * dx
+    local px   = cx + dx
+    for dy = -R_outer, R_outer do
+      local dxysq = dxsq + dy * dy
+      local py    = cy + dy
+      for dz = -R_outer, R_outer do
+        local dsq = dxysq + dz * dz
+        if dsq <= ro05sq then
+          local vi  = area:index(px, py, cz + dz)
+          local cur = data[vi]
+          if cur ~= c_ignore then
+            if dsq <= ri05sq then
+              if dsq >= rm05sq then
+                -- Inner rim: crystals
+                if math.random(100) <= 65 then
+                  local cid = c_core
+                  if c_coralt and core_alt_chance > 1 and math.random(core_alt_chance) == 1 then
+                    cid = c_coralt
                   end
-                end
-                if minetest.registered_nodes[name] then
-                  set_if_solid(p, name)
+                  -- set_if_solid: only overwrite non-air
+                  if cid and cur ~= c_air then
+                    data[vi] = cid
+                  elseif c_where and cur ~= c_air then
+                    data[vi] = c_where
+                  end
                 else
-                  -- Fallback: keep host rock if unknown
-                  if wherein and minetest.registered_nodes[wherein] then
-                    set_if_solid(p, wherein)
-                  end
+                  data[vi] = c_air
                 end
               else
-                minetest.set_node(p, { name = "air" })
+                -- Interior cavity
+                data[vi] = c_air
               end
             else
-              -- Interior cavity
-              minetest.set_node(p, { name = "air" })
-            end
-          else
-            -- Shell layers outside the cavity
-            if d > R then
+              -- Shell zone: sqrt only here to get layer index
+              local d   = math.sqrt(dsq)
               local idx = math.ceil(d - R)
-              local mat = shell_layers[idx]
-              if mat and minetest.registered_nodes[mat] then
-                set_if_solid(p, mat)
-              elseif wherein and minetest.registered_nodes[wherein] then
-                set_if_solid(p, wherein)
+              local cid = c_shell[idx]
+              if cid and cur ~= c_air then
+                data[vi] = cid
+              elseif c_where and cur ~= c_air then
+                data[vi] = c_where
               end
             end
           end
@@ -101,7 +125,10 @@ local function generate_geode(center, radius, core, core_alt, core_alt_chance, s
     end
   end
 
-  -- Optional single node at the exact center
+  vm:set_data(data)
+  vm:write_to_map(false)
+
+  -- Optional single node at the exact center (set after vm write)
   if center_node and minetest.registered_nodes[center_node] then
     minetest.set_node(center, { name = center_node })
   end

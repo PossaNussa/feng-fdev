@@ -742,8 +742,8 @@ minetest.register_node("moretorches:eukalyptustorch_ceiling", {
 	on_rotate = false
 })
 
-minetest.register_node("moretorches:junipertorch", {
-	description = S("Juniper Lamp"),
+minetest.register_node("moretorches:clantern", {
+	description = S("Copper Lantern"),
 	drawtype = "mesh",
 	mesh = "torch_floor.obj",
 	inventory_image = "moretorches_junipertorch_on_floor.png",
@@ -754,16 +754,15 @@ minetest.register_node("moretorches:junipertorch", {
 	}},
 	use_texture_alpha = "clip",
 	paramtype = "light",
-	paramtype2 = "wallmounted",
 	sunlight_propagates = true,
 	walkable = false,
 	liquids_pointable = false,
 	light_source = 12,
 	groups = {choppy=2, dig_immediate=3, flammable=1, attached_node=1, torch=1},
-	drop = "moretorches:junipertorch",
+	drop = "moretorches:clantern",
 	selection_box = {
-		type = "wallmounted",
-		wall_bottom = {-1/8, -1/2, -1/8, 1/8, 2/16, 1/8},
+		type = "fixed",
+		fixed = {-1/8, -1/2, -1/8, 1/8, 2/16, 1/8},
 	},
 	sounds = default.node_sound_metal_defaults(),
 	on_place = function(itemstack, placer, pointed_thing)
@@ -781,15 +780,15 @@ minetest.register_node("moretorches:junipertorch", {
 		local wdir = minetest.dir_to_wallmounted(vector.subtract(under, above))
 		local fakestack = itemstack
 		if wdir == 0 then
-			fakestack:set_name("moretorches:junipertorch_ceiling")
+			fakestack:set_name("moretorches:clantern_ceiling")
 		elseif wdir == 1 then
-			fakestack:set_name("moretorches:junipertorch")
+			fakestack:set_name("moretorches:clantern")
 		else
-			fakestack:set_name("moretorches:junipertorch_wall")
+			fakestack:set_name("moretorches:clantern_wall")
 		end
 
 		itemstack = minetest.item_place(fakestack, placer, pointed_thing, wdir)
-		itemstack:set_name("moretorches:junipertorch")
+		itemstack:set_name("moretorches:clantern")
 
 		return itemstack
 	end,
@@ -798,23 +797,23 @@ minetest.register_node("moretorches:junipertorch", {
 	on_rotate = false
 })
 
-minetest.register_node("moretorches:junipertorch_wall", {
-	drawtype = "torchlike",
+minetest.register_node("moretorches:clantern_wall", {
+	drawtype = "mesh",
+	mesh = "torch_floor.obj",
 	tiles = {{
-		    name = "moretorches_junipertorch_on_floor_animated2.png",
+		    name = "moretorches_junipertorch_on_floor_animated.png",
 		    animation = {type = "vertical_frames", aspect_w = 16, aspect_h = 16, length = 3.3}
 	}},
 	use_texture_alpha = "clip",
 	paramtype = "light",
-	paramtype2 = "wallmounted",
 	sunlight_propagates = true,
 	walkable = false,
 	light_source = 12,
-	groups = {choppy=2, dig_immediate=3, flammable=1, not_in_creative_inventory=1, attached_node=1, torch=1},
-	drop = "moretorches:junipertorch",
+	groups = {choppy=2, dig_immediate=3, flammable=1, not_in_creative_inventory=1, torch=1},
+	drop = "moretorches:clantern",
 	selection_box = {
-		type = "wallmounted",
-		wall_side = {-0.5, -0.35, -0.15, -0.15, 0.4, 0.15},
+		type = "fixed",
+		fixed = {-1/8, -1/2, -1/8, 1/8, 2/16, 1/8},
 	},
 	sounds = default.node_sound_metal_defaults(),
 	floodable = true,
@@ -822,30 +821,53 @@ minetest.register_node("moretorches:junipertorch_wall", {
 	on_rotate = false
 })
 
-minetest.register_node("moretorches:junipertorch_ceiling", {
+minetest.register_node("moretorches:clantern_ceiling", {
 	drawtype = "mesh",
 	mesh = "torch_floor.obj",
 	tiles = {{
-		    name = "moretorches_junipertorch_on_floor_animated3.png",
+		    name = "moretorches_junipertorch_on_floor_animated.png",
 		    animation = {type = "vertical_frames", aspect_w = 16, aspect_h = 16, length = 3.3}
 	}},
 	use_texture_alpha = "clip",
 	paramtype = "light",
-	paramtype2 = "wallmounted",
 	sunlight_propagates = true,
 	walkable = false,
 	liquids_pointable = false,
 	light_source = 12,
-	groups = {choppy=2, dig_immediate=3, flammable=1, attached_node=1, torch=1},
-	drop = "moretorches:junipertorch",
+	groups = {choppy=2, dig_immediate=3, flammable=1, not_in_creative_inventory=1, torch=1},
+	drop = "moretorches:clantern",
 	selection_box = {
-		type = "wallmounted",
-		wall_bottom = {-1/8, -1/2, -1/8, 1/8, 2/16, 1/8},
+		type = "fixed",
+		fixed = {-1/8, -1/2, -1/8, 1/8, 2/16, 1/8},
 	},
 	sounds = default.node_sound_metal_defaults(),
 	floodable = true,
 	on_flood = on_flood,
 	on_rotate = false
+})
+
+-- Fix lanterns placed by schematics/villages with wrong param2
+-- (base node placed with wall/ceiling param2 → sideways mesh)
+minetest.register_lbm({
+	label = "Fix copper lantern orientation",
+	name = "moretorches:fix_clantern_param2",
+	nodenames = {"moretorches:clantern"},
+	run_at_every_load = true,
+	action = function(pos, node)
+		if node.param2 ~= 1 then
+			-- param2=0 means ceiling, swap to ceiling variant
+			if node.param2 == 0 then
+				minetest.set_node(pos, {name = "moretorches:clantern_ceiling"})
+			-- param2=2-5 means wall, swap to wall variant (keep param2 for direction)
+			elseif node.param2 >= 2 and node.param2 <= 5 then
+				minetest.set_node(pos, {name = "moretorches:clantern_wall", param2 = node.param2})
+			-- anything else, just force floor orientation
+			else
+				node.param2 = 1
+				minetest.swap_node(pos, node)
+			end
+		end
+	end,
 })
 
 minetest.register_node("moretorches:medpinetorch", {

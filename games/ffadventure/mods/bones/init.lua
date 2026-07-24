@@ -16,14 +16,21 @@ local function is_owner(pos, name)
 	return false
 end
 
-local bones_formspec =
-	"size[8,9]" ..
-	"list[current_name;main;0,0.3;8,4;]" ..
-	"list[current_player;main;0,4.85;8,1;]" ..
-	"list[current_player;main;0,6.08;8,3;8]" ..
-	"listring[current_name;main]" ..
-	"listring[current_player;main]" ..
-	default.get_hotbar_bg(0,4.85)
+-- Dynamic formspec: adapts to the player's actual hotbar width (8 for legacy, 9 for i3)
+local function make_bones_formspec(cols)
+	cols = cols or 8
+	return
+		"size[" .. cols .. ",9]" ..
+		"list[current_name;main;0,0.3;" .. cols .. ",4;]" ..
+		"list[current_player;main;0,4.85;" .. cols .. ",1;]" ..
+		"list[current_player;main;0,6.08;" .. cols .. ",3;" .. cols .. "]" ..
+		"listring[current_name;main]" ..
+		"listring[current_player;main]" ..
+		default.get_hotbar_bg(0, 4.85)
+end
+
+-- Fallback for old bones placed before this fix
+local bones_formspec = make_bones_formspec(8)
 
 local share_bones_time = tonumber(minetest.settings:get("share_bones_time")) or 1200
 local share_bones_time_early = tonumber(minetest.settings:get("share_bones_time_early")) or share_bones_time / 4
@@ -38,7 +45,9 @@ local bones_def = {
 		"bones_rear.png",
 		"bones_front.png"
 	},
+	paramtype = "light",
 	paramtype2 = "facedir",
+	use_texture_alpha = "clip",
 	groups = {dig_immediate = 2},
 	sounds = default.node_sound_gravel_defaults(),
 
@@ -262,7 +271,23 @@ minetest.register_on_dieplayer(function(player)
 
 	local meta = minetest.get_meta(pos)
 	local inv = meta:get_inventory()
-	inv:set_size("main", 8 * 4)
+
+	-- Calculate the actual inventory dimensions.
+	-- i3 uses a 9-wide hotbar (main = 9*4 = 36), vanilla/legacy uses 8-wide (32).
+	local main_size = player_inv:get_size("main")
+	local craft_size = player_inv:get_size("craft")
+	local cols = math.max(8, math.floor(main_size / 4))
+
+	-- Reserve space for 3d_armor items, which are injected into bones via
+	-- minetest.after(1) after this handler returns. Without reservation the
+	-- bones chest can be completely full by then and all armor pieces scatter.
+	local armor_reserve = 0
+	if minetest.get_modpath("3d_armor") and
+			(not armor or not armor.config or armor.config.drop ~= false) then
+		armor_reserve = 6  -- head, torso, legs, feet, shield + gloves
+	end
+
+	inv:set_size("main", main_size + craft_size + armor_reserve)
 
 	for _, list_name in ipairs(player_inventory_lists) do
 		for i = 1, player_inv:get_size(list_name) do
@@ -276,7 +301,26 @@ minetest.register_on_dieplayer(function(player)
 		player_inv:set_list(list_name, {})
 	end
 
-	meta:set_string("formspec", bones_formspec)
+	local armor_inv = minetest.get_inventory({type = "detached", name = player_name .. "_armor"})
+	if armor_inv then
+		for i = 1, armor_inv:get_size("armor") do
+			local stack = armor_inv:get_stack("armor", i)
+			if stack:get_count() > 0 then
+				if inv:room_for_item("main", stack) then
+					inv:add_item("main", stack)
+				else
+					drop(pos, stack)
+				end
+				armor_inv:set_stack("armor", i, ItemStack(""))
+			end
+		end
+		if armor and armor.save_armor_inventory then
+			armor:save_armor_inventory(player)
+			armor:set_player_armor(player)
+		end
+	end
+
+	meta:set_string("formspec", make_bones_formspec(cols))
 	meta:set_string("owner", player_name)
 
 	if share_bones_time ~= 0 then

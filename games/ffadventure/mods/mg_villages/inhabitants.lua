@@ -49,29 +49,24 @@
 
 mg_villages.inhabitants = {}
 
-mg_villages.inhabitants.names_male = { "John", "James", "Charles", "Robert", "Joseph",
-	"Richard", "David", "Michael", "Christopher", "Jason", "Matthew",
-	"Joshua", "Daniel","Andrew", "Tyler", "Jakob", "Nicholas", "Ethan",
-	"Alexander", "Jayden", "Mason", "Liam", "Oliver", "Jack", "Harry",
-	"George", "Charlie", "Jacob", "Thomas", "Noah", "Wiliam", "Oscar",
-	"Clement", "August", "Peter", "Edgar", "Calvin", "Francis", "Frank",
-	"Eli", "Adam", "Samuel", "Bartholomew", "Edward", "Roger", "Albert",
-	"Carl", "Alfred", "Emmett", "Eric", "Henry", "Casimir", "Alan",
-	"Brian", "Logan", "Stephen", "Alexander", "Gregory", "Timothy",
-	"Theodore", "Marcus", "Justin", "Julius", "Felix", "Pascal", "Jim",
-	"Ben", "Zach", "Tom" };
+mg_villages.inhabitants.names_male = { "Yorath", "Zarek", "Caradoc", "Ulfgar", "Malachar",
+	"Oren", "Rennard", "Henric", "Jorik", "Leander", "Theron", "Magnus",
+	"Fendrel", "Ivor", "Ronan", "Viggo", "Wystan", "Ulfric", "Uther",
+	"Tuskvar", "Swinmund", "Verrodan", "Hoggarim", "Bristovar", "Grunthar",
+	"Boarin", "Snorrik", "Truffald", "Hogrim", "Verrond", "Swinhelm",
+	"Bristow", "Tuskald", "Grunwald", "Boarthan", "Hoggard", "Verrik",
+	"Truffen", "Swindar", "Tuskar", "Grondal", "Boarwulf", "Snortan",
+	"Hogwulf", "Verran", "Truffin", "Bristal", "Gruntald", "Boarthor",
+	"Hogarth", "Swinrik", "Bristogar", "Tuskrim", "Grondak", "Borvald" };
 
-mg_villages.inhabitants.names_female = { "Amelia", "Isla", "Ella", "Poppy", "Mia", "Mary",
-	"Anna", "Emma", "Elizabeth", "Minnie", "Margret", "Ruth", "Helen",
-	"Dorothy", "Betty", "Barbara", "Joan", "Shirley", "Patricia", "Judith",
-	"Carol", "Linda", "Sandra", "Susan", "Deborah", "Debra", "Karen", "Donna",
-	"Lisa", "Kimberly", "Michelle", "Jennifer", "Melissa", "Amy", "Heather",
-	"Angela", "Jessica", "Amanda", "Sarah", "Ashley", "Brittany", "Samatha",
-	"Emily", "Hannah", "Alexis", "Madison", "Olivia", "Abigail", "Isabella",
-	"Ava", "Sophia", "Martha", "Rosalind", "Matilda", "Birgid", "Jennifer",
-	"Chloe", "Katherine", "Penelope", "Laura", "Victoria", "Cecila", "Julia",
-	"Rose", "Violet", "Jasmine", "Beth", "Stephanie", "Jane", "Jacqueline",
-	"Josephine", "Danielle", "Paula", "Pauline", "Patricia", "Francesca"}
+mg_villages.inhabitants.names_female = { "Freya", "Sigrid", "Astrid", "Brienne", "Cerys",
+	"Elara", "Isolde", "Kira", "Lyra", "Nessa", "Orla", "Seren", "Thalia",
+	"Wynn", "Eira", "Fiora", "Gwyneth", "Niamh", "Roswyn", "Bronwyn",
+	"Elowen", "Faye", "Ingrid", "Morwenna", "Olwen", "Rowena", "Willow",
+	"Wren", "Yara", "Tuskara", "Swinhild", "Hogrima", "Verrona", "Truffin",
+	"Bristova", "Gruntild", "Boarina", "Snorra", "Hogwynn", "Swindel",
+	"Bristal", "Grunna", "Boarwyn", "Snorrwyn", "Hoggelda", "Verrik",
+	"Truffa", "Swinna", "Tuskelda", "Grondel", "Boarvina", "Snorrida" }
 
 -- get a middle name for the mob
 mg_villages.inhabitants.get_random_letter = function()
@@ -1204,12 +1199,41 @@ mg_villages.inhabitants.get_mob_data = function( village_id, plot_nr, bed_nr )
 end
 
 
--- mob mods are expected to override this function! mobf_trader mobs are supported directly
+-- Spawn village inhabitants using lottmobs pigman traders
 mg_villages.inhabitants.spawn_one_mob = function( bed, village_id, plot_nr, bed_nr, bpos )
 
-	--print("NPC spawned in village "..tostring( village_id ).." on plot "..tostring(plot_nr)..", sleeping in bed nr. "..tostring( bed_nr ));
-	if( minetest.get_modpath("mobf_trader") and mobf_trader and mobf_trader.spawn_one_trader) then
-		return mobf_trader.spawn_one_trader( bed, village_id, plot_nr, bed_nr, bpos );
+	-- Use lottmobs pigman traders if available
+	if minetest.get_modpath("lottmobs") and lottmobs and lottmobs.spawn_pigman_trader then
+		-- Get spawn position
+		local spawn_pos
+		if handle_schematics and handle_schematics.get_pos_in_front_of_house then
+			spawn_pos = handle_schematics.get_pos_in_front_of_house(bpos, bed_nr)
+		end
+		if not spawn_pos then
+			spawn_pos = {x = bed.x, y = bed.y + 1, z = bed.z}
+		end
+
+		-- Get data from bed
+		local profession = bed.title or "shopkeeper"
+		local name = bed.first_name
+		local gender = bed.gender or "m"
+
+		local obj = lottmobs.spawn_pigman_trader(spawn_pos, profession, name, gender)
+		-- Return a string ID (not the entity object, which can't be serialized)
+		if obj then
+			local ent = obj:get_luaentity()
+			if ent and ent.id then
+				return tostring(ent.id)
+			end
+			-- Generate a unique ID if the entity doesn't have one
+			return "lottmobs_" .. tostring(math.random(100000, 999999))
+		end
+		return nil
+	end
+
+	-- Fallback to mobf_trader if lottmobs not available
+	if minetest.get_modpath("mobf_trader") and mobf_trader and mobf_trader.spawn_one_trader then
+		return mobf_trader.spawn_one_trader( bed, village_id, plot_nr, bed_nr, bpos )
 	end
 end
 

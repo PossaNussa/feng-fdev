@@ -1,152 +1,187 @@
--- Update simplecoins:coins stack size
+-- Money Bag mod: drag-and-drop GUI bag holding up to 1000 simplecoins
+-- Trader compatible: both item names kept, meta synced in real-time
+
 minetest.override_item("simplecoins:coins", {
-    stack_max = 100,
+	stack_max = 100,
 })
 
--- Function to update the bag's description based on the number of coins inside
-local function update_bag_description(itemstack)
-    local meta = itemstack:get_meta()
-    local coins = meta:get_int("coins") or 0
-    meta:set_string("description", coins > 0 and "Money Bag (" .. coins .. " coins)" or "Empty Money Bag")
+local BAG_SLOTS = 10  -- 10 slots × 100 coins each = 1,000 max
+
+-- open_bags[player_name] = wield_index at time of open
+local open_bags = {}
+
+local function count_bag_inv(inv)
+	local total = 0
+	for i = 1, BAG_SLOTS do
+		local s = inv:get_stack("coins", i)
+		if s:get_name() == "simplecoins:coins" then
+			total = total + s:get_count()
+		end
+	end
+	return total
 end
 
--- Function to update the bag's description and image based on the number of coins inside
--- Function to update the bag's description and image based on the number of coins inside
-local function update_bag(itemstack)
-    if itemstack:is_empty() then
-        return itemstack
-    end
-
-    local meta = itemstack:get_meta()
-    local coins = meta:get_int("coins") or 0
-
-    -- Update description
-    meta:set_string("description", coins > 0 and "Money Bag (" .. coins .. " coins)" or "Empty Money Bag")
-
-    -- Update image based on the number of coins
-    if coins == 0 then
-        itemstack:set_name("moneybag:bolsa_dinero_2")  -- Use bolsa_de_tesoro2.png for empty bags
-    else
-        itemstack:set_name("moneybag:bolsa_dinero_1")  -- Use bolsa_de_tesoro.png for bags with coins
-    end
-
-    return itemstack
+local function get_formspec(inv_name, total)
+	return "size[8.5,8]" ..
+		"label[0,0.1;Money Bag \226\128\148 " .. total .. " / 1000 coins]" ..
+		"list[detached:" .. inv_name .. ";coins;0,0.7;5,2;]" ..
+		"list[current_player;main;0.25,3.2;8,1;]" ..
+		"list[current_player;main;0.25,4.45;8,3;8]" ..
+		"listring[detached:" .. inv_name .. ";coins]" ..
+		"listring[current_player;main]"
 end
 
--- Register Money Bags
+-- Find the open bag in the player's main inventory.
+-- Checks hint_index first, then searches all slots.
+local function find_bag_slot(player_inv, hint_index)
+	if hint_index then
+		local s = player_inv:get_stack("main", hint_index)
+		local n = s:get_name()
+		if n == "moneybag:bolsa_dinero_1" or n == "moneybag:bolsa_dinero_2" then
+			return hint_index, s
+		end
+	end
+	for i = 1, player_inv:get_size("main") do
+		local s = player_inv:get_stack("main", i)
+		local n = s:get_name()
+		if n == "moneybag:bolsa_dinero_1" or n == "moneybag:bolsa_dinero_2" then
+			return i, s
+		end
+	end
+	return nil, nil
+end
+
+local function apply_coins_to_stack(stack, total)
+	stack:set_name(total > 0 and "moneybag:bolsa_dinero_1" or "moneybag:bolsa_dinero_2")
+	local meta = stack:get_meta()
+	meta:set_int("coins", total)
+	meta:set_string("description",
+		total > 0 and ("Money Bag (" .. total .. " coins)") or "Empty Money Bag")
+	return stack
+end
+
+-- Called after any change in the detached inv:
+-- updates the bag item's metadata and refreshes the formspec label.
+local function sync_to_bag(player_name)
+	local player = minetest.get_player_by_name(player_name)
+	if not player then return end
+
+	local inv_name = "moneybag_" .. player_name
+	local bag_inv = minetest.get_inventory({type = "detached", name = inv_name})
+	if not bag_inv then return end
+
+	local total = count_bag_inv(bag_inv)
+
+	local player_inv = player:get_inventory()
+	local slot, bag_stack = find_bag_slot(player_inv, open_bags[player_name])
+	if slot then
+		player_inv:set_stack("main", slot, apply_coins_to_stack(bag_stack, total))
+	end
+
+	minetest.show_formspec(player_name, "moneybag:bag", get_formspec(inv_name, total))
+end
+
+local function open_bag_gui(player, bag_stack)
+	local pname = player:get_player_name()
+	open_bags[pname] = player:get_wield_index()
+
+	local meta = bag_stack:get_meta()
+	local total = meta:get_int("coins") or 0
+
+	local inv_name = "moneybag_" .. pname
+	local inv = minetest.create_detached_inventory(inv_name, {
+		allow_put = function(inv, listname, index, stack, player)
+			if stack:get_name() == "simplecoins:coins" then
+				return stack:get_count()
+			end
+			return 0
+		end,
+		allow_take = function(inv, listname, index, stack, player)
+			return stack:get_count()
+		end,
+		allow_move = function(inv, from_list, from_index, to_list, to_index, count, player)
+			return count
+		end,
+		on_put = function(inv, listname, index, stack, player)
+			sync_to_bag(player:get_player_name())
+		end,
+		on_take = function(inv, listname, index, stack, player)
+			sync_to_bag(player:get_player_name())
+		end,
+	})
+
+	inv:set_size("coins", BAG_SLOTS)
+
+	-- Distribute existing coins across slots (leftmost first)
+	local remaining = total
+	for i = 1, BAG_SLOTS do
+		if remaining > 0 then
+			local amount = math.min(remaining, 100)
+			inv:set_stack("coins", i, ItemStack("simplecoins:coins " .. amount))
+			remaining = remaining - amount
+		else
+			inv:set_stack("coins", i, ItemStack(""))
+		end
+	end
+
+	minetest.show_formspec(pname, "moneybag:bag", get_formspec(inv_name, total))
+end
+
+local function close_bag_gui(player_name)
+	if not open_bags[player_name] then return end
+	open_bags[player_name] = nil
+	-- Meta is kept in sync in real-time, nothing extra to write.
+	-- Clean up the detached inventory.
+	if minetest.remove_detached_inventory then
+		minetest.remove_detached_inventory("moneybag_" .. player_name)
+	end
+end
+
+minetest.register_on_player_receive_fields(function(player, formname, fields)
+	if formname ~= "moneybag:bag" then return false end
+	if fields.quit then
+		close_bag_gui(player:get_player_name())
+	end
+	return true
+end)
+
+minetest.register_on_leaveplayer(function(player)
+	close_bag_gui(player:get_player_name())
+end)
+
+-- ── Item definitions ─────────────────────────────────────────────────────────
+
+local function use_bag(itemstack, user, pointed_thing)
+	if not user or not user:is_player() then return itemstack end
+	open_bag_gui(user, itemstack)
+	return itemstack
+end
+
 minetest.register_craftitem("moneybag:bolsa_dinero_1", {
-    description = "Money Bag",
-    inventory_image = "bolsa_de_tesoro.png",
-    stack_max = 1,  -- Only one money bag can be held at a time to track the coins inside
-    on_use = function(itemstack, user, pointed_thing)
-        -- Show the number of coins in chat instead of returning coins
-        update_bag(itemstack)
-        minetest.chat_send_player(user:get_player_name(), itemstack:get_meta():get_string("description"))
-        return itemstack  -- Ensure the bag isn't turned into a stack of coins
-    end,
-    on_place = function(itemstack, placer, pointed_thing)
-        update_bag(itemstack)
-        return itemstack  -- Ensure the bag isn't turned into a stack of coins
-    end,
-    on_metadata_inventory_take = function(inv, listname, index, stack, player)
-        update_bag(stack)  -- Update the bag after a trade or take operation
-        inv:set_stack(listname, index, stack)
-    end,
+	description = "Money Bag",
+	inventory_image = "bolsa_de_tesoro.png",
+	stack_max = 1,
+	on_use = use_bag,
+	on_place = use_bag,
+	on_secondary_use = use_bag,
 })
 
 minetest.register_craftitem("moneybag:bolsa_dinero_2", {
-    description = "Money Bag",
-    inventory_image = "bolsa_de_tesoro2.png",
-    stack_max = 1,  -- Same here to allow coin tracking
-    on_use = function(itemstack, user, pointed_thing)
-        -- Show the number of coins in chat instead of returning coins
-        update_bag(itemstack)
-        minetest.chat_send_player(user:get_player_name(), itemstack:get_meta():get_string("description"))
-        return itemstack  -- Ensure the bag isn't turned into a stack of coins
-    end,
-    on_place = function(itemstack, placer, pointed_thing)
-        update_bag(itemstack)
-        return itemstack  -- Ensure the bag isn't turned into a stack of coins
-    end,
-    on_metadata_inventory_take = function(inv, listname, index, stack, player)
-        update_bag(stack)  -- Update the bag after a trade or take operation
-        inv:set_stack(listname, index, stack)
-    end,
+	description = "Empty Money Bag",
+	inventory_image = "bolsa_de_tesoro2.png",
+	stack_max = 1,
+	on_use = use_bag,
+	on_place = use_bag,
+	on_secondary_use = use_bag,
 })
 
--- Register /moneybag Command
-minetest.register_chatcommand("moneybag", {
-    params = "<fill|empty> <amount>",
-    description = "Fill or empty the money bag.",
-    func = function(player_name, param)
-        local params = param:split(" ")
-        if #params < 2 then return false, "Usage: /moneybag <fill|empty> <amount>" end
-        local player = minetest.get_player_by_name(player_name)
-        local itemstack = player:get_wielded_item()
-        local itemname = itemstack:get_name()
-
-        if itemname ~= "moneybag:bolsa_dinero_1" and itemname ~= "moneybag:bolsa_dinero_2" then
-            return false, "You must hold a money bag to use this command."
-        end
-
-        local meta = itemstack:get_meta()
-        local coins = meta:get_int("coins") or 0
-
-        if params[1] == "fill" then
-            local amount = tonumber(params[2])
-            if not amount or amount <= 0 then return false, "Invalid amount." end
-            if coins + amount > 1000 then return false, "Money bag can't hold more than 1000 coins." end
-            local inv = player:get_inventory()
-            local stack = ItemStack("simplecoins:coins " .. amount)
-            if inv:contains_item("main", stack) then
-                inv:remove_item("main", stack)
-                coins = coins + amount
-                meta:set_int("coins", coins)
-                update_bag(itemstack)
-                player:set_wielded_item(itemstack)
-                return true, "Added " .. amount .. " coins to the money bag. It now contains " .. coins .. " coins."
-            else
-                return false, "Not enough coins in inventory."
-            end
-        elseif params[1] == "empty" then
-            local amount = tonumber(params[2])
-            if not amount or amount <= 0 then return false, "Invalid amount." end
-            if coins == 0 then return false, "The money bag is empty." end
-            if amount > coins then return false, "The money bag doesn't have that many coins." end
-            local inv = player:get_inventory()
-            local add_stack = ItemStack("simplecoins:coins " .. amount)
-            if inv:room_for_item("main", add_stack) then
-                inv:add_item("main", add_stack)
-                coins = coins - amount
-                meta:set_int("coins", coins)
-                update_bag(itemstack)
-                player:set_wielded_item(itemstack)
-                return true, "Removed " .. amount .. " coins from the money bag. It now contains " .. coins .. " coins."
-            else
-                return false, "Not enough room in your inventory."
-            end
-        else
-            return false, "Invalid command. Usage: /moneybag <fill|empty> <amount>"
-        end
-    end
-})
-
-
--- Register Craft Recipes
-minetest.register_craft({
-    output = "moneybag:bolsa_dinero_2 10",
-    recipe = {
-        {"farming:string", "farming:string", "farming:string"},
-        {"wool:white", "wool:white", "wool:white"},
-        {"", "", ""},
-    },
-})  
+-- ── Craft recipes ─────────────────────────────────────────────────────────────
 
 minetest.register_craft({
-    output = "moneybag:bolsa_dinero_1 5",
-    recipe = {
-        {"", "", ""},
-        {"moneybag:bolsa_dinero_2", "default:gold_ingot", ""},
-        {"", "", ""},
-    },
+	output = "moneybag:bolsa_dinero_2 10",
+	recipe = {
+		{"farming:string", "farming:string", "farming:string"},
+		{"wool:white",     "wool:white",     "wool:white"},
+		{"",               "",               ""},
+	},
 })

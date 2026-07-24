@@ -27,16 +27,9 @@ minetest.register_node("dynamic_trees:redwood_tree_sapling", {
 -- The Nodes That Make Up The Trunk Of The Tree
 -- The redwood Tree Nodes That Have "Base" In Their Name Are The
 -- Base Of The Tree And Control How Large A Tree Will Grow
--- redwood Tree Main Trunk Base 2 x 2
+-- redwood Tree Main Trunk Base 2 x 2 (now full block for giant redwoods)
 minetest.register_node("dynamic_trees:redwood_tree_main_trunk_base_2x2", {
-	description = ("redwood Tree Main Trunk Base 2x2"),
-	drawtype = "nodebox",
-	node_box = {
-		type = "fixed",
-		fixed = {
-			{-0.0625, -0.5, -0.0625, 0.0625, 0.5, 0.0625},
-		}
-	},
+	description = ("Redwood Tree Trunk"),
 	tiles = {
 		"dt_redwood_tree_bark.png",
 		"dt_redwood_tree_bark.png",
@@ -50,7 +43,6 @@ minetest.register_node("dynamic_trees:redwood_tree_main_trunk_base_2x2", {
 	paramtype = "light",
 	sunlight_propagates = true,
 	sounds = default.node_sound_wood_defaults(),
-	collision_box = {-0.0625, -0.5, -0.0625, 0.0625, 0.5, 0.0625}
 })
 
 -- redwood Tree Main Trunk Base 4 x 4
@@ -240,14 +232,7 @@ minetest.register_node("dynamic_trees:redwood_tree_main_trunk_base_16x16", {
 -- To Know When To Grow
 -- redwood Tree Main Trunk 2 x 2
 minetest.register_node("dynamic_trees:redwood_tree_main_trunk_2x2", {
-	description = ("redwood Tree Main Trunk 2x2"),
-	drawtype = "nodebox",
-	node_box = {
-		type = "fixed",
-		fixed = {
-			{-0.0625, -0.5, -0.0625, 0.0625, 0.5, 0.0625},
-		}
-	},
+	description = ("Redwood Tree Trunk"),
 	tiles = {
 		"dt_redwood_tree_bark.png",
 		"dt_redwood_tree_bark.png",
@@ -261,7 +246,6 @@ minetest.register_node("dynamic_trees:redwood_tree_main_trunk_2x2", {
 	paramtype = "light",
 	sunlight_propagates = true,
 	sounds = default.node_sound_wood_defaults(),
-	collision_box = {-0.0625, -0.5, -0.0625, 0.0625, 0.5, 0.0625}
 })
 
 -- redwood Tree Main Trunk 4 x 4

@@ -438,7 +438,7 @@ minetest.register_entity(":__builtin:falling_node", {
 		vel.x = vel.x * 0.95
 		vel.z = vel.z * 0.95
 
-		if vel.x < 0.1 and vel.z < 0.1 then
+		if math.abs(vel.x) < 0.1 and math.abs(vel.z) < 0.1 then
 			vel.x = 0
 			vel.z = 0
 		end
@@ -516,17 +516,20 @@ minetest.register_entity(":__builtin:falling_node", {
 			local cnode = minetest.get_node(npos)
 			local cdef = minetest.registered_nodes[cnode.name]
 
-			-- If air_equivalent or buildable_to or an attached_node then place
-			--  node, otherwise drop falling node as an item instead.
+			-- If air_equivalent or buildable_to or an attached_node or leaves
+			--  then place node, otherwise drop falling node as an item instead.
 			if (cdef and cdef.air_equivalent == true)
 			or (cdef and cdef.buildable_to == true)
 			or (cdef and cdef.liquidtype ~= "none")
 			-- only drop attached nodes if area not protected (torch, rails etc.)
 			or (minetest.get_item_group(cnode.name, "attached_node") ~= 0
-			and not minetest.is_protected(npos, "")) then
+			and not minetest.is_protected(npos, ""))
+			-- falling nodes crush leaves
+			or (minetest.get_item_group(cnode.name, "leaves") ~= 0) then
 
-				-- Are we an attached node ? (grass, flowers, torch)
-				if minetest.get_item_group(cnode.name, "attached_node") ~= 0 then
+				-- Are we a breakable node? (attached or leaves)
+				if minetest.get_item_group(cnode.name, "attached_node") ~= 0
+				or minetest.get_item_group(cnode.name, "leaves") ~= 0 then
 
 					-- Add drops from attached node
 					local drops = minetest.get_node_drops(cnode.name, "")

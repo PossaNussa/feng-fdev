@@ -129,6 +129,17 @@ local function tick_again(pos)
 	minetest.get_node_timer(pos):start(math.random(40, 80))
 end
 
+-- Returns 1.0 if pos is within the crop's optimal climate range, down to 0.15 if very far outside.
+-- Each 80 combined heat+humidity units outside range = full penalty.
+local function climate_factor(pos, def)
+	if not def._heat_min then return 1.0 end
+	local bd = minetest.get_biome_data(pos)
+	if not bd then return 1.0 end
+	local hd = math.max(0, def._heat_min - bd.heat, bd.heat - def._heat_max)
+	local wd = math.max(0, def._hum_min - bd.humidity, bd.humidity - def._hum_max)
+	return math.max(0.15, 1.0 - (hd + wd) / 80)
+end
+
 -- Seed placement
 farming.place_seed = function(itemstack, placer, pointed_thing, plantname)
 	local pt = pointed_thing
@@ -233,6 +244,13 @@ farming.grow_plant = function(pos, elapsed)
 	local light = minetest.get_node_light(pos)
 	if not light or light < def.minlight or light > def.maxlight then
 		tick_again(pos)
+		return
+	end
+
+	-- check climate — skip this tick with probability proportional to how far outside optimal range
+	local cf = climate_factor(pos, def)
+	if cf < 1.0 and math.random() > cf then
+		tick(pos)
 		return
 	end
 

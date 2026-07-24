@@ -13,8 +13,8 @@ minetest.register_biome({
 		node_dungeon_stair = "stairs:stair_cobble",
 		y_max = 31000,
 		y_min = 6,
-		heat_point = 50,
-		humidity_point = 41,
+		heat_point = 54,
+		humidity_point = 43,
 	})
 
 

@@ -21,12 +21,11 @@ mg_villages.spawnplayer = function(player)
 				min_pos = {x = village.vx, y = village.vh + 2, z = village.vz}
 				-- some villages are later adjusted in height; adapt these changes
 				local village_id = tostring( village.vx )..':'..tostring( village.vz );
-				if(   mg_villages.all_villages[ village_id ] 
+				if(   mg_villages.all_villages[ village_id ]
 				  and mg_villages.all_villages[ village_id ].optimal_height ) then
 					min_pos.y = mg_villages.all_villages[ village_id ].vh + 2;
-				-- the first villages will have a height of 1 in order to make sure that the player does not end up embedded in stone
 				else
-					min_pos.y = 1+2;
+					min_pos.y = minetest.get_spawn_level(min_pos.x, min_pos.z) or (village.vh + 2);
 				end
 				min_dist = math.abs(village.vx) + math.abs(village.vz)
 			end
@@ -40,8 +39,4 @@ minetest.register_on_newplayer(function(player)
 	mg_villages.spawnplayer(player)
 end)
 
-minetest.register_on_respawnplayer(function(player)
-	mg_villages.spawnplayer(player)
-	return true
-end)
-
+-- respawn handled by alone mod (uses player's saved alone:spawn position)

@@ -79,18 +79,27 @@ minetest.register_on_generated(function(minp, maxp, blockseed)
 				local idx_floor = area:index(x, y_floor, z)
 				local cid_floor = data[idx_floor]
 
+				-- above cell: used for headroom check (flora) and placement (firefly)
+				local idx_above = area:index(x, y_above, z)
+				local cid_above = data[idx_above]
+
 				if not is_wall_cid(cid_floor) then
-					-- node below must be a wall to support flora
+					-- below must be dungeon floor material specifically; natural terrain
+					-- blocks outside the room would otherwise cause mid-air placements
+					-- on cliff faces or wall tops at the same Y level.
+					-- Also require headroom: cid_above must be air so flora isn't
+					-- jammed into a 1-node-tall gap against the ceiling.
 					local idx_below = area:index(x, y_below, z)
 					local cid_below = data[idx_below]
-					if is_wall_cid(cid_below) and pr:next(1, 3) == 2 then
+					if (cid_below == c_cobble or cid_below == c_mossycobble)
+							and cid_above == c_air
+							and pr:next(1, 3) == 2 then
 						data[idx_floor] = flora_cid(cid_below)
 					end
 				end
 
 				-- firefly one node above floor (only into air, 1/30 chance)
-				local idx_above = area:index(x, y_above, z)
-				if data[idx_above] == c_air and pr:next(1, 30) == 10 then
+				if cid_above == c_air and pr:next(1, 30) == 10 then
 					data[idx_above] = c_firefly
 				end
 			end

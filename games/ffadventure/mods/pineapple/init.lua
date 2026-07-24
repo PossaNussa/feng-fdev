@@ -27,42 +27,53 @@ end
 
 --local function registerMyDecorations()
 --if mg_name ~= "singlenode" then
-	local place_on = {"default:dirt_with_rainforest_litter"}
-	if minetest.get_modpath("islands") then
-		place_on =  {"default:dirt_with_rainforest_litter","default:dirt_with_grass"}
-	end
+	minetest.register_on_mods_loaded(function()
+		-- tropical, hot (heat 78-95, hum 38-95)
+		local place_on, biomes, seen = {}, {}, {}
+		for bname, bdef in pairs(minetest.registered_biomes) do
+			if not bname:find('_under') then
+				local h = bdef.heat_point or -1
+				local w = bdef.humidity_point or -1
+				if h >= 78 and h <= 95 and w >= 38 and w <= 95 then
+					biomes[#biomes + 1] = bname
+					local top = bdef.node_top
+					if top and minetest.registered_nodes[top] and not seen[top] then
+						seen[top] = true
+						place_on[#place_on + 1] = top
+					end
+				end
+			end
+		end
 
-	local decoration_definition = {
-		name = "pineapple:pineapple_shrub",
-		deco_type = "schematic",
-		place_on = place_on,
-		sidelen = 16,
-		noise_params = {
-			offset = 0.0005,
-			scale = 0.00004,
-			fill_ratio = .001,
-			spread = {x = 250, y = 250, z = 250},
-			seed = 299,
-			octaves = 3,
-			persist = 0.66
-		},
-		y_min = 1,
-		schematic = modpath.."/schematics/pineapple.mts",
-		flags = "place_center_x, place_center_z, force_placement",
-		rotation = "random",
-		place_offset_y = 1
-	}
+		local decoration_definition = {
+			name = "pineapple:pineapple_shrub",
+			deco_type = "schematic",
+			place_on = next(place_on) and place_on or {"default:dirt_with_rainforest_litter"},
+			sidelen = 16,
+			noise_params = {
+				offset = 0.0005,
+				scale = 0.00004,
+				fill_ratio = .001,
+				spread = {x = 250, y = 250, z = 250},
+				seed = 299,
+				octaves = 3,
+				persist = 0.66
+			},
+			y_min = 1,
+			schematic = modpath.."/schematics/pineapple.mts",
+			flags = "place_center_x, place_center_z, force_placement",
+			rotation = "random",
+			place_offset_y = 1
+		}
 
-	if mg_name == "v6" then
-		decoration_definition.y_max = 80
-
+		if mg_name == "v6" then
+			decoration_definition.y_max = 80
+		else
+			decoration_definition.biomes = next(biomes) and biomes or nil
+			decoration_definition.y_max = 35
+		end
 		minetest.register_decoration(decoration_definition)
-	else
-		--decoration_definition.biomes = {"rainforest"}
-		decoration_definition.y_max = 5000
-
-		minetest.register_decoration(decoration_definition)
-	end
+	end)
 --end
 --end
 --minetest.after(0.1, registerMyDecorations)

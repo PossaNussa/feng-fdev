@@ -44,6 +44,7 @@ mobs:register_mob("animalworld:zebra", {
 	lava_damage = 5,
 	light_damage = 0,
 	fear_height = 3,
+	pathfinding = true,
         knock_back = false,
 	animation = {
 		speed_normal = 30,
@@ -91,6 +92,8 @@ mobs:spawn({
 	min_height = 6,
 	max_height = 50,
 	day_toggle = true,
+	min_heat = 60, max_heat = 88,
+	min_humidity = 20, max_humidity = 60,
 
 		on_spawn = function(self, pos)
 

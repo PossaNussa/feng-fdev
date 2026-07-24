@@ -1,0 +1,41 @@
+# textdomain: potted_farming
+
+
+### items.lua ###
+
+Empty Watering Can=Leere Gießkanne
+
+### lib.lua ###
+
+Pot with =Vase mit
+
+Basil=Basilikum
+Rosemary=Rosmarin
+Sage=Salbei
+Parsley=Petersilie
+Mint=Minze
+Oregano=Orig
+Stem=Stiel
+Wild =Wilde(r)
+
+Brown=Braun
+Cantharellus=Pfifferling
+Boletus=Steinpilz
+
+Lemon=Zitrone
+Orange=Orange
+Apple=Apfel
+(Leaves)=(Blätter)
+
+### nodes.lua ###
+
+Pot with Soil=Vase mit Erde
+Pot with Shrub=Vase mit Strauch
+Pot with Plantain=Vase mit Wegerich
+
+### tools.lua ###
+
+Watering Can=Gießkanne
+
+
+##### not used anymore #####

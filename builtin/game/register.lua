@@ -594,6 +594,16 @@ core.registered_on_punchnodes, core.register_on_punchnode = make_registration()
 core.registered_on_placenodes, core.register_on_placenode = make_registration()
 core.registered_on_dignodes, core.register_on_dignode = make_registration()
 core.registered_on_generateds, core.register_on_generated = make_registration()
+
+-- Per-dimension on_generated callbacks (main-thread counterpart to emerge/register.lua).
+-- core.registered_dim_on_generateds["dim_name"] is a list of callbacks.
+core.registered_dim_on_generateds = {}
+function core.register_dim_on_generated(dim_name, fn)
+	if not core.registered_dim_on_generateds[dim_name] then
+		core.registered_dim_on_generateds[dim_name] = {}
+	end
+	table.insert(core.registered_dim_on_generateds[dim_name], fn)
+end
 core.registered_on_newplayers, core.register_on_newplayer = make_registration()
 core.registered_on_dieplayers, core.register_on_dieplayer = make_registration()
 core.registered_on_respawnplayers, core.register_on_respawnplayer = make_registration()

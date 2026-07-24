@@ -536,7 +536,11 @@ void ContentFeatures::serialize(std::ostream &os, u16 protocol_version) const
 	writeU8(os, move_resistance);
 	writeU8(os, liquid_move_physics);
 	writeU8(os, post_effect_color_shaded);
+
+	// FlashEng: append light_colour for forward-compat
+	writeU32(os, light_colour.color);
 }
+
 
 void ContentFeatures::deSerialize(std::istream &is, u16 protocol_version)
 {
@@ -667,7 +671,21 @@ void ContentFeatures::deSerialize(std::istream &is, u16 protocol_version)
 			throw SerializationError("");
 		post_effect_color_shaded = tmp;
 	} catch (SerializationError &e) {};
+
+	
+// FlashEng: try to read optional light_colour; keep white if missing
+if (is.good()) {
+    try {
+        light_colour = video::SColor(readU32(is));
+    } catch (...) {
+        light_colour = video::SColor(0xFFFFFFFF);
+    }
+} else {
+    light_colour = video::SColor(0xFFFFFFFF);
 }
+
+}
+
 
 #if CHECK_CLIENT_BUILD()
 static void fillTileAttribs(ITextureSource *tsrc, TileLayer *layer,
@@ -965,7 +983,8 @@ void ContentFeatures::updateTextures(ITextureSource *tsrc, IShaderSource *shdsrc
 			param_type_2 == CPT2_COLORED_FACEDIR ||
 			param_type_2 == CPT2_COLORED_4DIR ||
 			param_type_2 == CPT2_COLORED_WALLMOUNTED ||
-			param_type_2 == CPT2_COLORED_DEGROTATE)
+			param_type_2 == CPT2_COLORED_DEGROTATE ||
+			param_type_2 == CPT2_COLORFLOWINGLIQUID)
 		palette = tsrc->getPalette(palette_name);
 
 	if (drawtype == NDT_MESH && !mesh.empty()) {

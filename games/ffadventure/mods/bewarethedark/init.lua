@@ -3,7 +3,7 @@
 Beware the Dark [bewarethedark]
 ==========================
 
-A mod where darkness simply kills you outright.
+A mod where darkness drains your sanity, with smooth convergence.
 
 Copyright (C) 2015 Ben Deutsch <ben@bendeutsch.de>
 
@@ -32,17 +32,18 @@ bewarethedark = {
 
     -- configuration in bewarethedark.default.conf
 
-    -- per-player-stash (not persistent)
+    -- per-player stash (not persistent)
     players = {
         --[[
         name = {
             pending_dmg = 0.0,
+            last_hud_val = nil,
         }
         ]]
     },
 
-    -- global things
-    time_next_tick = 0.0,
+    -- dtime accumulator
+    timer = 0.0,
 }
 local M = bewarethedark
 
@@ -63,83 +64,84 @@ PPA.register({
 
 minetest.register_on_joinplayer(function(player)
     local name = player:get_player_name()
-    local pl = M.players[name]
-    if not pl then
-        M.players[name] = { pending_dmg = 0.0 }
-        pl = M.players[name]
+    if not M.players[name] then
+        M.players[name] = { pending_dmg = 0.0, last_hud_val = nil }
         M.hud_init(player)
     end
+end)
+
+minetest.register_on_leaveplayer(function(player)
+    local name = player:get_player_name()
+    M.players[name] = nil
 end)
 
 minetest.register_on_respawnplayer(function(player)
     local name = player:get_player_name()
     local pl = M.players[name]
-    pl.pending_dmg = 0.0
-    local sanity = 20
-    PPA.set_value(player, "bewarethedark_sanity", sanity)
-    M.hud_update(player, sanity)
+    if pl then
+        pl.pending_dmg = 0.0
+        pl.last_hud_val = nil
+    end
+    PPA.set_value(player, "bewarethedark_sanity", 20)
+    M.hud_update(player, 20)
 end)
 
 minetest.register_globalstep(function(dtime)
+    M.timer = M.timer + dtime
+    if M.timer < C.tick_time then return end
+    M.timer = M.timer - C.tick_time
 
-    M.time_next_tick = M.time_next_tick - dtime
-    while M.time_next_tick < 0.0 do
-        M.time_next_tick = M.time_next_tick + C.tick_time
-        for _,player in ipairs(minetest.get_connected_players()) do
+    local enable_damage = minetest.settings:get_bool("enable_damage", true)
 
-            if player:get_hp() <= 0 then
-                -- dead players don't fear the dark
-                break
-            end
-
+    for _, player in ipairs(minetest.get_connected_players()) do
+        if player:get_hp() > 0 then
             local name = player:get_player_name()
             local pl = M.players[name]
-            local pos  = player:getpos()
-            local pos_y = pos.y
-            -- the middle of the block with the player's head
-            pos.y = math.floor(pos_y) + 1.5
-            local node = minetest.get_node(pos)
+            if pl then
+                local pos = player:get_pos()
+                -- head position
+                pos.y = math.floor(pos.y) + 1.5
+                local node = minetest.get_node(pos)
 
-            local light_now   = minetest.get_node_light(pos) or 0
-            if node.name == 'ignore' then
-                -- can happen while world loads, set to something innocent
-                light_now = 9
-            end
-
-            local sanity = PPA.get_value(player, "bewarethedark_sanity")
-            local overflow_factor = 1.0
-
-            local dps = C.damage_for_light[light_now] * C.tick_time
-            --print("Standing in " .. node.name .. " at light " .. light_now .. " taking " .. dps);
-
-            if dps ~= 0 then
-
-                sanity = sanity - dps
-                --print("New sanity "..sanity)
-                if sanity < 0.0 and minetest.setting_getbool("enable_damage") then
-                    -- how much of this tick is hp damage?
-                    overflow_factor = (0.0 - sanity) / dps
-                    sanity = 0.0
+                local light = minetest.get_node_light(pos) or 9
+                if node.name == "ignore" then
+                    light = 9
                 end
 
+                local target = C.target_for_light[light] or 14
+                local sanity = PPA.get_value(player, "bewarethedark_sanity")
+                local rate = (target < sanity) and C.drain_rate or C.recovery_rate
+
+                local diff = target - sanity
+                local step = diff * rate
+                -- Prevent asymptotic stall: enforce minimum step toward target
+                if math.abs(diff) > 0.01 and math.abs(step) < 0.15 then
+                    step = diff > 0 and 0.15 or -0.15
+                end
+                sanity = sanity + step
+                if math.abs(sanity - target) < 0.2 then sanity = target end
+                if sanity < 0 then sanity = 0 end
+                if sanity > 20 then sanity = 20 end
                 PPA.set_value(player, "bewarethedark_sanity", sanity)
 
-                M.hud_update(player, sanity)
-            end
+                -- HUD: only update when the displayed integer changes
+                local hud_val = M.hud_clamp(sanity)
+                if hud_val ~= pl.last_hud_val then
+                    M.hud_update(player, sanity)
+                    pl.last_hud_val = hud_val
+                end
 
-            -- if insane, hp damage applies
-            if sanity <= 0.0 then
-                -- dps for HP potentially other than for sanity
-                dps = (C.insane_damage_for_light[light_now] or C.damage_for_light[light_now]) * C.tick_time * overflow_factor
-                if dps < 0.0 then dps = 0.0 end
-
-                pl.pending_dmg = pl.pending_dmg + dps
-
-                if pl.pending_dmg > 0.0 then
-                    local dmg = math.floor(pl.pending_dmg)
-                    --print("Deals "..dmg.." damage!")
-                    pl.pending_dmg = pl.pending_dmg - dmg
-                    player:set_hp( player:get_hp() - dmg )
+                -- HP damage when critically insane
+                if sanity < C.dmg_threshold and enable_damage then
+                    local dps = (C.dmg_threshold - sanity) / C.dmg_threshold * C.dmg_max_dps
+                    pl.pending_dmg = pl.pending_dmg + dps * C.tick_time
+                    if pl.pending_dmg >= 1 then
+                        local dmg = math.floor(pl.pending_dmg)
+                        pl.pending_dmg = pl.pending_dmg - dmg
+                        player:set_hp(player:get_hp() - dmg)
+                    end
+                else
+                    pl.pending_dmg = 0
                 end
             end
         end

@@ -17,8 +17,8 @@ minetest.register_biome({
 	node_water_top = "default:water_source",
 	y_max = 31000,
 	y_min = 1,
-	heat_point = 51.7,
-	humidity_point = 91.7,
+	heat_point = 52,
+	humidity_point = 96,
 })
 
 -- Register Nodes

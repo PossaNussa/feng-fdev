@@ -28,9 +28,9 @@ minetest.register_biome({
 		node_dungeon_alt = "default:mossycobble",
 		node_dungeon_stair = "stairs:stair_cobble",
     y_max = 31000,
-    y_min = 1000,
-    heat_point = 95,
-    humidity_point = 63,
+    y_min = 1,
+    heat_point = 97,
+    humidity_point = 58,
 })
 
 minetest.register_node("livingfloatlands:paleojungle_ferngrass", {

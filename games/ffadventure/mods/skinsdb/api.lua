@@ -40,8 +40,20 @@ end
 -- update visuals
 function skins.update_player_skin(player)
 	if skins.armor_loaded then
-		-- all needed is wrapped and implemented in 3d_armor mod
+		-- Sync skin texture into armor's internal state so
+		-- 3d_armor's update_player_visuals uses the correct skin
+		local name = player:get_player_name()
+		if armor.textures[name] then
+			armor.textures[name].skin = armor:get_player_skin(name)
+		end
 		armor:set_player_armor(player)
+		-- Set first-person hand to match skin (armor path bypasses apply_skin_to_player)
+		local skin = skins.get_player_skin(player)
+		local hand = skin:get_hand()
+		if hand then
+			player:get_inventory():set_size("hand", 1)
+			player:get_inventory():set_stack("hand", 1, hand)
+		end
 	else
 		-- do updates manually without 3d_armor
 		skins.get_player_skin(player):apply_skin_to_player(player)

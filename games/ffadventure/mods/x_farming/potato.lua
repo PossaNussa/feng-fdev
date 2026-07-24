@@ -31,7 +31,8 @@ x_farming.register_plant('x_farming:potato', {
     maxlight = maxlight,
     fertility = { 'grassland' },
     groups = { flammable = 4 },
-    place_param2 = 3
+    place_param2 = 3,
+    heat_min = 15, heat_max = 65, hum_min = 30, hum_max = 75,
 })
 
 -- needed
@@ -151,22 +152,21 @@ minetest.register_on_mods_loaded(function()
     local deco_place_on = {}
     local deco_biomes = {}
 
-    -- MTG
-    if minetest.get_modpath('default') then
-        table.insert(deco_place_on, 'default:dirt_with_grass')
-        table.insert(deco_biomes, 'islands')
-    end
-
-    -- Everness
-    if minetest.get_modpath('everness') then
-        table.insert(deco_place_on, 'everness:forsaken_desert_sand')
-        table.insert(deco_biomes, 'everness_forsaken_desert')
-    end
-
-    -- MCL
-    if minetest.get_modpath('mcl_core') then
-        table.insert(deco_place_on, 'mcl_core:sand')
-        table.insert(deco_biomes, 'Desert')
+    -- cool to cold, moderate moisture (heat 15-65, hum 30-75)
+    local seen_nodes = {}
+    for bname, bdef in pairs(minetest.registered_biomes) do
+        if not bname:find('_under') then
+            local h = bdef.heat_point or -1
+            local w = bdef.humidity_point or -1
+            if h >= 15 and h <= 65 and w >= 30 and w <= 75 then
+                table.insert(deco_biomes, bname)
+                local top = bdef.node_top
+                if top and minetest.registered_nodes[top] and not seen_nodes[top] then
+                    seen_nodes[top] = true
+                    table.insert(deco_place_on, top)
+                end
+            end
+        end
     end
 
     if next(deco_place_on) and next(deco_biomes) then

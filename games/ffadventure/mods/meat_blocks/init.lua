@@ -232,10 +232,123 @@ meat_blocks.burn_list = {
   "farming:bread",
   "moretrees:date_nut_cake",
   "nssm:roasted_crocodile_tail",
-  -- Add additional cooked foods here, e.g. "animalworld:rabbit_cooked"
+  -- fish (cooked via furnace/campfire)
+  "default:fish_item_cooked",
+  "default:trout_item_cooked",
+  -- x_farming
+  "x_farming:bakedpotato",
+  "x_farming:corn_popcorn",
+  -- farming bread variants
+  "farming:pumpkin_bread",
+  "farming:bread_multigrain",
+  "farming:rice_bread",
+  -- grains
+  "grains:rye_bread",
+  "grains:oat_bread",
+  -- fried eggs
+  "animalia:chicken_egg_fried",
+  "animalia:turkey_egg_fried",
+  "animalia:song_bird_egg_fried",
+  -- paleotest prehistoric meats
+  "paleotest:dinosaur_meat_cooked",
+  "paleotest:reptile_meat_cooked",
+  "paleotest:mammal_meat_cooked",
+  "paleotest:fish_meat_cooked",
+  -- livingfloatlands prehistoric meats
+  "livingfloatlands:theropodcooked",
+  "livingfloatlands:largemammalcooked",
+  "livingfloatlands:sauropodcooked",
+  "livingfloatlands:ornithischiacooked",
+  "livingfloatlands:roasted_pine_nuts",
+  -- fishing_rod fish
+  "fishing_rod:fish_shrimp_cooked",
+  "fishing_rod:fish_flying_fish_cooked",
+  "fishing_rod:fish_frog_cooked",
+  "fishing_rod:fish_anglerfish_cooked",
+  "fishing_rod:fish_nautilus_cooked",
+  "fishing_rod:fish_lava_eel_cooked",
+  -- marinaramobs / marinara seafood
+  "marinaramobs:seaurchin_cooked",
+  "marinaramobs:octopus_cooked",
+  "marinaramobs:cooked_exotic_fish",
+  "marinara:mussels_cooked",
+  -- mobs_animal
+  "mobs:chicken_cooked",
+  "mobs:pork_cooked",
+  "mobs:mutton_cooked",
+  -- animalworld
+  "animalworld:cookedmollusk",
+  "animalworld:cookedfish",
+  "animalworld:cooked_athropod",
+  "animalworld:anteggs_cooked",
+  "animalworld:whalemeat_cooked",
+  "animalworld:pork_cooked",
+  "animalworld:chicken_cooked",
+  "animalworld:locust_roasted",
+  -- petz
+  "petz:fried_egg",
+  "petz:fried_egg_bacon",
+  "petz:frog_leg_roasted",
+  "petz:roasted_parrot",
+  "petz:roasted_chicken_legs",
+  "petz:roasted_chicken",
+  "petz:roasted_porkchop",
+  "petz:roasted_lamb_chop",
+  "petz:roasted_ducky",
+  "petz:roasted_goat_meat",
+  "petz:roasted_rabbit",
+  "petz:steak",
+  -- large_slugs
+  "large_slugs:cooked_grass_slug",
+  "large_slugs:cooked_pine_slug",
+  "large_slugs:cooked_rainforest_slug",
+  "large_slugs:cooked_cave_slug",
+  -- hardcore_farming insects
+  "hardcore_farming:rat_cooked",
+  -- aotearoa foraged foods
+  "aotearoa:cooked_bracken_root",
+  "aotearoa:cooked_raupo_root",
+  "aotearoa:cooked_fiddlehead",
+  "aotearoa:cooked_mamaku_pith",
+  "aotearoa:cooked_cabbage_tree_root",
+  "aotearoa:cooked_nikau_shoots",
+  "aotearoa:seed_cake",
+  -- ferns
+  "ferns:fiddlehead_roasted",
+  "ferns:ferntuber_roasted",
+  -- farming baked/cooked items
+  "farming:toast",
+  "farming:tofu_cooked",
+  "farming:sunflower_seeds_toasted",
+  "farming:pea_soup",
+  "farming:beetroot_soup",
+  "farming:onion_soup",
+  "farming:tomato_soup",
+  "farming:blueberry_pie",
+  "farming:rhubarb_pie",
+  "farming:sunflower_bread",
+  "farming:garlic_bread",
+  "farming:jaffa_cake",
+  "farming:apple_pie",
+  "farming:gingerbread_man",
+  -- x_farming
+  "x_farming:pine_nut_roasted",
+  -- dfcaverns
+  "df_farming:cave_bread",
+  -- worm_farm
+  "worm_farm:fried_worm",
+  "worm_farm:cooked_apple",
+  -- sandwiches
+  "sandwiches:crispy_bacon",
+  "sandwiches:roasted_potatoes",
+  "sandwiches:cooked_salmon",
+  "sandwiches:cooked_trout",
+  -- misc
+  "xdecor:bowl_soup",
+  "kudzu:soup",
 }
 
--- Register burnt items for all listed cooked foods
+-- Register burnt variants now — depends load before meat_blocks so item_exists() is reliable.
 register_all_burn_list()
 
 -- ==========================================================
@@ -375,7 +488,10 @@ local function register_meat_blocks(meatkey, def)
   })
 end
 
-
+-- Register blocks for all defined meats during normal mod load.
+for meatkey, def in pairs(meat_blocks.meat_defs) do
+  register_meat_blocks(meatkey, def)
+end
 
 -- ==========================================================
 -- Auto-burn cooked items left in furnace output for 60 seconds
@@ -471,14 +587,14 @@ local overrides = {
 	["x_farming:bread"] = 32, 
 	["default:ironbar"] = 9,
 	["default:cobaltbar"] = 9,
-	["deault:steelbar"] = 9,
-	["deault:chromebar"] = 9,
-	["deault:fgoldbar"] = 9,
-	["deault:nickelbar"] = 9,
-	["deault:platinumbar"] = 9,
-	["deault:silverbar"] = 9,
-	["deault:titaniumbar"] = 9,
-	["deault:zbar"] = 9,
+	["default:steelbar"] = 9,
+	["default:chromebar"] = 9,
+	["default:fgoldbar"] = 9,
+	["default:nickelbar"] = 9,
+	["default:platinumbar"] = 9,
+	["default:silverbar"] = 9,
+	["default:titaniumbar"] = 9,
+	["default:zbar"] = 9,
 	
 	-- Example: ["mcl_core:iron_ingot"] = 64
 }
@@ -508,6 +624,24 @@ local function run()
 
 	minetest.log("action", "[stack_size_tweaks] Stack size tweaks applied.")
 end
+
+-- ==========================================================
+-- on_mods_loaded: all items guaranteed to exist at this point.
+-- ==========================================================
+minetest.register_on_mods_loaded(function()
+  -- Register cooked -> burnt as campfire recipes (override_item-safe, just table inserts).
+  if default and default.register_campfire_recipe then
+    for cooked, burnt in pairs(meat_blocks.burn_map) do
+      if minetest.registered_items[cooked] then
+        default.register_campfire_recipe(cooked, burnt, 30)
+      end
+    end
+  end
+
+  -- Apply stack size overrides — override_item is allowed in on_mods_loaded,
+  -- and we need all mods loaded for the ingot auto-rule scan.
+  run()
+end)
 
 -- ==========================================================
 -- Notes for server owners / modders:

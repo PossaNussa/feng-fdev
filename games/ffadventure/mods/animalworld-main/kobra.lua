@@ -46,6 +46,7 @@ stepheight = 2,
 	lava_damage = 4,
 	light_damage = 0,
 	fear_height = 3,
+	pathfinding = true,
 	animation = {
 		speed_normal = 60,
 		stand_start = 0,
@@ -80,6 +81,8 @@ mobs:spawn({
 	chance = 5000, -- 15000
 	min_height = -30,
 	max_height = 10,
+	min_heat = 65, max_heat = 100,
+	min_humidity = 10, max_humidity = 80,
 })
 end
 

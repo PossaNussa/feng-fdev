@@ -20,10 +20,10 @@ minetest.register_on_joinplayer(function(player)
     -- HUD hinzufügen
     coords_hud[player_name] = player:hud_add({
         hud_elem_type = "text",
-        position = {x=0.01, y=0.2},
-        offset = {x=0, y=0},
+        position = {x=0, y=0.5},
+        offset = {x=5, y=0},
         text = "",
-        alignment = {x=1, y=1},
+        alignment = {x=1, y=0},
         number = 0xFFFFFF,
         size = {x=1, y=1},
     })

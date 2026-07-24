@@ -107,8 +107,10 @@ farming.registered_plants["farming:blueberries"] = {
 -- mapgen
 minetest.register_decoration({
 	deco_type = "simple",
-	place_on = {"default:dirt_with_grass", "mcl_core:dirt_with_grass"},
+	place_on = {"default:dirt_with_coniferous_litter", "default:dirt_with_grass",
+			"mcl_core:dirt_with_grass"},
 	sidelen = 16,
+	biomes = {"coniferous_forest", "taiga", "deciduous_forest", "snowy_grassland"},
 	noise_params = {
 		offset = 0,
 		scale = farming.blueberry,
@@ -118,6 +120,6 @@ minetest.register_decoration({
 		persist = 0.6
 	},
 	y_min = 3,
-	y_max = 15,
+	y_max = 30,
 	decoration = "farming:blueberry_4"
 })

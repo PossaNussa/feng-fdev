@@ -113,6 +113,8 @@ minetest.register_decoration({
 		"mcl_core:dirt_with_grass"
 	},
 	sidelen = 16,
+	biomes = {"grassland", "deciduous_forest", "grove", "coniferous_forest",
+			"taiga", "snowy_grassland", "sakura_forest"},
 	noise_params = {
 		offset = 0,
 		scale = farming.mint,

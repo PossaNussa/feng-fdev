@@ -58,7 +58,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 		{ 'animalmaterials:scissors',mobf_trader.price_smith(2, 0, 2 ) },
 
 	},
-	{ 'Blacky','Simon'},
+	{ 'Grunthar', 'Tuskvar'},
 	{'blacksmith.png'}
 	);
 
@@ -82,7 +82,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 		{ 'default:bronze_ingot',   mobf_trader.price_smith( 1, 1, 0 ) },
 
 	},
-	{ 'Charly','Bert'},
+	{ 'Boarthan', 'Henric'},
 	{'blacksmith.png'}
 	);
 
@@ -139,7 +139,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 		{ 'stairs:slab_stonebrick 24', mobf_trader.price_stonemason( 0,48, 0 ) }, 
 
 	},
-	{ 'Metz'},
+	{ 'Bristovar'},
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 
@@ -158,7 +158,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 		{ 'default:desert_stonebrick 12',mobf_trader.price_stonemason(24,0, 1 ) }, 
 		{ 'default:gravel 12',         mobf_trader.price_stonemason( 0, 2, 0 ) }, -- he probably has a grinder from technic at home :-)
 	},
-	{'Stoni'},
+	{'Grondak'},
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 
@@ -191,7 +191,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 		{ 'cottages:fence_end 2',      mobf_trader.price_woodworker( 0, 1, 0 ) },
 		{ 'cottages:gate_closed',      mobf_trader.price_woodworker( 0, 1, 0 ) },
 	},
-	{ 'Friedrich', 'Friedhelm' },
+	{ 'Hoggarim', 'Verrodan' },
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 
@@ -206,7 +206,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 		{ 'farming:hoe_wood',          mobf_trader.price_woodworker( 2, 0, 2 ) },
 		{ 'default:sword_wood',        mobf_trader.price_woodworker( 2, 0, 1 ) },
 	},
-	{ 'Ted' },
+	{ 'Swinmund' },
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 
@@ -221,7 +221,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 		{ 'cottages:half_door 2',           mobf_trader.price_woodworker( 7, 0, 0 ) },
 		{ 'cottages:gate_closed',           mobf_trader.price_woodworker( 2, 0, 0 ) },
 	},
-	{ 'Donald' },
+	{ 'Ulfgar' },
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 
@@ -239,7 +239,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 		{ 'default:ladder 3',               mobf_trader.price_woodworker( 0, 0, 7 ) },
 		{ 'default:sign_wall 4',            mobf_trader.price_woodworker( 6, 0, 1 ) },
 	},
-	{ 'Donald' },
+	{ 'Truffen' },
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 
@@ -256,7 +256,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 
 		{ 'default:ladder 3',               mobf_trader.price_woodworker( 0, 0, 7 ) },
 	},
-	{ 'Siegfried' },
+	{ 'Theron' },
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 
@@ -269,7 +269,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 		{ 'cottages:barrel',                {'default:wood 10', 'default:steel_ingot 4'}},
 		{ 'cottages:tub',                   {'default:wood 5',  'default:steel_ingot 2'}},
 	},
-	{ 'Balduin' },
+	{ 'Boarwulf' },
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 
@@ -281,7 +281,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 	{
 		{ 'cottages:wagon_wheel',           {'default:wood 4', 'default:stick 20', 'default:steel_ingot 2'}},
 	},
-	{ 'Werner' },
+	{ 'Hogrim' },
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 
@@ -300,7 +300,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 		{ 'animalmaterials:net',            'wool:white 10'},
 		{ 'animalmaterials:saddle',         {'wool:white 5', 'default:sword_steel'}},
 	},
-	{ 'Sammy' },
+	{ 'Snorrik' },
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 
@@ -338,7 +338,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 		{ 'cottages:roof_flat_brown 6',     mobf_trader.price_woodworker( 2, 0, 0 ) },
 		{ 'cottages:roof_flat_slate 6',     mobf_trader.price_woodworker( 2, 0, 0 ) },
 	},
-	{ 'Ronald', 'Robert' },
+	{ 'Ronan', 'Rennard' },
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 
@@ -357,7 +357,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 		{ 'farming:flour 40',               'farming:seed_wheat 49'},
 		{ 'farming:flour 90',               'farming:seed_wheat 99'},
 	},
-	{ 'Martin' },
+	{ 'Malachar' },
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 
@@ -388,7 +388,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 		{ 'bushes:basket_strawberry',       {'bushes:strawberry 24', 'default:coal_lump 2'}}, 
 
 	},
-	{ 'Ben', 'Berthold' },
+	{ 'Bristow', 'Borvald' },
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 
@@ -401,7 +401,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 		{'default:paper 2',                 {'default:papyrus 6', 'default:coal_lump 1'}},
 		{'default:book',                    {'default:papyrus 9', 'default:tree 4'}}, -- for heating the school
 	},
-	{ 'Lars', 'Leon' },
+	{ 'Leander', 'Lysander' },
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 	
@@ -412,7 +412,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 	{
 		{'default:ice',                     'default:pick_steel'},
 	},
-	{ 'Ian', 'Jan' },
+	{ 'Ivor', 'Jorik' },
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 	
@@ -427,7 +427,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 		{'default:clay 6',                  'default:shovel_stone'},
 		{'cottages:washing',                'default:shovel_steel'}, -- 1 clay
 	},
-	{ 'Peter', 'Paul' },
+	{ 'Hogarth', 'Hogwulf' },
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 	
@@ -441,7 +441,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 		{'stairs:stair_brick 8',            {'default:shovel_stone', 'default:coal_lump 12'}},
 		{'stairs:slab_brick 6',             {'default:shovel_stone', 'default:coal_lump 3'}},
 	},
-	{ 'Billy' },
+	{ 'Bristal' },
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 
@@ -465,7 +465,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 		{'wool:dark_grey 4',               {'wool:white 4', 'default:coal_lump 2'}},
 		{'wool:black 4',                   {'wool:white 4', 'default:coal_lump 3'}},
 	},
-	{ 'Fabian' },
+	{ 'Fendrel' },
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 
@@ -489,11 +489,11 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 		{'wool:dark_grey 24',              {'wool:white 24', 'default:coal_lump 4', 'cottages:tub'}},
 		{'wool:black 24',                  {'wool:white 24', 'default:coal_lump 6', 'cottages:tub'}},
 	},
-	{ 'Friedrich' },
+	{ 'Gruntald' },
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 
-	
+
 -- there is the clay trader who also sells glass; however, for the medieval villages, an extra trader is more practical
 mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 	'glassmaker',
@@ -510,7 +510,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 		{'vessels:drinking_glass 2',        {'default:sand',    'default:wood 1'}},
 
 	},
-	{ 'Peter', 'Paul' },
+	{ 'Hogarth', 'Hogwulf' },
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 	
@@ -526,7 +526,7 @@ mobf_trader.add_trader( mobf_trader.npc_trader_prototype,
 		{'default:coalblock',		'default:tree 12', 'farming:bread 1', 'default:apple 9'},
 		{'default:coalblock 9',	        'default:tree 99', 'farming:bread 8'},
 	},
-	{ 'Christian', 'Rauchi' },
+	{ 'Caradoc', 'Tuskrim' },
 	mobf_trader.VILLAGE_TRADER_TEXTURES
 	);
 	

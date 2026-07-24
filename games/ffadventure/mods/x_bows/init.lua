@@ -16,7 +16,11 @@
     License along with this library; if not, write to juraj.vajda@gmail.com
 --]]
 
-local default_fov = 90
+local DEFAULT_FOV = 70
+local AIM_FOV = 60
+local AIM_WOBBLE_DELAY = 3.0
+local RAD = math.pi / 180
+
 minetest = minetest.global_exists('minetest') and minetest --[[@as Minetest]]
 ItemStack = minetest.global_exists('ItemStack') and ItemStack --[[@as ItemStack]]
 vector = minetest.global_exists('vector') and vector --[[@as Vector]]
@@ -37,13 +41,14 @@ dofile(path .. '/nodes.lua')
 dofile(path .. '/arrow.lua')
 dofile(path .. '/items.lua')
 
-if XBows.i3 then
-    XBowsQuiver:i3_register_page()
-elseif XBows.unified_inventory then
-    XBowsQuiver:ui_register_page()
-else
-    XBowsQuiver:sfinv_register_page()
-end
+-- Inventory tab disabled (using i3 directly)
+-- if XBows.i3 then
+--     XBowsQuiver:i3_register_page()
+-- elseif XBows.unified_inventory then
+--     XBowsQuiver:ui_register_page()
+-- else
+--     XBowsQuiver:sfinv_register_page()
+-- end
 
 minetest.register_on_joinplayer(function(player)
     local inv_quiver = player:get_inventory() --[[@as InvRef]]
@@ -93,36 +98,9 @@ minetest.register_on_joinplayer(function(player)
     XBowsQuiver:close_quiver(player)
 end)
 
-if XBows.settings.x_bows_show_3d_quiver and XBows.player_api then
-    local model_name = 'x_bows_character.b3d'
-
-    if XBows.skinsdb then
-        ---skinsdb
-        model_name = 'skinsdb_3d_armor_character_5.b3d'
-    elseif XBows._3d_armor then
-        ---3d armor
-        model_name = '3d_armor_character.b3d'
-    end
-
-    player_api.register_model(model_name, {
-        animation_speed = 30,
-        textures = { 'character.png' },
-        animations = {
-            -- Standard animations.
-            stand = { x = 0, y = 79 },
-            lay = { x = 162, y = 166, eye_height = 0.3, override_local = true,
-            collisionbox = { -0.6, 0.0, -0.6, 0.6, 0.3, 0.6 } },
-            walk = { x = 168, y = 187 },
-            mine = { x = 189, y = 198 },
-            walk_mine = { x = 200, y = 219 },
-            sit = { x = 81, y = 160, eye_height = 0.8, override_local = true,
-            collisionbox = { -0.3, 0.0, -0.3, 0.3, 1.0, 0.3 } }
-        },
-        collisionbox = { -0.3, 0.0, -0.3, 0.3, 1.7, 0.3 },
-        stepheight = 0.6,
-        eye_height = 1.47
-    })
-end
+-- 3D quiver model registration disabled: x_bows was overriding
+-- skinsdb/3d_armor model definitions with wrong texture counts and
+-- shipping incompatible .b3d files that corrupted player models.
 
 ---formspec callbacks
 minetest.register_allow_player_inventory_action(function(player, action, inventory, inventory_info)
@@ -309,6 +287,88 @@ end)
 ---backwards compatibility
 minetest.register_alias('x_bows:arrow_diamond_tipped_poison', 'x_bows:arrow_diamond')
 
+-- Hold-to-fire system: Check for RMB release every tick, FOV zoom, aim wobble
+minetest.register_globalstep(function(dtime)
+    for _, player in ipairs(minetest.get_connected_players()) do
+        local player_name = player:get_player_name()
+        local state = XBows.player_draw_state[player_name]
+
+        if state and state.drawing then
+            local controls = player:get_player_control()
+            local wielded_stack = player:get_wielded_item()
+            local wielded_stack_name = wielded_stack:get_name()
+
+            -- Check if player stopped holding RMB or switched items
+            if not controls.RMB or minetest.get_item_group(wielded_stack_name, 'bow') == 0 then
+                -- FIRE! Calculate power based on draw time
+                local draw_time = (minetest.get_us_time() - state.draw_start) / 1000000
+
+                if minetest.get_item_group(wielded_stack_name, 'bow_charged') ~= 0 then
+                    -- Shoot with power based on draw time
+                    local power_mult = math.min(draw_time / state.full_charge_time, 1.0)
+                    XBows:shoot(wielded_stack, player, nil)
+                end
+
+                -- Reset draw state
+                state.drawing = false
+                state.draw_start = nil
+                state.full_charge_at = nil
+
+                -- Snap FOV back fast
+                if state.fov_zoomed then
+                    player:set_fov(DEFAULT_FOV, false, 0.15)
+                    state.fov_zoomed = false
+                end
+
+                -- Reset speed
+                if XBows.playerphysics then
+                    playerphysics.remove_physics_factor(player, 'speed', 'x_bows:bow_charged_speed')
+                elseif XBows.player_monoids then
+                    player_monoids.speed:del_change(player, 'x_bows:bow_charged_speed')
+                end
+
+                if XBows.player_bow_sneak[player_name] then
+                    XBows.player_bow_sneak[player_name].sneak = false
+                end
+            else
+                -- Still drawing — apply FOV zoom and aim wobble
+                local draw_time = (minetest.get_us_time() - state.draw_start) / 1000000
+                local is_charged = minetest.get_item_group(wielded_stack_name, 'bow_charged') ~= 0
+
+                -- FOV zoom: kick in once bow is charged
+                if is_charged and not state.fov_zoomed then
+                    player:set_fov(AIM_FOV, false, 0.4)
+                    state.fov_zoomed = true
+                end
+
+                -- Track when full charge was first reached
+                if is_charged and not state.full_charge_at then
+                    state.full_charge_at = minetest.get_us_time()
+                end
+
+                -- Aim wobble: figure-8 after holding full draw too long
+                if state.full_charge_at then
+                    local hold_seconds = (minetest.get_us_time() - state.full_charge_at) / 1000000
+                    if hold_seconds > AIM_WOBBLE_DELAY then
+                        local wobble_t = hold_seconds * 1.8
+                        local dx = math.sin(wobble_t)
+                        local dy = math.sin(wobble_t * 2)
+                        local amplitude = math.min((hold_seconds - AIM_WOBBLE_DELAY) * 0.3, 1.5)
+                        local noise = math.sin(wobble_t * 7.1) * 0.15
+
+                        local look_h = player:get_look_horizontal()
+                        local look_v = player:get_look_vertical()
+                        player:set_look_horizontal(look_h + (dx + noise) * amplitude * RAD)
+                        player:set_look_vertical(look_v + dy * amplitude * 0.7 * RAD)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- Original globalstep for speed management (runs less frequently)
+-- NOTE: FOV handling removed - let mud.lua handle FOV to avoid conflicts
 minetest.register_globalstep(function(dtime)
     bow_charged_timer = bow_charged_timer + dtime
 
@@ -326,21 +386,17 @@ minetest.register_globalstep(function(dtime)
                 XBows.player_bow_sneak[player_name] = {}
             end
 
-            local sprint_fov = sprint_fov or default_fov + 30 -- Use the sprint FOV from your sprint mod
-
             if minetest.get_item_group(wielded_stack_name, 'bow_charged') ~= 0
                 and not XBows.player_bow_sneak[player_name].sneak
             then
-                --charged weapon
+                --charged weapon - slow down player
                 if XBows.playerphysics then
-                    playerphysics.add_physics_factor(player, 'speed', 'x_bows:bow_charged_speed', 0.25)
+                    playerphysics.add_physics_factor(player, 'speed', 'x_bows:bow_charged_speed', 0.5)
                 elseif XBows.player_monoids then
-                    player_monoids.speed:add_change(player, 0.25, 'x_bows:bow_charged_speed')
+                    player_monoids.speed:add_change(player, 0.5, 'x_bows:bow_charged_speed')
                 end
 
                 XBows.player_bow_sneak[player_name].sneak = true
-                -- Use the sprint FOV from your sprint mod instead of setting a fixed value
-                player:set_fov(sprint_fov, true, 0.4)
             elseif minetest.get_item_group(wielded_stack_name, 'bow_charged') == 0
                 and XBows.player_bow_sneak[player_name].sneak
             then
@@ -351,8 +407,6 @@ minetest.register_globalstep(function(dtime)
                 end
 
                 XBows.player_bow_sneak[player_name].sneak = false
-                -- Reset the FOV to the player's current FOV instead of setting a fixed value
-                player:set_fov(player:get_fov(), true, 0.4)
             end
 
             XBows:reset_charged_bow(player)

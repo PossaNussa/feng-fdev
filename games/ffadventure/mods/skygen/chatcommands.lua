@@ -61,7 +61,7 @@ function skygen.deactivate(name)
     player:set_sun()
     player:set_stars(skygen.default_star_params)
     player:set_moon()
-    player:set_clouds()
+    player:set_clouds({density = 0})
     player:override_day_night_ratio(nil)
 end
 

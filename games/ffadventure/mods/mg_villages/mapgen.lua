@@ -25,6 +25,58 @@ else
 end
 
 ------------------------------------------------------------------------------
+-- Helper function to get appropriate strata stone type based on Y level
+-- Matches the strata defined in default/ugrnd.lua for more natural terrain
+mg_villages.get_strata_stone = function(cid, y)
+	-- Check if strata stone types are available (fallback to default:stone if not)
+	if not cid.c_mud or cid.c_mud == cid.c_ignore then
+		return cid.c_stone
+	end
+
+	-- Match stone type to Y level based on strata layers:
+	-- Y 15 to 30: silt
+	-- Y -5 to 15: default stone (transition zone)
+	-- Y -15 to -5: mud
+	-- Y -30 to -15: clay
+	-- Y -60 to -30: saprolite
+	-- Y -120 to -60: limestone
+	-- Y -240 to -120: sandstone
+	-- Y -340 to -240: schist
+	-- Y -440 to -340: shale
+	-- Y -540 to -440: slate
+	-- Y -750 to -640: granite
+	-- Below -750: default stone
+
+	if y >= 30 and y < 55 and cid.c_saprolite and cid.c_saprolite ~= cid.c_ignore then
+		return cid.c_saprolite
+	elseif y >= 15 and y < 30 and cid.c_silt and cid.c_silt ~= cid.c_ignore then
+		return cid.c_silt
+	elseif y >= -5 and y < 15 then
+		return cid.c_stone
+	elseif y >= -15 and y < -5 and cid.c_mud and cid.c_mud ~= cid.c_ignore then
+		return cid.c_mud
+	elseif y >= -30 and y < -15 and cid.c_clay and cid.c_clay ~= cid.c_ignore then
+		return cid.c_clay
+	elseif y >= -60 and y < -30 and cid.c_saprolite and cid.c_saprolite ~= cid.c_ignore then
+		return cid.c_saprolite
+	elseif y >= -120 and y < -60 and cid.c_limestone and cid.c_limestone ~= cid.c_ignore then
+		return cid.c_limestone
+	elseif y >= -240 and y < -120 then
+		return cid.c_sandstone  -- already exists in cid table
+	elseif y >= -340 and y < -240 and cid.c_schist and cid.c_schist ~= cid.c_ignore then
+		return cid.c_schist
+	elseif y >= -440 and y < -340 and cid.c_shale and cid.c_shale ~= cid.c_ignore then
+		return cid.c_shale
+	elseif y >= -540 and y < -440 and cid.c_slate and cid.c_slate ~= cid.c_ignore then
+		return cid.c_slate
+	elseif y >= -750 and y < -640 and cid.c_granite and cid.c_granite ~= cid.c_ignore then
+		return cid.c_granite
+	end
+
+	return cid.c_stone
+end
+
+------------------------------------------------------------------------------
 -- Interface for other mods
 
 -- this function gets executed only once per village - namely when the first
@@ -198,21 +250,14 @@ mg_villages.lower_or_raise_terrain_at_point = function( x, z, target_height, min
 		look_for_snow = nil;
 	end
 
-	-- if we are working on a mapchunk above, set all to air;
-	-- any terrain blending happens in the mapchunk below
+	-- if we are working on a mapchunk above the village, clear terrain
+	-- This prevents floating terrain/overhangs when villages are placed in hillsides
 	if( minp.y > vh ) then
-		local air_counted = 0;
-		for y=minp.y, minp.y+16 do
-			if( data[a:index( x, y, z )] == cid.c_air ) then
-				air_counted = air_counted + 1;
-			end
+		-- Always clear terrain above village area to prevent floating overhangs
+		-- Previously only cleared if air_counted > 3, which left solid rock floating
+		for y=minp.y, maxp.y do
+			data[a:index( x, y, z)] = cid.c_air;
 		end
-		if( air_counted > 3 or blend==0) then
-			for y=minp.y+15, maxp.y do
-				data[a:index( x, y, z)] = cid.c_air;
-			end
-		end
-		-- else do nothing
 		return;
 	end
 
@@ -287,9 +332,12 @@ mg_villages.lower_or_raise_terrain_at_point = function( x, z, target_height, min
 	if( target_height == maxp.y and old_height < maxp.y ) then
 		local yblend = old_height;
 		if blend > 0 then -- leave some cliffs unblended
-			yblend = math.floor(vh + blend * (old_height - vh) - 0.5)
+			-- Apply smoothstep to the blend factor for smoother terrain transitions
+			-- This creates a gentler slope that doesn't form obvious crater edges
+			local smooth_blend = blend * blend * (3 - 2 * blend)
+			yblend = math.floor(vh + smooth_blend * (old_height - vh) + 0.5)
 			target_height = yblend+1;
-		else	
+		else
 			target_height = old_height;
 		end
 		for y = math.max( minp.y, yblend), maxp.y do
@@ -329,11 +377,20 @@ mg_villages.lower_or_raise_terrain_at_point = function( x, z, target_height, min
 		local old_node = data[a:index( x, y, z)];
 		-- abort as soon as we hit anything other than air
 		if( old_node == cid.c_air or old_node == cid.c_water ) then
+			-- Use strata-appropriate stone based on Y level for natural appearance
+			-- Only place coal in stone-bearing strata (roughly Y -5 to 15 where default:stone is)
+			local use_strata = (not force_underground)
+			local strata_stone = below_2
+			if use_strata then
+				strata_stone = mg_villages.get_strata_stone(cid, y)
+			end
+
 			-- the occasional coal makes large stone cliffs slightly less boring
-			if( y == coal_height1 or y == coal_height2 ) then
+			-- but only in actual stone layers, not in mud/clay/etc
+			if( (y == coal_height1 or y == coal_height2) and strata_stone == cid.c_stone ) then
 				data[a:index( x, y, z )] = cid.c_stone_with_coal;
 			else
-				data[a:index( x, y, z)] = below_2;
+				data[a:index( x, y, z)] = strata_stone;
 			end
 			y = y-1;
 		else
@@ -697,35 +754,12 @@ mg_villages.village_area_get_height = function( village_area, villages, minp, ma
 		end
 		--print('HEIGHT for village '..tostring( village.name )..' min:'..tostring( tmin )..' max:'..tostring(tmax)..' opt:'..tostring(topt)..' count:'..tostring( height_count[ village_nr ]));
 
-		-- the very first village gets a height of 1
-		if( village.nr and village.nr == 1 ) then
-			village.optimal_height = 1;
-		end
+		-- Calculate terrain-adapted height using measured border heights
+		-- This prevents the crater effect by placing villages at natural terrain level
+		local calculated_height = nil;
 
-		if( village.optimal_height ) then
-		-- villages above a size of 40 are *always* place at a convenient height of 1
-		elseif( village.vs >= 40 and not(village.is_single_house)) then
-			village.optimal_height = 2;
-		elseif( village.vs >= 30 and not(village.is_single_house)) then
-			village.optimal_height = 41 - village.vs;
-		elseif( village.vs >= 25 and not(village.is_single_house)) then
-			village.optimal_height = 36 - village.vs;
-		
-		-- in some cases, choose that height which was counted most often
-		elseif( topt and (tmax - tmin ) > 8 and height_count[ village_nr ] > 0) then
-
-			local qmw;
-			if( ( tmax - topt ) > ( topt - tmin )) then
-				qmw = tmax;
-			else
-				qmw = tmin;
-			end
-			village.optimal_height = qmw;
-			
-		-- if no border height was found, there'd be no point in calculating anything;
-		-- also, this is done only if the village has its center inside this mapchunk	
-		elseif(  height_count[ village_nr ] > 0 ) then
-
+		if( height_count[ village_nr ] > 0 ) then
+			-- Calculate weighted average height using quadratic mean for better terrain matching
 			local max    = 0;
 			local target = village.vh;
 			local qmw    = 0;
@@ -737,17 +771,40 @@ mg_villages.village_area_get_height = function( village_area, villages, minp, ma
 				end
 			end
 			if( height_count[ village_nr ] > 5 ) then
-				qmw = math.floor( math.sqrt( qmw / height_count[ village_nr ]) +1.5); -- round the value
-				-- a height of 0 would be one below water level; so let's choose something higher;
-				-- as this may be an island created withhin deep ocean, it might look better if it extends a bit from said ocean
-				if( qmw < 1 ) then
+				qmw = math.floor( math.sqrt( qmw / height_count[ village_nr ]) + 0.5); -- round the value
+				-- Ensure minimum height above water level
+				if( qmw < 2 ) then
 					qmw = 2;
 				end
-			else
-				qmw = 0; -- if in doubt, a height of 0 usually works well
+				calculated_height = qmw;
+			elseif( topt and topt >= 2 ) then
+				-- Use most common height if not enough samples
+				calculated_height = topt;
 			end
+		end
 
+		-- the very first village gets a height of 1 for spawn safety
+		if( village.nr and village.nr == 1 ) then
+			village.optimal_height = 1;
+		elseif( village.optimal_height ) then
+			-- Already set, keep it
+		elseif( calculated_height ) then
+			-- Use terrain-adapted height for all village sizes
+			-- This prevents crater formation by matching natural terrain
+			village.optimal_height = calculated_height;
+		elseif( topt and (tmax - tmin ) > 8 and height_count[ village_nr ] > 0) then
+			-- Large height variation - pick the side closer to most common height
+			local qmw;
+			if( ( tmax - topt ) > ( topt - tmin )) then
+				qmw = tmax;
+			else
+				qmw = tmin;
+			end
 			village.optimal_height = qmw;
+		else
+			-- Fallback for when no terrain data available
+			-- Use a reasonable default that matches typical terrain (y=8-12)
+			village.optimal_height = 10;
 		end
 	end
 end

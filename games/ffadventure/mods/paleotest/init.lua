@@ -149,19 +149,6 @@ dofile(path.."/mobs/smilodon.lua")
 
 minetest.log("action", "[MOD] PaleoTest v2.0 Dev loaded")
 
-
-  mobs:register_spawn("paleotest:brachiosaurus", {"aotearoa:dirt_with_dark_litter", "naturalbiomes:savannalitter", "livingjungle:jungleground", "default:dirt_with_rainforest_litter"}, 15, 0, 120000, 2, 31000)
-  mobs:register_spawn("paleotest:dire_wolf", {"naturalbiomes:mediterranean_litter", "naturalbiomes:savannalitter", "naturalbiomes:bushland_bushlandlitter", "aotearoa:dirt_with_dark_litter", "default:dirt_with_coniferous_litter", "default:dirt_with_snow"}, 15, 0, 120000, 2, 31000)
-  mobs:register_spawn("paleotest:dunkleosteus", {"sailing:shallow_water_source", "default:water_source"}, 5, 0, 120000, 2, 31000)
-  mobs:register_spawn("paleotest:elasmotherium", {"livingdesert:coldsteppe_ground", "naturalbiomes:mediterranean_litter", "naturalbiomes:savannalitter", "naturalbiomes:bushland_bushlandlitter", "aotearoa:dirt_with_dark_litter", "default:dry_dirt_with_dry_grass", "default:dirt_with_dry_grass"}, 15, 0, 120000, 2, 31000)
-  mobs:register_spawn("paleotest:mammoth", {"default:dry_dirt_with_dry_grass", "default:snow", "default:dirt_with_snow"}, 15, 0, 120000, 2, 31000)
-  mobs:register_spawn("paleotest:plesiosaurus", {"sailing:shallow_water_source", "default:water_source"}, 5, 0, 120000, 2, 31000)
-  mobs:register_spawn("paleotest:quetzalcoatlus", {"badlands:red_sand", "aotearoa:volcanic_sand", "livingjungle:jungleground"}, 15, 0, 120000, 2, 31000)
-  mobs:register_spawn("paleotest:sarcosuchus", {"sailing:shallow_water_source", "default:water_source", "swamp:dirt_with_swamp_grass"}, 15, 0, 120000, 2, 31000)
-  mobs:register_spawn("paleotest:smilodon", {"default:snow", "default:dirt_with_dry_grass", "default:dirt_with_snow"}, 15, 0, 120000, 2, 31000)
-  mobs:register_spawn("paleotest:spinosaurus", {"default:sand", "default:mud", "swamp:dirt_with_swamp_grass"}, 15, 0, 120000, 2, 31000)
-  mobs:register_spawn("paleotest:stegosaurus", {"naturalbiomes:mediterranean_litter", "naturalbiomes:savannalitter", "naturalbiomes:bushland_bushlandlitter", "default:dry_dirt_with_dry_grass", "default:dirt_with_dry_grass"}, 15, 0, 120000, 2, 31000)
-  mobs:register_spawn("paleotest:triceratops", {"naturalbiomes:mediterranean_litter", "naturalbiomes:savannalitter", "aotearoa:dirt_with_dark_litter", "naturalbiomes:bushland_bushlandlitter", "default:dry_dirt_with_dry_grass", "default:dirt_with_dry_grass"}, 15, 0, 120000, 2, 31000)
-  mobs:register_spawn("paleotest:tyrannosaurus", {"swamp:dirt_with_swamp_grass", "naturalbiomes:mediterranean_litter", "naturalbiomes:savannalitter", "aotearoa:dirt_with_dark_litter", "default:dry_dirt_with_dry_grass", "default:dirt_with_dry_grass"}, 15, 0, 120000, 2, 31000)
- mobs:register_spawn("paleotest:carnotaurus", {"swamp:dirt_with_swamp_grass", "naturalbiomes:mediterranean_litter", "naturalbiomes:savannalitter", "aotearoa:dirt_with_dark_litter", "default:dry_dirt_with_dry_grass", "default:dirt_with_dry_grass"}, 15, 0, 120000, 2, 31000)
-   mobs:register_spawn("paleotest:velociraptor", {"swamp:dirt_with_swamp_grass", "naturalbiomes:mediterranean_litter", "naturalbiomes:savannalitter", "naturalbiomes:bushland_bushlandlitter", "aotearoa:dirt_with_dark_litter", "default:dry_dirt_with_dry_grass", "default:dirt_with_dry_grass"}, 15, 0, 120000, 2, 31000)
+-- Biome-aware spawning (heat/humidity filtered) and world decorations
+dofile(path.."/biome_spawns.lua")
+dofile(path.."/decorations.lua")

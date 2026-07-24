@@ -90,6 +90,8 @@ mobs:spawn({
 	min_height = 5,
 	max_height = 50,
 	day_toggle = true,
+	min_heat = 55, max_heat = 85,
+	min_humidity = 40, max_humidity = 80,
 })
 end
 

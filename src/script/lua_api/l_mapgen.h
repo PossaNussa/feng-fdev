@@ -143,6 +143,15 @@ private:
 	// read_schematic(schematic, options={...})
 	static int l_read_schematic(lua_State *L);
 
+	// register_dimension(name, {savedir=...})
+	static int l_register_dimension(lua_State *L);
+
+	// set_player_dimension(player_name, dim_name)
+	static int l_set_player_dimension(lua_State *L);
+
+	// get_player_dimension(player_name) -> string
+	static int l_get_player_dimension(lua_State *L);
+
 	// Foreign implementations
 	/*
 	 * In this case the API functions belong to LuaVoxelManip (so l_vmanip.cpp),

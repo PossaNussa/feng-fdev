@@ -50,6 +50,16 @@ knapping = {
 			{ 1, 1, 1, 0, 0, 0, 0, 0 },
 			{ 1, 1, 0, 0, 0, 0, 0, 0 },
 		},
+		hammer = {
+			{ 0, 0, 0, 0, 0, 0, 0, 0 },
+			{ 0, 0, 0, 0, 0, 0, 0, 0 },
+			{ 0, 1, 1, 1, 1, 1, 1, 1 },
+			{ 0, 1, 1, 1, 1, 1, 1, 1 },
+			{ 0, 1, 1, 1, 1, 1, 1, 1 },
+			{ 0, 1, 1, 1, 1, 1, 1, 1 },
+			{ 0, 0, 1, 1, 1, 1, 0, 0 },
+			{ 0, 0, 0, 0, 0, 0, 0, 0 },
+		},
 	},
 	registered_recipes = {},
 	registered_callbacks = {},
@@ -79,6 +89,13 @@ core.register_entity('knapping:stone_piece_go', {
 
 core.register_entity('knapping:stone_piece', {
 	initial_properties = initial_properties,
+	on_punch = function(self, puncher)
+		if puncher:get_wielded_item():get_name() ~= self.material then return end
+		-- Mistake! Player broke a piece that was part of the tool shape
+		if self.on_mistake then self.on_mistake() end
+		self.object:remove()
+		core.sound_play("thunk", { gain = 0.3, to_player = puncher:get_player_name() }, true)
+	end,
 })
 
 local function get_empty_slot(t)
@@ -113,7 +130,20 @@ end
 local function finish_craft(id)
 	local crafting_process = knapping.crafting_processes[id]
 	local pos = crafting_process.pos
-	core.add_item(pos, crafting_process.recipe.output)
+	local mistakes = crafting_process.mistakes or 0
+	local body_total = crafting_process.body_total or 1
+	local output = ItemStack(crafting_process.recipe.output)
+
+	-- Apply wear proportional to mistakes (each mistake = fraction of total body)
+	if mistakes > 0 and body_total > 0 then
+		-- Each broken body piece costs a fraction of max durability
+		-- e.g. 3 mistakes out of 24 body pieces = 3/24 = 12.5% wear
+		local wear = math.floor(65535 * (mistakes / body_total))
+		wear = math.min(wear, 65000)  -- don't let it break outright
+		output:set_wear(wear)
+	end
+
+	core.add_item(pos, output)
 	for _, func in pairs(knapping.registered_callbacks) do
 		func(crafting_process.recipe, pos, crafting_process.player)
 	end
@@ -130,6 +160,18 @@ local function place_knapping_plane(id)
 	-- instead of matching the in-world pattern to the recipe, we just count up
 	-- how many diggable pieces there are and finnish once they are gone
 	local to_remove = 0
+	local body_total = 0
+
+	-- First pass: count body pieces for wear calculation
+	for x = 1, 8 do
+		for z = 1, 8 do
+			if recipe.recipe[x][z] == 1 then
+				body_total = body_total + 1
+			end
+		end
+	end
+	crafting_process.body_total = body_total
+	crafting_process.mistakes = 0
 
 	for x = 1, 8 do
 		for z = 1, 8 do
@@ -145,6 +187,10 @@ local function place_knapping_plane(id)
 				local luaent = objref:get_luaentity()
 				-- used during cleanup so recipes in adjacent nodes don't get messed up
 				luaent.id = id
+				luaent.material = recipe.input
+				luaent.on_mistake = function()
+					crafting_process.mistakes = crafting_process.mistakes + 1
+				end
 			else
 				to_remove = to_remove + 1
 				local objref = core.add_entity(pos, 'knapping:stone_piece_go')

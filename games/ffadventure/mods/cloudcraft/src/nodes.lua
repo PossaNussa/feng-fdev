@@ -1,107 +1,6 @@
--- ----------- --
---  DEW DROPS  --
--- ----------- --
-
-core.register_craftitem("cloudcraft:dew_drops",{
-  description = "Dew Drops",
-  inventory_image = "cloudcraft_dew_drops.png",
-})
-
-core.register_craft({
-  type = "cooking",
-  recipe = "cloudcraft:dew_drops",
-  output = "cloudcraft:cloud",
-  cooktime = 2,
-})
-
 -- -------- --
 --  CLOUDS  --
 -- -------- --
-
-local vz = vector.zero
-local ma = math.abs
-
-local function cloud_iterate(pos,fns)
-  local npos = vz()
-  local mx, my, mz
-  for z = -2, 2, 1 do
-    npos.z = pos.z + z
-    mz = ma(z)
-    for y = -2, 2, 1 do
-      npos.y = pos.y + y
-      my = ma(y)
-      for x = -2, 2, 1 do
-        npos.x = pos.x + x
-        mx = ma(x)
-        local node = core.get_node(npos)
-        if node.name == "cloudcraft:cloud" and node.param2 ~= 1 then
-          if mx == 2 or my == 2 or mz == 2 then
-            fns.outer(npos,node)
-          else
-            fns.inner(npos,node)
-          end
-        end
-      end
-    end
-  end
-end
-
-local function noop()
-  -- does nothing
-end
-
-local function cloud_disperse(pos,node)
-  core.get_node_timer(pos):stop()
-  core.remove_node(pos)
-end
-
-local function cloud_fragile(pos,node)
-  if node.param2 == 0 then
-    core.swap_node(pos,{ name = node.name, param2 = 2 })
-    core.get_node_timer(pos):start(math.random(2,4))
-  elseif node.param2 == 2 then
-    cloud_disperse(pos,node)
-  end
-end
-
-local function cloud_dig_light_low(pos)
-  cloud_iterate(pos,{
-    inner = cloud_fragile,
-    outer = noop,
-  })
-end
-
-local function cloud_dig_light_mid(pos)
-  cloud_iterate(pos,{
-    inner = cloud_disperse,
-    outer = cloud_fragile,
-  })
-end
-
-local function cloud_dig_light_high(pos)
-  cloud_iterate(pos,{
-    inner = cloud_disperse,
-    outer = cloud_disperse,
-  })
-end
-
-local cloud_dig_light_map = {
-  [0] = cloud_dig_light_low,
-  [1] = cloud_dig_light_low,
-  [2] = cloud_dig_light_mid,
-  [3] = cloud_dig_light_mid,
-  [4] = cloud_dig_light_mid,
-  [5] = cloud_dig_light_mid,
-  [6] = cloud_dig_light_mid,
-  [7] = cloud_dig_light_mid,
-  [8] = cloud_dig_light_mid,
-  [9] = cloud_dig_light_mid,
-  [10] = cloud_dig_light_high,
-  [11] = cloud_dig_light_high,
-  [12] = cloud_dig_light_high,
-  [13] = cloud_dig_light_high,
-  [14] = cloud_dig_light_high,
-}
 
 core.register_node("cloudcraft:cloud",{
   description = "Cloud",
@@ -109,8 +8,7 @@ core.register_node("cloudcraft:cloud",{
   tiles = { "[fill:16x16:#F9F9F9F0" },
   use_texture_alpha = true,
   post_effect_color = "#F9F9F9F0",
-  sunlight_propagates = false,
-  light_source = 1,
+  sunlight_propagates = true,
   paramtype = "light",
   is_ground_content = false,
   walkable = false,
@@ -119,35 +17,8 @@ core.register_node("cloudcraft:cloud",{
     oddly_breakable_by_hand = 1,
     dig_immediate = 3,
   },
-  drop = {
-    max_items = 1,
-    items = {
-      {
-        tools = { "~cloudcraft:cloud_" },
-        rarity = 1,
-        items = { "cloudcraft:cloud" },
-      },
-      {
-        rarity = 8,
-        items = { "cloudcraft:dew_drops" },
-      },
-    },
-  },
+  drop = "cloudcraft:cloud",
   sounds = nil,
-  on_dig = function(pos, node, digger)
-    local drops = core.node_dig(pos,node,digger)
-    if digger and digger:is_player() then
-      local tool = core.registered_items[digger:get_wielded_item():get_name()] or core.registered_items[""] or {}
-      cloud_dig_light_map[math.min(14,tool.light_source or 0)](pos)
-    end
-    return drops
-  end,
-  on_timer = function(pos)
-    local node = core.get_node(pos)
-    if node.param2 == 2 then
-      core.remove_node(pos)
-    end
-  end,
   after_place_node = function(pos, placer)
     if placer and placer:is_player() then
       local node = minetest.get_node(pos)
@@ -161,18 +32,13 @@ core.register_node("cloudcraft:cloud",{
 --  MAPGEN MARKER  --
 -- --------------- --
 
--- Marker nodes that determine where random clouds should spawn
 core.register_node("cloudcraft:cloud_marker",{
-  -- Should be invisible and as unobtrusive as possible
   drawtype = "airlike",
   buildable_to = true,
   pointable = false,
   paramtype = "light",
   sunlight_propagates = true,
   groups = { not_in_creative_inventory = 1, fall_damage_add_percent = -100 },
-
-  -- Unused marker nodes should harmlessly self-destruct after being given a
-  -- fair chance to be replaced by mapgen
   on_construct = function(pos)
     core.get_node_timer(pos):start(5)
   end,
@@ -183,24 +49,107 @@ core.register_node("cloudcraft:cloud_marker",{
   end,
 })
 
-core.register_chatcommand("pp",{
-  params = "",
-  -- Short parameter description.  See the below note.
+-- ---------------------- --
+--  SPARSE CLOUD CLEANUP  --
+-- ---------------------- --
 
-  description = "",
-  -- General description of the command's purpose.
+local vc = vector.copy
+core.register_abm({
+  label = "Sparse Cloud Dispersal",
+  nodenames = {"cloudcraft:cloud"},
+  interval = 4,
+  chance = 2,
+  catch_up = false,
+  action = function(pos)
+    local at = core.get_node(pos)
+    if at.param2 ~= 0 then
+      return -- skip player-placed (1) and drift transient states (2, 3)
+    end
 
-  privs = {},
-  -- Required privileges to run. See `core.check_player_privs()` for
-  -- the format and see [Privileges] for an overview of privileges.
-
-  func = function(name, param)
-    local player = core.get_player_by_name(name)
-    local physics = player:get_physics_override()
-    local message = "pp " .. name .. ":\n"
-    message = message .. "  speed: " .. physics.speed .. "\n"
-    message = message .. "  jump: " .. physics.jump .. "\n"
-    message = message .. "  gravity: " .. physics.gravity .. "\n"
-    core.log(message)
+    local npos = vc(pos)
+    local not_cloud = 0
+    for x = -1, 1, 1 do
+      npos.x = pos.x + x
+      for z = -1, 1, 1 do
+        npos.z = pos.z + z
+        if x == 0 or z == 0 then
+          not_cloud = not_cloud + (core.get_node(npos).name ~= "cloudcraft:cloud" and 1 or 0)
+        end
+      end
+      if not_cloud > 2 then
+        core.set_node(pos,{ name = "air" })
+        return
+      end
+    end
   end,
 })
+
+-- ------------------- --
+--  WIND DRIFT ABM     --
+-- ------------------- --
+
+if cloudcraft.dependencies["climate_api"] then
+
+  -- Cache the move decision for the current time window so all cloud nodes
+  -- agree on whether to move this tick (prevents row desynchronisation).
+  local move_cache = { tick = -1, should_move = false, dir = vector.new(0,0,0) }
+
+  local function get_move_params(wind)
+    local tick = math.floor(core.get_gametime() / 10)
+    if tick ~= move_cache.tick then
+      move_cache.tick = tick
+      local speed = math.sqrt(wind.x * wind.x + wind.z * wind.z)
+      local rng = PcgRandom(tick)
+      move_cache.should_move = rng:next(0, 999) < math.min(speed / 3, 1) * 1000
+      if math.abs(wind.x) >= math.abs(wind.z) then
+        move_cache.dir = vector.new(wind.x > 0 and 1 or -1, 0, 0)
+      else
+        move_cache.dir = vector.new(0, 0, wind.z > 0 and 1 or -1)
+      end
+    end
+    return move_cache.should_move, move_cache.dir
+  end
+
+  core.register_abm({
+    label = "Cloud Wind Drift",
+    nodenames = {"cloudcraft:cloud"},
+    interval = 10,
+    chance = 1,
+    catch_up = false,
+    action = function(pos, node)
+      if node.param2 == 1 then return end  -- player-placed, skip
+
+      -- param2=2: trailing edge marked last tick → remove now (prevents cascade)
+      if node.param2 == 2 then
+        core.remove_node(pos)
+        return
+      end
+
+      -- param2=3: leading edge placed last tick → normalize so it doesn't
+      -- chain-grow again this tick (both edges now run on the same 2-tick cadence)
+      if node.param2 == 3 then
+        core.set_node(pos, {name = "cloudcraft:cloud", param2 = 0})
+        return
+      end
+
+      local wind = climate_api.environment.get_wind(pos)
+      local should_move, dir = get_move_params(wind)
+      if not should_move then return end
+
+      local downwind = vector.add(pos, dir)
+      local upwind   = vector.subtract(pos, dir)
+
+      -- Leading edge: grow into air downwind, tagged param2=3 so it waits one
+      -- tick before becoming a normal node (preventing same-tick chain growth).
+      if minetest.get_node(downwind).name == "air" then
+        minetest.set_node(downwind, {name = "cloudcraft:cloud", param2 = 3})
+      end
+      -- Trailing edge: mark for removal next tick so neighbours still see a
+      -- cloud this tick and no cascade removal occurs.
+      if minetest.get_node(upwind).name ~= "cloudcraft:cloud" then
+        core.set_node(pos, {name = "cloudcraft:cloud", param2 = 2})
+      end
+    end,
+  })
+
+end

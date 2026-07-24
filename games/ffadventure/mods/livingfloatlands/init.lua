@@ -35,11 +35,11 @@ dofile(path .. "ankylosaurus.lua") --
 --dofile(path .. "tyrannosaurus.lua") -- 
 dofile(path .. "cavebear.lua") -- 
 dofile(path .. "rhamphorhynchus.lua") -- 
---dofile(path .. "coldsteppe.lua") -- 
---dofile(path .. "paleodesert.lua") -- 
---dofile(path .. "giantforest.lua") -- 
---dofile(path .. "coldgiantforest.lua") -- 
---dofile(path .. "paleojungle.lua") -- 
+dofile(path .. "coldsteppe.lua") --
+dofile(path .. "paleodesert.lua") --
+dofile(path .. "giantforest.lua") --
+dofile(path .. "coldgiantforest.lua") --
+dofile(path .. "paleojungle.lua") --
 dofile(path .. "dye.lua") -- 
 dofile(path .. "crafting.lua") -- 
 --dofile(path .. "leafdecay.lua") -- 

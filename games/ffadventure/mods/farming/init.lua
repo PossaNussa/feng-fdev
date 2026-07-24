@@ -360,6 +360,18 @@ minetest.register_abm({
 })
 
 
+-- Returns 1.0 if pos is in the crop's optimal climate, down to 0.15 far outside.
+-- Each 80 combined heat+humidity units outside optimal range = full slowdown.
+local function climate_factor(pos, node_name)
+	local def = minetest.registered_nodes[node_name]
+	if not (def and def._heat_min) then return 1.0 end
+	local bd = minetest.get_biome_data(pos)
+	if not bd then return 1.0 end
+	local hd = math.max(0, def._heat_min - bd.heat, bd.heat - def._heat_max)
+	local wd = math.max(0, def._hum_min - bd.humidity, bd.humidity - def._hum_max)
+	return math.max(0.15, 1.0 - (hd + wd) / 80)
+end
+
 -- Plant timer function that grows plants under the right conditions.
 function farming.plant_growth_timer(pos, elapsed, node_name)
 
@@ -391,6 +403,12 @@ function farming.plant_growth_timer(pos, elapsed, node_name)
 		if minetest.get_item_group(under.name, "soil") < 3 then
 			return true
 		end
+	end
+
+	-- climate: slow growth proportionally when outside optimal heat/humidity range
+	local cf = climate_factor(pos, node_name)
+	if cf < 1.0 and math.random() > cf then
+		return true
 	end
 
 	local growth
@@ -577,6 +595,11 @@ farming.register_plant = function(name, def)
 	def.minlight = def.minlight or 12
 	def.maxlight = def.maxlight or 15
 
+	local _heat_min = def.heat_min or def._heat_min
+	local _heat_max = def.heat_max or def._heat_max
+	local _hum_min  = def.hum_min  or def._hum_min
+	local _hum_max  = def.hum_max  or def._hum_max
+
 	-- Register seed
 	minetest.register_node(":" .. mname .. ":seed_" .. pname, {
 
@@ -677,7 +700,11 @@ farming.register_plant = function(name, def)
 			sounds = farming.sounds.node_sound_leaves_defaults(),
 			minlight = def.minlight,
 			maxlight = def.maxlight,
-			next_plant = next_plant
+			next_plant = next_plant,
+			_heat_min = _heat_min,
+			_heat_max = _heat_max,
+			_hum_min  = _hum_min,
+			_hum_max  = _hum_max,
 		})
 	end
 
@@ -803,126 +830,6 @@ if minetest.get_modpath("lucky_block") then
 	dofile(farming.path .. "/lucky_block.lua")
 end
 
+dofile(farming.path .. "/climate.lua")
+
 print("[MOD] Farming Redo loaded")
-
-minetest.register_abm({
-    label = "Soil Water Detection",
-    nodenames = {"farming:soil"},
-    interval = 18,  -- Time between each ABM execution (in seconds)
-    chance = 1,  -- Chance of the ABM being executed (1 = always)
-    action = function(pos, node)
-        -- Search for water within 5 nodes in all directions
-        local found_water = false
-        for dx = -5, 5 do
-            for dy = -5, 5 do
-                for dz = -5, 5 do
-                    local check_pos = vector.add(pos, {x=dx, y=dy, z=dz})
-                    local check_node = minetest.get_node(check_pos)
-                    if minetest.get_item_group(check_node.name, "water") > 0 then
-                        found_water = true
-                        minetest.remove_node(check_pos)  -- Remove water
-                        break
-                    end
-                end
-                if found_water then break end
-            end
-            if found_water then break end
-        end
-
-        if found_water then
-            -- Turn the soil into wet soil
-            minetest.set_node(pos, {name = "farming:soil_wet"})
-
-            -- After 3.5 hours (12600 seconds), revert it back to dry soil
-            minetest.after(12600, function()
-                -- Ensure the node is still wet soil before changing it back
-                if minetest.get_node(pos).name == "farming:soil_wet" then
-                    minetest.set_node(pos, {name = "farming:soil"})
-                end
-            end)
-        end
-    end
-})
-
--- Function to convert sand to wet sand if water is nearby
-local function absorb_water_for_sand(pos)
-    local nodes = minetest.find_nodes_in_area(
-        vector.subtract(pos, 3),
-        vector.add(pos, 3),
-        {"group:water"}
-    )
-    if #nodes > 0 then
-        minetest.set_node(pos, {name = "default:wet_sand"})
-    end
-end
--- ABM to check for water nearby for sand (3 nodes range)
-minetest.register_abm({
-    nodenames = {"default:sand"},
-    interval = 12,  -- Keep interval as is
-    chance = 1,
-    action = function(pos)
-        absorb_water_for_sand(pos)
-    end
-})
-
-
--- Optimized batch function to handle saprolite and limestone water absorption
-local function absorb_water_for_others_batch(pos, node_names)
-    local radius = 2
-    local positions = minetest.find_nodes_in_area(
-        vector.subtract(pos, radius),
-        vector.add(pos, radius),
-        node_names
-    )
-    for _, node_pos in ipairs(positions) do
-        local meta = minetest.get_meta(node_pos)
-        if meta:get_int("water_level") == 0 then
-            local nearby_water = minetest.find_nodes_in_area(
-                vector.subtract(node_pos, 1),
-                vector.add(node_pos, 1),
-                {"group:water"}
-            )
-            if #nearby_water > 0 then
-                meta:set_int("water_level", 1)
-                minetest.remove_node(nearby_water[1])
-            end
-        end
-    end
-end
-
--- ABM for saprolite, limestone, clay, and gravel water absorption
-minetest.register_abm({
-    label = "Water absorption for saprolite, limestone, clay, and gravel",
-    nodenames = {"default:saprolite", "default:limestone", "default:gravel"},
-    interval = 30,  -- Reduced frequency for performance
-    chance = 5,
-    action = function(pos, node)
-        absorb_water_for_others_batch(pos, {"default:saprolite", "default:limestone", "default:gravel"})
-    end
-})
-
--- Override for saprolite, limestone, clay, and gravel nodes to handle replacement with water upon destruction
-minetest.register_on_mods_loaded(function()
-    local waterloggable_nodes = {"default:saprolite", "default:limestone", "default:clay", "default:gravel"}
-    for _, node_name in ipairs(waterloggable_nodes) do
-        minetest.override_item(node_name, {
-            on_construct = function(pos)
-                local meta = minetest.get_meta(pos)
-                meta:set_int("water_level", 0)  -- Metadata to track water level
-            end,
-        })
-    end
-end)
-
-minetest.register_lbm({
-    name = "farming:initialize_water_level_meta",
-    nodenames = {"default:saprolite", "default:limestone", "default:gravel"},
-    run_at_every_load = true,  -- This ensures it runs every time the world is loaded
-    action = function(pos, node)
-        local meta = minetest.get_meta(pos)
-        if meta:get_int("water_level") == 0 then
-            -- Initialize the water_level metadata if not already set
-            meta:set_int("water_level", 0)
-        end
-    end,
-})

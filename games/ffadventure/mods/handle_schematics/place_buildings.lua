@@ -1020,6 +1020,17 @@ handle_schematics.get_cid_table = function( replacements )
 
 	cid.c_ice              = GCIR( 'default:ice', replacements );
 
+	-- Strata stone types for more natural underground filling
+	cid.c_mud              = GCIR( 'default:mud', replacements );
+	cid.c_silt             = GCIR( 'default:silt', replacements );
+	cid.c_clay             = GCIR( 'default:clay', replacements );
+	cid.c_saprolite        = GCIR( 'default:saprolite', replacements );
+	cid.c_limestone        = GCIR( 'default:limestone', replacements );
+	cid.c_schist           = GCIR( 'default:schist', replacements );
+	cid.c_shale            = GCIR( 'default:shale', replacements );
+	cid.c_slate            = GCIR( 'default:slate', replacements );
+	cid.c_granite          = GCIR( 'default:granite', replacements );
+
 	if( minetest.get_modpath('ethereal')) then
 		cid.c_ethereal_clay_red    = GCIR( 'bakedclay:red', replacements );
 		cid.c_ethereal_clay_orange = GCIR( 'bakedclay:orange', replacements );

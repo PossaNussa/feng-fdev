@@ -180,6 +180,44 @@ minetest.register_abm({
 })
 
 
+-- Dandelion weed spread — more aggressive than generic flora spread.
+-- Dandelions are weeds: they spread further, tolerate more density, and seed new patches.
+minetest.register_abm({
+	label = "Dandelion weed spread",
+	nodenames = {"flowers:dandelion_yellow"},
+	interval = 60,
+	chance = 20,
+	action = function(pos, node)
+		pos.y = pos.y - 1
+		local under = minetest.get_node(pos)
+		pos.y = pos.y + 1
+		if minetest.get_item_group(under.name, "soil") == 0 then return end
+
+		local light = minetest.get_node_light(pos)
+		if not light or light < 13 then return end
+
+		-- Allow higher density than normal flora (cap at 8 in 9x9)
+		local pos0 = vector.subtract(pos, 4)
+		local pos1 = vector.add(pos, 4)
+		if #minetest.find_nodes_in_area(pos0, pos1, {"flowers:dandelion_yellow"}) > 8 then
+			return
+		end
+
+		local soils = minetest.find_nodes_in_area_under_air(pos0, pos1, "group:soil")
+		if #soils == 0 then return end
+
+		-- Spread to up to 2 nearby soil positions
+		for i = 1, math.min(2, #soils) do
+			local soil = soils[math.random(#soils)]
+			local soil_above = {x = soil.x, y = soil.y + 1, z = soil.z}
+			local sl = minetest.get_node_light(soil_above)
+			if sl and sl >= 13 then
+				minetest.set_node(soil_above, {name = "flowers:dandelion_yellow"})
+			end
+		end
+	end,
+})
+
 --
 -- Mushrooms
 --

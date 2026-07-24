@@ -32,6 +32,7 @@
 #include "mapgen_v5.h"
 #include "mapgen_v6.h"
 #include "mapgen_v7.h"
+#include "mapgen_v8.h"
 #include "mapgen_valleys.h"
 #include "mapgen_singlenode.h"
 #include "cavegen.h"
@@ -75,6 +76,7 @@ struct MapgenDesc {
 // Of the remaining, v5 last due to age, v7 first due to being the default.
 // The order of 'enum MapgenType' in mapgen.h must match this order.
 static MapgenDesc g_reg_mapgens[] = {
+	{"v8",         true},
 	{"v7",         true},
 	{"valleys",    true},
 	{"carpathian", true},
@@ -129,13 +131,39 @@ Mapgen::~Mapgen()
 
 MapgenType Mapgen::getMapgenType(const std::string &mgname)
 {
+	// Trim and lowercase
+	auto trim = [](const std::string &s) -> std::string {
+		size_t i = 0;
+		while (i < s.size() && std::isspace(static_cast<unsigned char>(s[i])))
+			++i;
+		size_t j = s.size();
+		while (j > i && std::isspace(static_cast<unsigned char>(s[j - 1])))
+			--j;
+		return s.substr(i, j - i);
+	};
+
+	std::string key = trim(mgname);
+	for (char &c : key)
+		c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+
+	// Accept synonyms
+	if (key == "v8" || key == "mgv8" || key == "flasheng")
+		return MAPGEN_V8;
+
+	// Table lookup against registered names
 	for (size_t i = 0; i != ARRLEN(g_reg_mapgens); i++) {
-		if (mgname == g_reg_mapgens[i].name)
-			return (MapgenType)i;
+		const char *nm = g_reg_mapgens[i].name;
+		if (!nm) continue;
+		std::string low(nm);
+		for (char &c : low)
+			c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+		if (key == low)
+			return static_cast<MapgenType>(i);
 	}
 
 	return MAPGEN_INVALID;
 }
+
 
 
 const char *Mapgen::getMapgenName(MapgenType mgtype)
@@ -152,6 +180,8 @@ Mapgen *Mapgen::createMapgen(MapgenType mgtype, MapgenParams *params,
 	EmergeParams *emerge)
 {
 	switch (mgtype) {
+	case MAPGEN_V8:
+		return new MapgenV8((MapgenV8Params *)params, emerge);
 	case MAPGEN_CARPATHIAN:
 		return new MapgenCarpathian((MapgenCarpathianParams *)params, emerge);
 	case MAPGEN_FLAT:
@@ -177,6 +207,8 @@ Mapgen *Mapgen::createMapgen(MapgenType mgtype, MapgenParams *params,
 MapgenParams *Mapgen::createMapgenParams(MapgenType mgtype)
 {
 	switch (mgtype) {
+	case MAPGEN_V8:
+		return new MapgenV8Params;
 	case MAPGEN_CARPATHIAN:
 		return new MapgenCarpathianParams;
 	case MAPGEN_FLAT:

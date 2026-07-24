@@ -454,6 +454,7 @@ set(common_SRCS
 	collision.cpp
 	content_mapnode.cpp
 	defaultsettings.cpp
+	dimension_manager.cpp
 	emerge.cpp
 	environment.cpp
 	filesys.cpp
@@ -487,6 +488,9 @@ set(common_SRCS
 	${mapgen_SRCS}
 	${server_network_SRCS}
 )
+
+# Ensure v8 mapgen compilation unit is linked even if the mapgen subdir list missed it
+list(APPEND common_SRCS mapgen/mapgen_v8.cpp)
 
 if(ANDROID)
 	list(APPEND common_SRCS porting_android.cpp)

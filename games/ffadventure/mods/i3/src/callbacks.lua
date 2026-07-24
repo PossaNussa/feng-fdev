@@ -74,6 +74,8 @@ if core.global_exists"armor" then
 		{"armor_legs",   "i3_heavy_armor"},
 		{"armor_feet",   "i3_heavy_armor"},
 		{"armor_shield", "i3_heavy_armor"},
+		{"armor_hands",  "i3_light_armor"},
+		{"armor_quiver", "i3_light_armor"},
 	}
 
 	local function check_group(def, group)
@@ -86,15 +88,17 @@ if core.global_exists"armor" then
 		local name = player:get_player_name()
 		local data = i3.data[name]
 
-		for i, v in ipairs(group_indexes) do
-			local group, sound = unpack(v)
-			local stackname = stack:get_name()
+		local stackname = stack:get_name()
+		local sound = "i3_heavy_armor"
 
-			if stackname:find"wood" or stackname:find"stone" or stackname:find"cactus" then
-				sound = sound:gsub("heavy", "light")
-			end
+		if stackname:find"wood" or stackname:find"stone" or stackname:find"cactus" then
+			sound = "i3_light_armor"
+		end
 
-			if i == idx and check_group(def, group) then
+		-- Accept any item that matches ANY valid armor group
+		for _, v in ipairs(group_indexes) do
+			local group = v[1]
+			if check_group(def, group) then
 				data.armor_allow = sound
 				return armor:register_on_update(set_fs)
 			end
@@ -108,18 +112,20 @@ if core.global_exists"armor" then
 		local _, armor_inv = armor:get_valid_player(player, "3d_armor")
 		if not armor_inv then return end
 
-		for i = 1, 5 do
+		for i = 1, 7 do
 			local stack = armor_inv:get_stack("armor", i)
-			local def = stack:get_definition()
+			if not stack:is_empty() then
+				local def = stack:get_definition()
 
-			for j, v in ipairs(group_indexes) do
-				local group = v[1]
+				for j, v in ipairs(group_indexes) do
+					local group = v[1]
 
-				if check_group(def, group) and i ~= j then
-					armor_inv:set_stack("armor", i, armor_inv:get_stack("armor", j))
-					armor_inv:set_stack("armor", j, stack)
+					if check_group(def, group) and i ~= j then
+						armor_inv:set_stack("armor", i, armor_inv:get_stack("armor", j))
+						armor_inv:set_stack("armor", j, stack)
 
-					return play_sound(player:get_player_name(), "i3_cannot", 0.8)
+						return play_sound(player:get_player_name(), "i3_cannot", 0.8)
+					end
 				end
 			end
 		end

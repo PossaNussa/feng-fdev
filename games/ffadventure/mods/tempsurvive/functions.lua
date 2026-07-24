@@ -14,20 +14,35 @@ minetest.register_on_joinplayer(function(player)
 	tempsurvive.new(player)
 	local name=player:get_player_name()
 	if tempsurvive.player[name].full_resistance then return end
-	tempsurvive.player[name].bar=player:hud_add(tempsurvive.bar)
-	tempsurvive.player[name].screen=player:hud_add(tempsurvive.screen)
 	player:get_inventory():set_size("clothes",9)
-	minetest.after(0.1, function(player,name)
-		tempsurvive.cloth_update(player)
-	end,player,name)
+	-- Delay HUD creation to ensure player is fully loaded
+	minetest.after(0.5, function()
+		local p = minetest.get_player_by_name(name)
+		if not p or not tempsurvive.player[name] then return end
+		-- Remove old HUD elements if they exist (reconnect case)
+		if tempsurvive.player[name].bar then
+			pcall(function() p:hud_remove(tempsurvive.player[name].bar) end)
+		end
+		if tempsurvive.player[name].screen then
+			pcall(function() p:hud_remove(tempsurvive.player[name].screen) end)
+		end
+		tempsurvive.player[name].bar = p:hud_add(tempsurvive.bar)
+		tempsurvive.player[name].screen = p:hud_add(tempsurvive.screen)
+		tempsurvive.cloth_update(p)
+	end)
 end)
 
 minetest.register_on_respawnplayer(function(player)
 	local t=tempsurvive.player[player:get_player_name()]
+	if not t then return end
 	t.temp=0
-	player:hud_change(t.bar, "text", tempsurvive.bar.text .."^[colorize:#00ff00cc")
-	player:hud_change(t.bar, "number", t.temp)
-	player:hud_change(t.screen, "text", tempsurvive.screen.text)
+	if t.bar then
+		player:hud_change(t.bar, "text", tempsurvive.bar.text .."^[colorize:#00ff00cc")
+		player:hud_change(t.bar, "number", 20)
+	end
+	if t.screen then
+		player:hud_change(t.screen, "text", tempsurvive.screen.text)
+	end
 end)
 
 minetest.register_on_leaveplayer(function(player)
@@ -39,94 +54,93 @@ minetest.register_privilege("no_temperature", {
 	give_to_singleplayer= false,
 })
 
-tempsurvive.exposed=function(pos1,pos2,add)
-	local d=vector.distance(pos1,pos2)
-	if d<1 then
-		return add
-	end
-	local v = {x = pos1.x - pos2.x, y = pos1.y - pos2.y-1, z = pos1.z - pos2.z}
-	v.y=v.y-1
-	local amount = (v.x ^ 2 + v.y ^ 2 + v.z ^ 2) ^ 0.5
-	v.x = (v.x  / amount)*-1
-	v.y = (v.y  / amount)*-1
-	v.z = (v.z  / amount)*-1
-	for i=1,d,1 do
-		local node=minetest.registered_nodes[minetest.get_node({x=pos1.x+(v.x*i),y=pos1.y+(v.y*i),z=pos1.z+(v.z*i)}).name]
-		if node and node.walkable then
-			local c=minetest.get_node_group(node.name,"cracky")
-			if add<0 then
-				return 0
-			elseif c>0 then
-				c=c+1
-			else
-				c=2
-			end
-			add=add/c
-		end
-	end
-	return add/d
-end
-
-
-
-tempsurvive.spread_temperature=function(target_pos,pos,add,rad)
-	local td=vector.distance(target_pos,pos)
-	if td<1 then
-		return add
-	end
-	local jobs={pos}
-	local checked={}
-	while #jobs>0 and #jobs<1000 do
-		for i,p in pairs(jobs) do
-			for x=-1,1,1 do
-			for y=-1,1,1 do
-			for z=-1,1,1 do
-				local np={x=p.x+x,y=p.y+y,z=p.z+z}
-				local ta=minetest.pos_to_string(np)
-				local d=vector.distance(pos,np)
-				local nod=minetest.registered_nodes[minetest.get_node(np).name]
-				if d<=rad and not checked[ta] and nod and not nod.walkable then
-					if vector.distance(target_pos,np)<=1 then
-						return add/td
-					end
-					checked[ta]=true
-					table.insert(jobs,np)
-				end
-			end
-			end
-			end
-			table.remove(jobs,i)
-		end
-	end
-	return 0
-end
-
+-- Bio temperature: uses engine biome heat, height, day/night cycle, underground geothermal
 tempsurvive.get_bio_temperature=function(pos)
-	if pos.y<-50 then return 0 end
-	local p={x=math.floor(pos.x),y=0,z=math.floor(pos.z)}
-	local l=minetest.get_node_light(pos) or 0
-
-	local temp=minetest.get_perlin(tempsurvive.perlin):get2d({x=p.x,y=p.z})-40
-
-	if temp>0 then
-		return temp+((l*0.025)*temp)
-	else
-		return temp,temp+(l*0.1)
+	-- Underground: progressively warmer with depth (geothermal)
+	-- Comfortable near surface, hot approaching mantle at y=-1000
+	if pos.y < -20 then
+		local depth = math.abs(pos.y)
+		return math.min(50, depth * 0.04)
 	end
+
+	-- Surface: use engine biome heat, scaled so cold biomes are cold but survivable
+	-- Biome heat is roughly 0-100. Scale to roughly -25 to +25 range.
+	local biome_heat = minetest.get_heat(pos)
+	local temp = (biome_heat - 50) * 0.5
+
+	-- Height effect: colder at altitude (mountains)
+	if pos.y > 0 then
+		temp = temp - pos.y * 0.04
+	end
+
+	-- Day/night cycle: +5 at noon, -5 at midnight
+	local tod = minetest.get_timeofday()
+	local day_factor = math.cos((tod - 0.5) * 2 * math.pi)
+	temp = temp + day_factor * 5
+
+	-- Light level warms slightly (sunlight, torchlight nearby)
+	local l = minetest.get_node_light(pos) or 0
+	temp = temp + l * 0.15
+
+	return temp
 end
 
+-- Weather-based temperature modifier (requires climate_api / regional_weather)
+-- Only applies outdoors (checks for roof above player)
+tempsurvive.get_weather_temperature=function(player, temp)
+	if not climate_api or not climate_api.environment then return temp end
+
+	-- Shelter check: if there's a solid block within 10 nodes above, player is sheltered
+	local pos = player:get_pos()
+	for i = 1, 10 do
+		local check = {x = math.floor(pos.x + 0.5), y = math.floor(pos.y) + 1 + i, z = math.floor(pos.z + 0.5)}
+		local node = minetest.get_node(check)
+		local ndef = minetest.registered_nodes[node.name]
+		if ndef and ndef.walkable then
+			return temp -- sheltered, no weather chill
+		end
+	end
+
+	-- Outdoors: apply weather effects
+	local weathers = climate_api.environment.get_weather_presets(player)
+	local mod = 0
+	for _, w in ipairs(weathers) do
+		if w == "regional_weather:snow_heavy" then
+			mod = math.min(mod, -12)
+		elseif w == "regional_weather:snow" then
+			mod = math.min(mod, -8)
+		elseif w == "regional_weather:hail" then
+			mod = math.min(mod, -6)
+		elseif w == "regional_weather:rain_heavy" or w == "regional_weather:storm" then
+			mod = math.min(mod, -5)
+		elseif w == "regional_weather:rain" then
+			mod = math.min(mod, -3)
+		end
+	end
+	return temp + mod
+end
+
+-- Artificial temperature from nearby heat/cold source nodes
+-- Simple distance falloff (replaces expensive flood-fill pathfinder)
 tempsurvive.get_artificial_temperature=function(pos,temp)
-	local a=minetest.find_nodes_in_area({x=pos.x-3, y=pos.y-3, z=pos.z-3}, {x=pos.x+3, y=pos.y+3, z=pos.z+3}, {"group:tempsurvive"})
-	for i,no in pairs(a) do
+	local r = 8
+	local a=minetest.find_nodes_in_area(
+		{x=pos.x-r, y=pos.y-r, z=pos.z-r},
+		{x=pos.x+r, y=pos.y+r, z=pos.z+r},
+		{"group:tempsurvive"})
+	for _,no in pairs(a) do
 		local name=minetest.get_node(no).name
-		local add=0
+		local add
 		local rad=minetest.get_item_group(name,"tempsurvive_rad")
 		if minetest.get_item_group(name,"tempsurvive_temp_by_meta")>0 then
-			add=add+minetest.get_meta(no):get_int("temp")
+			add=minetest.get_meta(no):get_int("temp")
 		else
 			add=minetest.get_item_group(name,"tempsurvive_add")
 		end
-		temp=temp+tempsurvive.spread_temperature(pos,no,add,rad)
+		local dist = math.max(1, vector.distance(pos, no))
+		if dist <= rad then
+			temp = temp + add / dist
+		end
 	end
 	return temp
 end
@@ -154,31 +168,40 @@ minetest.register_globalstep(function(dtime)
 			local hr=ptemp.heat_resistance+ptemp.cooling
 
 			temp=tempsurvive.get_artificial_temperature(pos,temp)
+			temp=tempsurvive.get_weather_temperature(player,temp)
 
-			ptemp.temp=ptemp.temp-(math.floor(ptemp.temp-temp)*tempsurvive.speed)
+			-- Water immersion: standing in water chills the player
+			local pnode = minetest.get_node(pos)
+			if minetest.get_item_group(pnode.name, "water") > 0 then
+				temp = temp - 5
+			end
+
+			-- Smooth convergence toward target temperature (lerp)
+			-- ~30s to feel significant change, ~60s to mostly stabilize
+			ptemp.temp = ptemp.temp + (temp - ptemp.temp) * 0.03
 
 			if ptemp.temp<cr then
-				--player:punch(player,1+math.floor((ptemp.temp-ptemp.coldness_resistance)*-0.1),{full_punch_interval=1,damage_groups={fleshy=1}})
 				player:set_hp(player:get_hp()-(1+math.floor((ptemp.temp-ptemp.coldness_resistance)*-0.1)))
 			elseif ptemp.temp>hr then
-				--player:punch(player,1+math.floor((ptemp.temp-ptemp.heat_resistance)*0.5),{full_punch_interval=1,damage_groups={fleshy=1}})
 				player:set_hp(player:get_hp()-math.floor((ptemp.temp-ptemp.heat_resistance)*0.5))
 			end
 
-			local pt=math.floor(math.abs(ptemp.temp))
+			if ptemp.bar and ptemp.screen then
+				local pt=math.floor(math.abs(ptemp.temp))
 
-			if ptemp.temp<0 and pt<=cr*-1 then
-				local t=math.floor(pt/math.abs(cr)*15)
-				local ht=tempsurvive.n2dhex(math.ceil(t/2))
-				player:hud_change(ptemp.bar, "text", tempsurvive.bar.text .."^[colorize:#00" .. tempsurvive.n2dhex(15-t) .. tempsurvive.n2dhex(t) .."cc")
-				player:hud_change(ptemp.bar, "number", 20-math.floor(pt/math.abs(cr)*20))
-				player:hud_change(ptemp.screen, "text", tempsurvive.screen.text .."^[colorize:#00" .. ht .. tempsurvive.n2dhex(t) ..  ht)
-			elseif ptemp.temp>=0 and pt<=hr then
-				local t=math.floor(pt/math.abs(hr)*15)
-				local ht=tempsurvive.n2dhex(math.ceil(t/2))
-				player:hud_change(ptemp.bar, "text", tempsurvive.bar.text .."^[colorize:#" .. tempsurvive.n2dhex(t) ..tempsurvive.n2dhex(15-t) .."00cc")
-				player:hud_change(ptemp.bar, "number", 20+math.floor(pt/math.abs(hr)*20))
-				player:hud_change(ptemp.screen, "text", tempsurvive.screen.text .."^[colorize:#" .. tempsurvive.n2dhex(t) .. ht .. "00" ..  ht)
+				if ptemp.temp<0 and pt<=cr*-1 then
+					local t=math.floor(pt/math.abs(cr)*15)
+					local ht=tempsurvive.n2dhex(math.ceil(t/2))
+					player:hud_change(ptemp.bar, "text", tempsurvive.bar.text .."^[colorize:#00" .. tempsurvive.n2dhex(15-t) .. tempsurvive.n2dhex(t) .."cc")
+					player:hud_change(ptemp.bar, "number", 20-math.floor(pt/math.abs(cr)*20))
+					player:hud_change(ptemp.screen, "text", tempsurvive.screen.text .."^[colorize:#00" .. ht .. tempsurvive.n2dhex(t) ..  ht)
+				elseif ptemp.temp>=0 and pt<=hr then
+					local t=math.floor(pt/math.abs(hr)*15)
+					local ht=tempsurvive.n2dhex(math.ceil(t/2))
+					player:hud_change(ptemp.bar, "text", tempsurvive.bar.text .."^[colorize:#" .. tempsurvive.n2dhex(t) ..tempsurvive.n2dhex(15-t) .."00cc")
+					player:hud_change(ptemp.bar, "number", 20+math.floor(pt/math.abs(hr)*20))
+					player:hud_change(ptemp.screen, "text", tempsurvive.screen.text .."^[colorize:#" .. tempsurvive.n2dhex(t) .. ht .. "00" ..  ht)
+				end
 			end
 		end
 	end
@@ -215,15 +238,10 @@ end)
 
 tempsurvive.cloth_update=function(player)
 	local p=tempsurvive.player[player:get_player_name()]
+	if not p then return end
 	local inv=player:get_inventory()
 	local layer={}
 	local layern={}
-	local skin=player:get_properties().textures[1]
-
-	if not p.skin or (p.skin~=skin and not string.find(skin,"%^")) then
-		p.skin=skin
-	end
-	local textures=p.skin
 
 	p.warming=0
 	p.cooling=0
@@ -237,17 +255,28 @@ tempsurvive.cloth_update=function(player)
 				table.insert(layern,clothe.layer)
 			end
 			table.insert(layer[clothe.layer .. ""],clothe.texture)
-			
 		end
 	end
 	table.sort(layern)
+	local clothing_overlays=""
 	for i,n in ipairs(layern) do
 		for ii,t in pairs(layer[n .. ""]) do
-			textures=textures .. "^" .. t 
+			clothing_overlays=clothing_overlays .. "^" .. t
 		end
 	end
 
-	if tempsurvive.armor then
+	-- Store overlay for skinsdb visual hook
+	p.clothing_overlay=clothing_overlays
+
+	if minetest.global_exists("skins") then
+		-- skinsdb path: let skinsdb handle model and textures properly
+		skins.update_player_skin(player)
+	elseif tempsurvive.armor then
+		local skin=player:get_properties().textures[1]
+		if not p.skin or (p.skin~=skin and not string.find(skin,"%^")) then
+			p.skin=skin
+		end
+		local textures=p.skin .. clothing_overlays
 		player:set_properties({
 			mesh="3d_armor_character.b3d",
 			textures={
@@ -259,6 +288,11 @@ tempsurvive.cloth_update=function(player)
 		armor:set_player_armor(player)
 		armor:update_inventory(player)
 	else
+		local skin=player:get_properties().textures[1]
+		if not p.skin or (p.skin~=skin and not string.find(skin,"%^")) then
+			p.skin=skin
+		end
+		local textures=p.skin .. clothing_overlays
 		player:set_properties({textures={textures}})
 	end
 end

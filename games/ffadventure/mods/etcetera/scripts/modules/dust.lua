@@ -1,27 +1,88 @@
 
+local dust_step = 8
+
 minetest.register_node('etcetera:dust', {
-	displayname = 'Dust',
+	description = 'Dust',
 	drawtype = 'nodebox',
 	tiles = {{
 		name = 'etc_dust.png',
-		animation = nil,
-		scale = 1,
 		backface_culling = false,
 		align_style = 'world',
 	}},
+	inventory_image = 'etc_dust.png',
+	wield_image = 'etc_dust.png',
 	paramtype = 'light',
-	use_texture_alpha = 'blend', -- Makes the texture rendered with transparency
-	alpha = 128, -- Sets 50% transparency (255 is fully opaque, 0 is fully transparent)
+	paramtype2 = 'leveled',
+	use_texture_alpha = 'blend',
+	buildable_to = true,
+	walkable = false,
+	pointable = true,
+	floodable = true,
+	place_param2 = dust_step,
+	leveled = dust_step,
 	groups = {crumbly = 3, falling_node = 1},
 	sounds = default.node_sound_sand_defaults(),
 	node_box = {
-		type = 'fixed',
-		fixed = {-0.5, -0.5, -0.5, 0.5, -0.3, 0.5}, -- 1/5 block height
+		type = 'leveled',
+		fixed = {-0.5, -0.5, -0.5, 0.5, -0.25, 0.5},
 	},
-	selection_box = {
-		type = 'fixed',
-		fixed = {-0.5, -0.5, -0.5, 0.5, -0.3, 0.5}, -- Matches the node's collision box
-	},
+	node_placement_prediction = '',
+
+	on_dig = function(pos, node, digger)
+		local level = minetest.get_node_level(pos)
+		minetest.node_dig(pos, node, digger)
+		if minetest.get_node(pos).name == node.name or
+				not digger or not digger:is_player() then
+			return
+		end
+		local extra = math.max(0, level / dust_step - 1)
+		if extra > 0 then
+			core.handle_node_drops(pos, {ItemStack("etcetera:dust " .. tostring(extra))}, digger)
+		end
+	end,
+
+	on_place = function(itemstack, placer, pointed_thing)
+		local place_to = pointed_thing.under
+		local old_node = minetest.get_node(place_to)
+		if old_node.name ~= "etcetera:dust" then
+			local node_def = minetest.registered_nodes[old_node.name]
+			if node_def and node_def.buildable_to then
+				return minetest.item_place(itemstack, placer, pointed_thing)
+			end
+			place_to = pointed_thing.above
+			old_node = minetest.get_node(place_to)
+			if old_node.name ~= "etcetera:dust" then
+				return minetest.item_place(itemstack, placer, pointed_thing)
+			end
+		end
+		local player_name = placer and placer:is_player()
+		player_name = player_name and placer:get_player_name() or ""
+		if minetest.is_protected(place_to, player_name) and
+				(player_name == "" or
+				not minetest.check_player_privs(placer, "protection_bypass")) then
+			if player_name == "" then return itemstack end
+			minetest.record_protection_violation(place_to, player_name)
+			return itemstack
+		end
+		local level = minetest.get_node_level(place_to)
+		level = level + dust_step
+		if level >= 64 then
+			minetest.swap_node(place_to, {name = "etcetera:dustblock"})
+		else
+			minetest.set_node_level(place_to, level)
+		end
+		itemstack:take_item()
+		return itemstack
+	end,
+})
+
+minetest.register_node('etcetera:dustblock', {
+	description = 'Dust Block',
+	tiles = {'etc_dust.png'},
+	use_texture_alpha = 'blend',
+	groups = {crumbly = 3},
+	sounds = default.node_sound_sand_defaults(),
+	is_ground_content = false,
 })
 
 minetest.register_craft {
@@ -38,88 +99,88 @@ minetest.register_craft {
 	replacements = {{'bucket:bucket_water', 'bucket:bucket_empty'}}
 }
 
-minetest.register_abm({
-    label = "Spawn dust in room corners",
-    nodenames = {"group:stone", "group:wood"}, -- assume walls are made of stone or wood
-    interval = 900, -- every 15 minutes
-    chance = 80, -- 1 in 50 chance per eligible node
-    action = function(pos, node)
-        local above = {x = pos.x, y = pos.y + 1, z = pos.z}
-        local air_node = minetest.get_node(above)
-        
-        if air_node.name == "air" then
-            -- Check surrounding nodes
-            local x_plus = minetest.get_node({x = pos.x + 1, y = pos.y, z = pos.z})
-            local x_minus = minetest.get_node({x = pos.x - 1, y = pos.y, z = pos.z})
-            local z_plus = minetest.get_node({x = pos.x, y = pos.y, z = pos.z + 1})
-            local z_minus = minetest.get_node({x = pos.x, y = pos.y, z = pos.z - 1})
-
-            -- Check for corner condition
-            if (x_plus.name ~= "air" and z_plus.name ~= "air") or
-               (x_minus.name ~= "air" and z_minus.name ~= "air") or
-               (x_plus.name ~= "air" and z_minus.name ~= "air") or
-               (x_minus.name ~= "air" and z_plus.name ~= "air") then
-               
-               -- Place dust
-               minetest.set_node(above, {name = "etcetera:dust"})
-            end
-        end
-    end
-})
+-- Helper: place or stack dust at a position (used by ABMs)
+local function place_or_stack_dust(pos)
+	local node = minetest.get_node(pos)
+	if node.name == "etcetera:dust" then
+		local level = minetest.get_node_level(pos)
+		level = level + dust_step
+		if level >= 64 then
+			minetest.swap_node(pos, {name = "etcetera:dustblock"})
+		else
+			minetest.set_node_level(pos, level)
+		end
+		return true
+	elseif node.name == "air" then
+		minetest.set_node(pos, {name = "etcetera:dust", param2 = dust_step})
+		return true
+	end
+	return false
+end
 
 minetest.register_abm({
-    label = "Spread dust",
-    nodenames = {"etcetera:dust"},
-    interval = 900, -- every 15 minutes
-    chance = 100, -- 1 in 100 chance per dust node
-    action = function(pos, node)
-        local possible_positions = {
-            {x = pos.x + 1, y = pos.y, z = pos.z},
-            {x = pos.x - 1, y = pos.y, z = pos.z},
-            {x = pos.x, y = pos.y, z = pos.z + 1},
-            {x = pos.x, y = pos.y, z = pos.z - 1},
-            {x = pos.x, y = pos.y - 1, z = pos.z}, -- allows dust to spawn below
-        }
-
-        for _, new_pos in ipairs(possible_positions) do
-            if minetest.get_node(new_pos).name == "air" then
-                minetest.set_node(new_pos, {name = "etcetera:dust"})
-                break
-            end
-        end
-    end
-})
-
-minetest.register_abm({
-	nodenames = {'etcetera:dust'},
-	interval = 1.0,
-	chance = 1,
+	label = "Spawn dust in room corners",
+	nodenames = {"group:stone", "group:wood"},
+	interval = 900,
+	chance = 80,
 	action = function(pos, node)
-		local height = 1 -- Default to 1/5 block
-		local neighbors = 0
-		for _, dir in ipairs({
-			{x = 1, y = 0, z = 0}, {x = -1, y = 0, z = 0},
-			{x = 0, y = 1, z = 0}, {x = 0, y = -1, z = 0},
-			{x = 0, y = 0, z = 1}, {x = 0, y = 0, z = -1},
-		}) do
-			local npos = vector.add(pos, dir)
-			local nn = minetest.get_node(npos)
-			if nn.name == 'etcetera:dust' then
-				local nn_height = nn.param2 or 0
-				if nn_height > height then
-					height = nn_height
-				end
-				neighbors = neighbors + 1
+		local above = {x = pos.x, y = pos.y + 1, z = pos.z}
+		local above_node = minetest.get_node(above)
+
+		if above_node.name == "air" or above_node.name == "etcetera:dust" then
+			local x_plus = minetest.get_node({x = pos.x + 1, y = pos.y, z = pos.z})
+			local x_minus = minetest.get_node({x = pos.x - 1, y = pos.y, z = pos.z})
+			local z_plus = minetest.get_node({x = pos.x, y = pos.y, z = pos.z + 1})
+			local z_minus = minetest.get_node({x = pos.x, y = pos.y, z = pos.z - 1})
+
+			if (x_plus.name ~= "air" and z_plus.name ~= "air") or
+			   (x_minus.name ~= "air" and z_minus.name ~= "air") or
+			   (x_plus.name ~= "air" and z_minus.name ~= "air") or
+			   (x_minus.name ~= "air" and z_plus.name ~= "air") then
+				place_or_stack_dust(above)
 			end
 		end
+	end
+})
 
-		local new_height = math.min(height + 1, 5) -- Limit height to 5/5
-		if neighbors >= 2 and new_height > height then
-			local meta = minetest.get_meta(pos)
-			if meta then
-				meta:set_int("height", new_height)
+minetest.register_abm({
+	label = "Spread dust",
+	nodenames = {"etcetera:dust"},
+	interval = 900,
+	chance = 100,
+	action = function(pos, node)
+		local possible_positions = {
+			{x = pos.x + 1, y = pos.y, z = pos.z},
+			{x = pos.x - 1, y = pos.y, z = pos.z},
+			{x = pos.x, y = pos.y, z = pos.z + 1},
+			{x = pos.x, y = pos.y, z = pos.z - 1},
+		}
+
+		for _, new_pos in ipairs(possible_positions) do
+			-- Only spread to air on top of a walkable surface
+			local below = {x = new_pos.x, y = new_pos.y - 1, z = new_pos.z}
+			local below_def = minetest.registered_nodes[minetest.get_node(below).name]
+			if minetest.get_node(new_pos).name == "air" and
+					below_def and below_def.walkable then
+				place_or_stack_dust(new_pos)
+				break
 			end
-			minetest.set_node(pos, {name = 'etcetera:dust', param2 = new_height})
+		end
+	end
+})
+
+-- LBM: fix old dust nodes that used raw param2 values (1-5) instead of leveled steps
+minetest.register_lbm({
+	label = "Fix dust node levels",
+	name = "etcetera:fix_dust_levels_v1",
+	nodenames = {"etcetera:dust"},
+	run_at_every_load = true,
+	action = function(pos, node)
+		if node.param2 >= 1 and node.param2 <= 5 then
+			-- Old format used param2 = 1..5 for height stages
+			minetest.swap_node(pos, {name = "etcetera:dust", param2 = dust_step})
+		elseif node.param2 == 0 then
+			minetest.swap_node(pos, {name = "etcetera:dust", param2 = dust_step})
 		end
 	end,
 })

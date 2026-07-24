@@ -52,6 +52,7 @@ struct PlayerHPChangeReason;
 class IRollbackManager;
 struct RollbackAction;
 class EmergeManager;
+class DimensionManager;
 class ServerScripting;
 class ServerEnvironment;
 struct SoundSpec;
@@ -361,6 +362,10 @@ public:
 	bool showFormspec(const char *name, const std::string &formspec, const std::string &formname);
 	Map & getMap() { return m_env->getMap(); }
 	ServerEnvironment & getEnv() { return *m_env; }
+	DimensionManager *getDimensionManager() { return m_dim_mgr.get(); }
+	// Called by DimensionManager when a player switches dimensions so the
+	// client re-requests all blocks from the new dimension's map.
+	void clearClientSentBlocks(session_t peer_id);
 	v3f findSpawnPos();
 
 	u32 hudAdd(RemotePlayer *player, HudElement *element);
@@ -691,6 +696,9 @@ private:
 
 	// Emerge manager
 	std::unique_ptr<EmergeManager> m_emerge;
+
+	// Dimension manager — separate ServerMap+EmergeManager per dimension
+	std::unique_ptr<DimensionManager> m_dim_mgr;
 
 	// Item definition manager
 	IWritableItemDefManager *m_itemdef;

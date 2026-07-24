@@ -31,6 +31,29 @@ minetest.register_node(BLOCK_NAME, {
 	end
 })
 
+-- Thin ice breaks when a player jumps on it
+minetest.register_globalstep(function(dtime)
+	for _, player in ipairs(minetest.get_connected_players()) do
+		local pos = player:get_pos()
+		if pos then
+			local under = {
+				x = math.floor(pos.x + 0.5),
+				y = math.floor(pos.y - 0.1),
+				z = math.floor(pos.z + 0.5)
+			}
+			if minetest.get_node(under).name == BLOCK_NAME then
+				local ctrl = player:get_player_control()
+				if ctrl.jump then
+					minetest.sound_play("default_break_glass", {
+						pos = under, gain = 0.5, max_hear_distance = 12
+					})
+					minetest.remove_node(under)
+				end
+			end
+		end
+	end
+end)
+
 climate_api.register_abm({
 	label			= "freeze river water",
 	nodenames = { "default:river_water_source" },
@@ -39,17 +62,35 @@ climate_api.register_abm({
 	chance		= 3,
 	catch_up	= false,
 
-	 conditions	= {
-		 min_height		= regional_weather.settings.min_height,
-		 max_height		= regional_weather.settings.max_height,
-		 max_heat			= 35,
-		 daylight			= 15,
-		 indoors			= false
-	 },
+	conditions	= {
+		min_height		= regional_weather.settings.min_height,
+		max_height		= regional_weather.settings.max_height,
+		max_heat		= 35,
+		indoors			= false
+	},
 
-	 action = function (pos, node, env)
-		 minetest.set_node(pos, { name = BLOCK_NAME })
-	 end
+	action = function (pos, node, env)
+		minetest.set_node(pos, { name = BLOCK_NAME })
+	end
+})
+
+climate_api.register_abm({
+	label			= "thicken thin ice",
+	nodenames = { BLOCK_NAME },
+	interval	= 60,
+	chance		= 4,
+	catch_up	= false,
+
+	conditions	= {
+		min_height		= regional_weather.settings.min_height,
+		max_height		= regional_weather.settings.max_height,
+		max_heat		= 30,
+		indoors			= false
+	},
+
+	action = function (pos, node, env)
+		minetest.set_node(pos, { name = "default:ice" })
+	end
 })
 
 climate_api.register_abm({
@@ -59,15 +100,13 @@ climate_api.register_abm({
 	chance		= 4,
 	catch_up	= true,
 
-	 conditions	= {
-		 min_height		= regional_weather.settings.min_height,
-		 max_height		= regional_weather.settings.max_height,
-		 min_heat			= 35,
-		 daylight			= 15,
-		 indoors			= false
-	 },
+	conditions	= {
+		min_height		= regional_weather.settings.min_height,
+		max_height		= regional_weather.settings.max_height,
+		min_heat		= 35
+	},
 
-	 action = function (pos, node, env)
-		 minetest.set_node(pos, { name = "default:river_water_source" })
-	 end
+	action = function (pos, node, env)
+		minetest.set_node(pos, { name = "default:river_water_source" })
+	end
 })

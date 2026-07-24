@@ -148,7 +148,8 @@ minetest.register_entity(entity_name, {
 		object:set_attach(self._player,
 			attachment.bonename,
 			vector.multiply(vector.offset(attachment.position, 0, vsize / 2, 0), 10),
-			attachment.rotation)
+			attachment.rotation,
+			true)
 		self:_force_resend()
 	end,
 	_set_player = function(self, player)

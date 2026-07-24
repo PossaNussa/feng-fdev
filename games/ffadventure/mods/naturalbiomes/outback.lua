@@ -42,10 +42,10 @@ minetest.register_biome({
 		node_dungeon = "default:sandstone",
 		node_dungeon_alt = "default:desert_stonebrick",
 		node_dungeon_stair = "stairs:stair_desert_stone",
-    y_max = 40,
-    y_min = 3,
+    y_max = 60,
+    y_min = 1,
     heat_point = 82,
-    humidity_point = 32,
+    humidity_point = 20,
 })
 
 -- Tree generation
@@ -228,9 +228,9 @@ minetest.register_decoration({
     place_on = {"naturalbiomes:outback_litter"},
     place_offset_y = 0,
     sidelen = 16,
-    fill_ratio = 0.00115,
+    fill_ratio = 0.00055,
     biomes = {"naturalbiomes:outback"},
-    y_max = 31,
+    y_max = 60,
     y_min = 1,
     schematic = minetest.get_modpath("naturalbiomes").."/schematics/naturalbiomes_outback_tree1_0_90.mts",
 	flags = "place_center_x, place_center_z",
@@ -243,9 +243,9 @@ minetest.register_decoration({
     place_on = {"naturalbiomes:outback_litter"},
     place_offset_y = 0,
     sidelen = 16,
-    fill_ratio = 0.00115,
+    fill_ratio = 0.00055,
     biomes = {"naturalbiomes:outback"},
-    y_max = 31,
+    y_max = 60,
     y_min = 1,
     schematic = minetest.get_modpath("naturalbiomes").."/schematics/naturalbiomes_outback_tree2_0_90.mts",
 	flags = "place_center_x, place_center_z",
@@ -713,4 +713,5 @@ if minetest.get_modpath("bonemeal") then
 		{"naturalbiomes:outback_litter", {"naturalbiomes:outback_grass", "naturalbiomes:outback_grass2", "naturalbiomes:outback_grass3", "naturalbiomes:outback_grass4", "naturalbiomes:outback_grass5", "naturalbiomes:outback_grass6"}, {}}
 	})
 end
+
 

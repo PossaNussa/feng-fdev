@@ -855,3 +855,32 @@ if minetest.get_modpath("bonemeal") then
 	})
 end
 
+-- Olive regrowth
+-- Periodically spawns new olives on living olive trees
+minetest.register_abm({
+	label = "Olive fruit regrowth",
+	nodenames = {"naturalbiomes:olive_leaves"},
+	neighbors = {"air"},
+	interval = 300,
+	chance = 12,
+	action = function(pos)
+		-- Confirm the tree is alive (trunk within leafdecay radius)
+		local trunk = minetest.find_node_near(pos, 6, {"naturalbiomes:olive_trunk"})
+		if not trunk then return end
+
+		-- Cap olives per tree
+		local fruits = minetest.find_nodes_in_area(
+			vector.subtract(trunk, 6),
+			vector.add(trunk, 6),
+			{"naturalbiomes:olives"}
+		)
+		if #fruits >= 5 then return end
+
+		-- Place olive in air below this leaf
+		local below = vector.offset(pos, 0, -1, 0)
+		if minetest.get_node(below).name == "air" then
+			minetest.set_node(below, {name = "naturalbiomes:olives"})
+		end
+	end,
+})
+

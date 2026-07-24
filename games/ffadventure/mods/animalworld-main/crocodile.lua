@@ -38,6 +38,7 @@ stepheight = 1,
 	lava_damage = 4,
 	light_damage = 0,
 	fear_height = 2,
+	pathfinding = true,
 	animation = {
 		speed_normal = 75,
 		stand_start = 0,

@@ -56,6 +56,7 @@ mobs:register_mob("animalworld:orangutan", {
 	lava_damage = 5,
 	light_damage = 0,
 	fear_height = 4,
+	pathfinding = true,
 	animation = {
 		speed_normal = 25,
 		stand_speed = 75,
@@ -103,6 +104,8 @@ mobs:spawn({
 	min_height = 3,
 	max_height = 500,
 	day_toggle = true,
+	min_heat = 65, max_heat = 95,
+	min_humidity = 60, max_humidity = 100,
 
 		on_spawn = function(self, pos)
 
