@@ -166,6 +166,7 @@ minetest.register_entity("paleotest:sarcosuchus", {
     view_range = 16,
     reach = 4,
     damage = 12,
+    punch_cooldown = 1.5,
     knockback = -6,
     lung_capacity = 180,
     -- Movement & Physics

@@ -65,8 +65,8 @@ mobs:register_mob("pixel_animals:raccoon", {
 		"mcl_core:apple",		
 	},
 	view_range = 35,
-	owner = "", 
-	order = "follow",
+	owner = "",
+	order = "",
 	runaway = true ,
 
 	on_rightclick = function(self, clicker)
@@ -74,7 +74,22 @@ mobs:register_mob("pixel_animals:raccoon", {
 		if mobs:feed_tame(self, clicker, 8, true, true) then return end
 		if mobs:protect(self, clicker) then return end
 		if mobs:capture_mob(self, clicker, 30, 50, 80, false, nil) then return end
-	end,	
+		---
+		if self.owner and self.owner == clicker:get_player_name() then
+
+			if self.order ~= "stand" then
+				self.order = "stand"
+				self.state = "stand"
+				self.object:set_velocity({x = 0, y = 0, z = 0})
+				mobs:set_animation(self, "stand")
+
+			else
+				self.order = "follow"
+				mobs:set_animation(self, "walk")
+
+			end
+		end
+	end,
 })
 
 mobs:spawn({

@@ -384,8 +384,12 @@ minetest.register_craft({
 
 minetest.register_craft({
 	output = "cottages:window_shutter_open",
+	-- vertical layout so it does not clash with the wooden gauntlet recipe
+	-- (which is the horizontal {wood, "", wood})
 	recipe = {
-		{cottages.craftitem_wood, "", cottages.craftitem_wood },
+		{cottages.craftitem_wood },
+		{"" },
+		{cottages.craftitem_wood },
 	}
 })
 

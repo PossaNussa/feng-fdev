@@ -204,15 +204,37 @@ minetest.register_abm({
 	end,
 })
 
--- Player heals when standing on liquid mud that is heated from below
+-- Player heals when standing on liquid mud that is heated from below.
+-- Ticks on a fixed timer instead of every server step: the old version ignored dtime
+-- and healed +1 per step, so the heal rate silently rode the server's tick rate.
+local mud_heal_timer = 0
+local MUD_HEAL_INTERVAL = 0.1   -- seconds per +1 HP (tunable; ~10 HP/s, framerate-independent)
+-- Volcano ambient-heat threshold (deg) at which liquid mud counts as a hot spring
+-- even without a lava node directly below it. Matches the warm apron around an
+-- active cone rather than the whole heat halo. See tempsurvive.get_volcano_heat_at.
+local MUD_SPRING_VOLCANO_HEAT = 8
 minetest.register_globalstep(function(dtime)
+	mud_heal_timer = mud_heal_timer + dtime
+	if mud_heal_timer < MUD_HEAL_INTERVAL then return end
+	local heals = math.floor(mud_heal_timer / MUD_HEAL_INTERVAL)
+	mud_heal_timer = mud_heal_timer - heals * MUD_HEAL_INTERVAL
 	for _, player in ipairs(minetest.get_connected_players()) do
 		local pos = player:get_pos()
 		local node_at_feet = minetest.get_node({x=pos.x, y=pos.y-0.5, z=pos.z}).name
-		local node_two_below = minetest.get_node({x=pos.x, y=pos.y-2.5, z=pos.z}).name
-		if node_at_feet == "default:liquid_mud_source" and node_two_below == "default:lava_source" then
-			local hp = player:get_hp()
-			player:set_hp(hp + 1)
+		if node_at_feet == "default:liquid_mud_source" then
+			-- The mud heals when it is a *hot* mud spring. That means either lava
+			-- directly heating it from below (the original hand-built spring), or
+			-- the ambient heat of a nearby volcano warming a natural mud pool --
+			-- so volcanic mud springs work without a hand-placed lava node.
+			local node_two_below = minetest.get_node({x=pos.x, y=pos.y-2.5, z=pos.z}).name
+			local heated = node_two_below == "default:lava_source"
+			if not heated and minetest.global_exists("tempsurvive")
+					and tempsurvive.get_volcano_heat_at then
+				heated = tempsurvive.get_volcano_heat_at(pos) >= MUD_SPRING_VOLCANO_HEAT
+			end
+			if heated then
+				player:set_hp(player:get_hp() + heals)
+			end
 		end
 	end
 end)

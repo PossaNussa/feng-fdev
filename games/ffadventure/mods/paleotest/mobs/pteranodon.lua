@@ -112,6 +112,7 @@ minetest.register_entity("paleotest:pteranodon", {
     view_range = 32,
     reach = 2,
     damage = 1,
+    punch_cooldown = 1,
     knockback = 1,
     lung_capacity = 60,
     soar_height = 12,

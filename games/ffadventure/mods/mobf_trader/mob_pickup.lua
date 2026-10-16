@@ -245,7 +245,8 @@ mob_pickup.place_mob = function( itemstack, placer, pointed_thing, prefix, entit
 	end
 
 	-- spawn a mob
-	local object = minetest.add_entity( {x=pos.x, y=(pos.y+1.5), z=pos.z}, entity_name );
+	-- the mob's origin is at its feet: +0.5 places it on top of the pointed node
+	local object = minetest.add_entity( {x=pos.x, y=(pos.y+0.5), z=pos.z}, entity_name );
 	if( not( object )) then
 		minetest.chat_send_player( pname,
 			'Error: Spawning of mob failed.');

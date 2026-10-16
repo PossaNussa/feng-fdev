@@ -78,6 +78,24 @@ void MyEventReceiver::reloadKeybindings()
 	for (int i = 0; i < KeyType::INTERNAL_ENUM_COUNT; i++) {
 		listenForKey(keybindings[i], static_cast<GameKeyType>(i));
 	}
+
+	// FlashEng: optional second key per action ("keymap_<action>_alt"),
+	// e.g. Ctrl as a second crouch key alongside Shift.
+	static const std::pair<const char *, GameKeyType> alt_keys[] = {
+		{"keymap_forward_alt", KeyType::FORWARD}, {"keymap_backward_alt", KeyType::BACKWARD},
+		{"keymap_left_alt", KeyType::LEFT}, {"keymap_right_alt", KeyType::RIGHT},
+		{"keymap_jump_alt", KeyType::JUMP}, {"keymap_sneak_alt", KeyType::SNEAK},
+		{"keymap_aux1_alt", KeyType::AUX1}, {"keymap_inventory_alt", KeyType::INVENTORY},
+		{"keymap_camera_mode_alt", KeyType::CAMERA_MODE}, {"keymap_zoom_alt", KeyType::ZOOM},
+		{"keymap_dig_alt", KeyType::DIG}, {"keymap_place_alt", KeyType::PLACE},
+	};
+	for (const auto &alt : alt_keys) {
+		if (!g_settings->exists(alt.first) || g_settings->get(alt.first).empty())
+			continue;
+		KeyPress k = getKeySetting(alt.first);
+		if (k && keysListenedFor.find(k) == keysListenedFor.end())
+			listenForKey(k, alt.second);
+	}
 }
 
 bool MyEventReceiver::setKeyDown(KeyPress keyCode, bool is_down)

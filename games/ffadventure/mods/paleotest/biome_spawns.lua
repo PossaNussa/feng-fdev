@@ -2,6 +2,13 @@
 -- Biome-aware mob spawning using mobs:spawn() with heat/humidity filters.
 -- Replaces the old mobs:register_spawn() block that had no climate constraints.
 -- Heat: 0=arctic, 50=temperate, 100=tropical.  Humidity: 0=arid, 100=saturated.
+--
+-- `foreign = true` is required on every entry. paleotest's dinosaurs are mobkit
+-- entities, registered with core.register_entity(), never mobs:register_mob() --
+-- and mobs:spawn_specific() used to bail out immediately for any name missing
+-- from mobs.spawning_mobs. Every call in this file was silently a no-op until
+-- creaturemob added the flag, so these spawns have never actually run: treat the
+-- chances below as untested and tune them against observed density.
 
 -- ============================================================
 -- Dinosaurs
@@ -9,6 +16,7 @@
 
 -- Brachiosaurus: Jurassic tropical/subtropical, warm and humid
 mobs:spawn({
+	foreign           = true,   -- mobkit entity, not registered via mobs:register_mob
 	name              = "paleotest:brachiosaurus",
 	nodes             = {"default:dirt_with_rainforest_litter", "livingjungle:jungleground",
 	                     "aotearoa:dirt_with_dark_litter", "naturalbiomes:savannalitter"},
@@ -27,6 +35,7 @@ mobs:spawn({
 
 -- Carnotaurus: Late Cretaceous South America, warm semi-arid scrubland
 mobs:spawn({
+	foreign           = true,   -- mobkit entity, not registered via mobs:register_mob
 	name              = "paleotest:carnotaurus",
 	nodes             = {"naturalbiomes:savannalitter", "naturalbiomes:mediterranean_litter",
 	                     "default:dry_dirt_with_dry_grass", "default:dirt_with_dry_grass"},
@@ -45,6 +54,7 @@ mobs:spawn({
 
 -- Stegosaurus: Late Jurassic warm temperate/subtropical grasslands
 mobs:spawn({
+	foreign           = true,   -- mobkit entity, not registered via mobs:register_mob
 	name              = "paleotest:stegosaurus",
 	nodes             = {"default:dirt_with_grass", "naturalbiomes:mediterranean_litter",
 	                     "naturalbiomes:savannalitter", "default:dirt_with_dry_grass"},
@@ -63,6 +73,7 @@ mobs:spawn({
 
 -- Spinosaurus: Cretaceous North Africa, tropical riparian/swamp specialist
 mobs:spawn({
+	foreign           = true,   -- mobkit entity, not registered via mobs:register_mob
 	name              = "paleotest:spinosaurus",
 	nodes             = {"swamp:dirt_with_swamp_grass", "default:sand", "default:mud",
 	                     "default:dirt_with_rainforest_litter"},
@@ -81,6 +92,7 @@ mobs:spawn({
 
 -- Triceratops: Late Cretaceous, warm humid subtropical forests and plains
 mobs:spawn({
+	foreign           = true,   -- mobkit entity, not registered via mobs:register_mob
 	name              = "paleotest:triceratops",
 	nodes             = {"default:dirt_with_grass", "naturalbiomes:savannalitter",
 	                     "naturalbiomes:mediterranean_litter", "aotearoa:dirt_with_dark_litter",
@@ -100,6 +112,7 @@ mobs:spawn({
 
 -- Tyrannosaurus: Late Cretaceous warm temperate/subtropical (rare apex predator)
 mobs:spawn({
+	foreign           = true,   -- mobkit entity, not registered via mobs:register_mob
 	name              = "paleotest:tyrannosaurus",
 	nodes             = {"swamp:dirt_with_swamp_grass", "naturalbiomes:savannalitter",
 	                     "aotearoa:dirt_with_dark_litter", "naturalbiomes:mediterranean_litter",
@@ -119,6 +132,7 @@ mobs:spawn({
 
 -- Velociraptor: Late Cretaceous Gobi Desert, semi-arid open terrain, pack hunter
 mobs:spawn({
+	foreign           = true,   -- mobkit entity, not registered via mobs:register_mob
 	name              = "paleotest:velociraptor",
 	nodes             = {"default:dry_dirt_with_dry_grass", "default:dirt_with_dry_grass",
 	                     "badlands:red_sand", "naturalbiomes:savannalitter",
@@ -142,6 +156,7 @@ mobs:spawn({
 
 -- Pteranodon: Late Cretaceous coastal/inland warm areas (no spawn registration previously)
 mobs:spawn({
+	foreign           = true,   -- mobkit entity, not registered via mobs:register_mob
 	name              = "paleotest:pteranodon",
 	nodes             = {"default:sand", "default:dirt_with_grass",
 	                     "naturalbiomes:savannalitter", "default:dirt_with_dry_grass",
@@ -161,6 +176,7 @@ mobs:spawn({
 
 -- Quetzalcoatlus: Late Cretaceous inland semi-arid, largest flying animal
 mobs:spawn({
+	foreign           = true,   -- mobkit entity, not registered via mobs:register_mob
 	name              = "paleotest:quetzalcoatlus",
 	nodes             = {"badlands:red_sand", "default:dry_dirt_with_dry_grass",
 	                     "aotearoa:volcanic_sand", "naturalbiomes:savannalitter",
@@ -180,6 +196,7 @@ mobs:spawn({
 
 -- Sarcosuchus: Early Cretaceous tropical river systems, ambush crocodilian
 mobs:spawn({
+	foreign           = true,   -- mobkit entity, not registered via mobs:register_mob
 	name              = "paleotest:sarcosuchus",
 	nodes             = {"default:water_source", "swamp:dirt_with_swamp_grass"},
 	neighbors         = {"air"},
@@ -201,6 +218,7 @@ mobs:spawn({
 
 -- Dunkleosteus: Devonian armoured fish, warm shallow to open seas
 mobs:spawn({
+	foreign           = true,   -- mobkit entity, not registered via mobs:register_mob
 	name              = "paleotest:dunkleosteus",
 	nodes             = {"default:water_source"},
 	neighbors         = {"air"},
@@ -216,6 +234,7 @@ mobs:spawn({
 
 -- Plesiosaurus: Jurassic/Cretaceous open seas, cool to warm waters
 mobs:spawn({
+	foreign           = true,   -- mobkit entity, not registered via mobs:register_mob
 	name              = "paleotest:plesiosaurus",
 	nodes             = {"default:water_source"},
 	neighbors         = {"air"},
@@ -235,6 +254,7 @@ mobs:spawn({
 
 -- Dire Wolf: Pleistocene North/South America, temperate grasslands and forests
 mobs:spawn({
+	foreign           = true,   -- mobkit entity, not registered via mobs:register_mob
 	name              = "paleotest:dire_wolf",
 	nodes             = {"default:dirt_with_grass", "naturalbiomes:mediterranean_litter",
 	                     "naturalbiomes:savannalitter", "default:dirt_with_dry_grass",
@@ -254,6 +274,7 @@ mobs:spawn({
 
 -- Elasmotherium: Pleistocene Eurasian cold steppe giant rhinoceros
 mobs:spawn({
+	foreign           = true,   -- mobkit entity, not registered via mobs:register_mob
 	name              = "paleotest:elasmotherium",
 	nodes             = {"default:dry_dirt_with_dry_grass", "default:dirt_with_dry_grass",
 	                     "naturalbiomes:mediterranean_litter", "naturalbiomes:savannalitter",
@@ -274,6 +295,7 @@ mobs:spawn({
 
 -- Mammoth: Pleistocene cold tundra, steppe and boreal grasslands
 mobs:spawn({
+	foreign           = true,   -- mobkit entity, not registered via mobs:register_mob
 	name              = "paleotest:mammoth",
 	nodes             = {"default:dirt_with_snow", "default:snow",
 	                     "default:dry_dirt_with_dry_grass", "default:dirt_with_dry_grass"},
@@ -292,6 +314,7 @@ mobs:spawn({
 
 -- Smilodon: Pleistocene warm to temperate grasslands and savannas
 mobs:spawn({
+	foreign           = true,   -- mobkit entity, not registered via mobs:register_mob
 	name              = "paleotest:smilodon",
 	nodes             = {"default:dirt_with_grass", "default:dirt_with_dry_grass",
 	                     "default:dry_dirt_with_dry_grass", "naturalbiomes:savannalitter",

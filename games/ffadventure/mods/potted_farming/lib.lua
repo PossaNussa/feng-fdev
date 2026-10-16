@@ -257,6 +257,20 @@ function lib.register_plant(plant_name)
 	    }
 
 	    craftitem_def.groups["food_".. plant_name] = 1
+
+	    -- let the harvested herb be sown as a regular field crop, when a
+	    -- matching farming crop exists (e.g. farming:parsley_1). Potting into a
+	    -- pot is a node right-click, so it is unaffected; herbs with no field
+	    -- crop fall back to the default (inert) place behaviour.
+	    craftitem_def.on_place = function(itemstack, placer, pointed_thing)
+	        local crop = "farming:" .. plant_name .. "_1"
+	        if farming and farming.place_seed
+	        and minetest.registered_nodes[crop] then
+	            return farming.place_seed(itemstack, placer, pointed_thing, crop)
+	        end
+	        return minetest.item_place(itemstack, placer, pointed_thing)
+	    end
+
 	    minetest.register_craftitem(lib.modname .. ":" .. plant_name, table.copy(craftitem_def) )
 
 		end -- if leaf item do not exists already (due to other mods)

@@ -35,6 +35,97 @@ local bones_formspec = make_bones_formspec(8)
 local share_bones_time = tonumber(minetest.settings:get("share_bones_time")) or 1200
 local share_bones_time_early = tonumber(minetest.settings:get("share_bones_time_early")) or share_bones_time / 4
 
+--------------------------------------------------------------------------------
+-- Named corpses (shared by village_life and mob_remains)
+--
+-- A body is a public `bones:bones` node -- owner deliberately blank so anybody
+-- may loot and dig it -- carrying the dead thing's belongings and its name. The
+-- name is kept on the node as `bones:display` ("Thorn", "Zombie"); when the body
+-- is emptied the reclaimed bones item is stamped with it, so the thing in your
+-- pack reads "Thorn's Bones" rather than a generic "Bones".
+--------------------------------------------------------------------------------
+
+-- The bones item a looter gets when a body is emptied, stamped with the dead
+-- thing's name if the node carried one.
+local function corpse_item(meta)
+	local stack = ItemStack("bones:bones")
+	local display = meta:get_string("bones:display")
+	if display ~= "" then
+		stack:get_meta():set_string("description", display .. "'s Bones")
+	end
+	return stack
+end
+
+-- Where a body dropped at `pos` can rest: air, a replaced liquid, or any
+-- buildable_to node. Falls a couple of nodes first, then looks nearby, so a
+-- thing that dies in the air still leaves a body on the ground.
+local function may_replace(pos)
+	local node = minetest.get_node_or_nil(pos)
+	if not node then return false end
+	if node.name == "air" then return true end
+	local def = minetest.registered_nodes[node.name]
+	if not def then return false end
+	if def.liquidtype and def.liquidtype ~= "none" then return true end
+	return def.buildable_to == true
+end
+
+local function find_corpse_spot(pos)
+	if may_replace(pos) then return pos end
+	for dy = -1, -2, -1 do
+		local p = {x = pos.x, y = pos.y + dy, z = pos.z}
+		if may_replace(p) then return p end
+	end
+	return minetest.find_node_near(pos, 2, {"air"})
+end
+bones.find_corpse_spot = find_corpse_spot
+
+-- Lay a body at (or just below) `pos`.
+--   opts.display  -- name stamped onto the reclaimed bones item ("Zombie")
+--   opts.infotext -- hover text (defaults to "Remains of <display>")
+--   opts.items    -- list of itemstrings / ItemStacks the body carries
+-- Returns the node position, or nil if no spot was free (the caller should then
+-- drop the items loose so nothing is lost).
+function bones.place_corpse(pos, opts)
+	opts = opts or {}
+	if not minetest.registered_nodes["bones:bones"] then return end
+	pos = vector.round(pos)
+
+	local spot = find_corpse_spot(pos)
+	if not spot then return end
+
+	local items = opts.items or {}
+	minetest.set_node(spot, {name = "bones:bones", param2 = 0})
+
+	local meta = minetest.get_meta(spot)
+	local inv = meta:get_inventory()
+	-- 8x4, matching the formspec below. Anything that doesn't fit spills loose so
+	-- it isn't lost in slots the looter can never see.
+	inv:set_size("main", 8 * 4)
+	for _, it in ipairs(items) do
+		local stack = ItemStack(it)
+		if not stack:is_empty() then
+			if inv:room_for_item("main", stack) then
+				inv:add_item("main", stack)
+			else
+				minetest.add_item(spot, stack)
+			end
+		end
+	end
+
+	-- Owner blank == public: anybody may open and dig it, which is what looting
+	-- and burying a corpse needs. (See is_owner above.)
+	meta:set_string("owner", "")
+	if opts.display and opts.display ~= "" then
+		meta:set_string("bones:display", opts.display)
+	end
+	meta:set_string("infotext", opts.infotext
+			or (opts.display and ("Remains of " .. opts.display))
+			or "Remains")
+	meta:set_string("formspec", make_bones_formspec(8))
+
+	return spot
+end
+
 local bones_def = {
 	description = S("Bones"),
 	tiles = {
@@ -82,10 +173,11 @@ local bones_def = {
 		local meta = minetest.get_meta(pos)
 		if meta:get_inventory():is_empty("main") then
 			local inv = player:get_inventory()
-			if inv:room_for_item("main", {name = "bones:bones"}) then
-				inv:add_item("main", {name = "bones:bones"})
+			local item = corpse_item(meta)
+			if inv:room_for_item("main", item) then
+				inv:add_item("main", item)
 			else
-				minetest.add_item(pos, "bones:bones")
+				minetest.add_item(pos, item)
 			end
 			minetest.remove_node(pos)
 		end
@@ -117,10 +209,11 @@ local bones_def = {
 
 		-- remove bones if player emptied them
 		if has_space then
-			if player_inv:room_for_item("main", {name = "bones:bones"}) then
-				player_inv:add_item("main", {name = "bones:bones"})
+			local item = corpse_item(minetest.get_meta(pos))
+			if player_inv:room_for_item("main", item) then
+				player_inv:add_item("main", item)
 			else
-				minetest.add_item(pos,"bones:bones")
+				minetest.add_item(pos, item)
 			end
 			minetest.remove_node(pos)
 		end

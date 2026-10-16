@@ -48,14 +48,21 @@ minetest.register_node("livingjungle:leafyjungleground", {
 	}),
 })
 
+	-- Mottles the biome floor with leaf litter, which is what every samauma tree
+	-- and most of the ground plants in jungleplants.lua place_on. The biome list
+	-- used to read {"default:cold_desert", "default:cold_desert_ocean"} -- a
+	-- copy-paste that can never fire, because cold desert's top node is desert
+	-- sand and this deco needs livingjungle:jungleground underneath. That left
+	-- leafyjungleground ungenerated and every tree that depends on it dead.
 	minetest.register_decoration({
+		name = "livingjungle:leafyjungleground",
 		deco_type = "simple",
 		place_on = {"livingjungle:jungleground"},
 		sidelen = 16,
 		place_offset_y = -1,
                 flags = "force_placement",
     fill_ratio = 0.9,
-    biomes = {"default:cold_desert", "default:cold_desert_ocean"},
+    biomes = {"livingjungle:jungle"},
 		y_max = 31000,
 		y_min = 0,
 		decoration = "livingjungle:leafyjungleground"

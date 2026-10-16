@@ -167,8 +167,26 @@ local get_volcano = function(pos)
 	end
 	
 	math.randomseed(next_seed)
-	return {location = location, depth_peak = depth_peak, depth_lava = depth_lava, slope = slope, state = state, caldera = caldera}
+	-- base_radius is the cone's radius at ground level; exported so callers
+	-- (e.g. tempsurvive's volcano heat) can size effects relative to the cone
+	-- without re-hardcoding depth_maxwidth / radius_lining.
+	local base_radius = (depth_peak - depth_maxwidth) * slope + radius_lining
+	return {location = location, depth_peak = depth_peak, depth_lava = depth_lava, slope = slope, state = state, caldera = caldera, name = name, base_radius = base_radius}
 end
+
+-- Exported so other mods can ask what is on the skyline, which until now only
+-- /findvolcano and the named_waypoints HUD could answer. Pure lookup: it
+-- generates nothing and changes nothing, and it is the same function the
+-- mapgen itself uses, so the answer is the volcano that is really there.
+--
+-- The returned `name` is the one the mod's own generator produced (nil when
+-- the name file is missing); compare `state` against
+-- magma_conduits.volcano_state_extinct / _dormant to tell an extinct cone from
+-- a live one.
+magma_conduits.get_volcano = get_volcano
+magma_conduits.volcano_state_extinct = state_extinct
+magma_conduits.volcano_state_dormant = state_dormant
+magma_conduits.volcano_region_size = volcano_region_size
 
 local perlin_params = {
 	offset = 0,

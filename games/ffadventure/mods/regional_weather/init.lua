@@ -56,8 +56,10 @@ dofile(modpath.."/ca_effects/speed_buff.lua")
 
 -- register ABM cycles and custom nodes
 dofile(modpath .. "/abms/puddle.lua")
+dofile(modpath .. "/abms/puddle_water.lua")
 dofile(modpath .. "/abms/snow_cover.lua")
 dofile(modpath .. "/abms/fire.lua")
 dofile(modpath .. "/abms/ice.lua")
+dofile(modpath .. "/abms/volcano_melt.lua")
 dofile(modpath .. "/abms/pedology.lua")
 dofile(modpath .. "/abms/soil.lua")

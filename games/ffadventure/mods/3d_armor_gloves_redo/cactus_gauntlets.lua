@@ -18,8 +18,8 @@ if minetest.get_modpath("default") and minetest.get_modpath("farming") then
     minetest.register_craft({
         type = "shaped",
         recipe = {
-            {"default:cactus", "farming:string", "default:cactus"},
-            {"default:cactus", "farming:string", "default:cactus"},
+            {"default:cactus", "", "default:cactus"},
+            {"", "", ""},
             {"", "", ""}
         },
         output = "3d_armor_gloves_redo:gloves_cactus",

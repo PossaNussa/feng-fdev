@@ -57,12 +57,14 @@ end
 function skygen.deactivate(name)
     local player = minetest.get_player_by_name(name)
     skygen.write(name, "sky_state", "inactive")
+    -- Stop contributing to the merged sky, so weather and nether get it to
+    -- themselves rather than fighting a layer nobody is updating any more.
+    skygen.clear_sky_layer(name)
     player:set_sky()
-    player:set_sun()
-    player:set_stars(skygen.default_star_params)
-    player:set_moon()
     player:set_clouds({density = 0})
     player:override_day_night_ratio(nil)
+    -- No set_sun/set_moon/set_stars: astral owns those, and skygen going
+    -- inactive is not a reason to blank the moon phase or a running eclipse.
 end
 
 function skygen.biome_mode(name)
@@ -70,11 +72,16 @@ function skygen.biome_mode(name)
     skygen.write(name, "sky_state", "biome")
     skygen.active_biome[name] = nil
     local player = minetest.get_player_by_name(name)
-    player:set_sky()
     player:override_day_night_ratio(nil)
-    player:set_sun()
-    player:set_moon()
-    player:set_stars(skygen.default_star_params)
+    -- Deliberately no set_sky/set_sun/set_moon/set_stars here.
+    --
+    -- This runs automatically every time a player descends out of the sky biome
+    -- (globalstep.lua's recover_from_override), so the bare resets that used to
+    -- live here blanked the moon phase and any astral event on the way down. The
+    -- sun and moon belong to astral; the sky re-pushes by itself on the next
+    -- globalstep because active_biome was just cleared, and that push clears the
+    -- skybox textures on its own -- set_sky empties the texture list whenever it
+    -- is given a table at all.
 end
 
 minetest.register_chatcommand("skygen_event", {

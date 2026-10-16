@@ -13,8 +13,8 @@ if minetest.get_modpath("default") and minetest.get_modpath("farming") then
     minetest.register_craft({
         type = "shaped",
         recipe = {
-            {"default:steel_ingot", "farming:string", "default:steel_ingot"},
-            {"default:steel_ingot", "farming:string", "default:steel_ingot"},
+            {"default:steel_ingot", "", "default:steel_ingot"},
+            {"", "", ""},
             {"", "", ""}
         },
         output = "3d_armor_gloves_redo:gloves_steel",

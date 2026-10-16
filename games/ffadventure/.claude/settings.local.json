@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(python3:*)",
+      "Bash(ls:*)",
+      "Bash(done)",
+      "Bash(xxd:*)",
+      "Bash(cmake --build:*)",
+      "Bash(make:*)",
+      "Bash(# The animalworld_mutton textures are in the zombies mod textures folder - cross-contamination? # Let''s find who registers animalworld:mutton grep -rn \"\"animalworld:mutton\"\" /root/Documents/luanti-fdev-master/games/ffadventure/mods/)",
+      "Bash(luac5.1:*)",
+      "Bash(sort:*)",
+      "Bash(head:*)",
+      "Bash(identify:*)",
+      "Bash(wc:*)",
+      "Bash(pip install:*)",
+      "Bash(tail:*)",
+      "Bash(awk NR>=906 && NR<=1736:*)",
+      "WebSearch",
+      "WebFetch(domain:commons.wikimedia.org)",
+      "WebFetch(domain:kenney.nl)",
+      "Bash(unzip:*)",
+      "Bash(cd:*)",
+      "Bash(mkdir:*)",
+      "WebFetch(domain:content.luanti.org)",
+      "Bash(git:*)",
+      "Bash(nm:*)"
+    ]
+  }
+}

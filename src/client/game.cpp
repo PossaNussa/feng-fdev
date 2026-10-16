@@ -949,6 +949,10 @@ bool Game::startup(volatile std::sig_atomic_t *kill,
 			start_data.socket_port, start_data.game_spec))
 		return false;
 
+	// FlashEng: the local server has now loaded the game's minetest.conf
+	// (settings layer SL_GAME), which may provide key binding defaults.
+	input->reloadKeybindings();
+
 	if (!createClient(start_data))
 		return false;
 

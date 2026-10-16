@@ -260,6 +260,25 @@ minetest.register_node("flowers:mushroom_brown", {
 	}
 })
 
+-- Roasted brown mushroom. The cooking recipe feeds a furnace; the campfire
+-- auto-scan (default/mud.lua) reads every "cooking" recipe with an edible output,
+-- so a mushroom roasts over a campfire as well. Only the brown (edible) cap
+-- cooks -- the red one is poison.
+minetest.register_craftitem("flowers:mushroom_brown_roasted", {
+	description = S("Roasted Mushroom"),
+	inventory_image = "flowers_mushroom_brown.png^[colorize:#3A2408:120",
+	wield_image = "flowers_mushroom_brown.png^[colorize:#3A2408:120",
+	on_use = minetest.item_eat(3),
+	groups = {food = 2, food_mushroom = 1, flammable = 2},
+})
+
+minetest.register_craft({
+	type = "cooking",
+	cooktime = 5,
+	output = "flowers:mushroom_brown_roasted",
+	recipe = "flowers:mushroom_brown",
+})
+
 
 -- Mushroom spread and death
 

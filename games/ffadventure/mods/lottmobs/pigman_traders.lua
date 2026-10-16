@@ -102,6 +102,28 @@ lottmobs.pigman_baker = {
 	}
 }
 
+-- Cheesemaker - the dairy. Goods are supplied by village_life's P.cheesemaker
+-- when the economy is on; these items are the fallback for a stock lottmobs
+-- trade, and the messages are what the greeting reads either way.
+lottmobs.pigman_cheesemaker = {
+	items = {
+		{"cheese:caciocavallo 4", "simplecoins:coins 30", 10},
+		{"cheese:mozzarella 6", "simplecoins:coins 26", 8},
+		{"cheese:ricotta 6", "simplecoins:coins 22", 10},
+		{"cheese:butter 6", "simplecoins:coins 24", 12},
+		{"cheese:smoked_scamorza 4", "simplecoins:coins 34", 16},
+		{"animalia:bucket_milk 1", "simplecoins:coins 25", 12},
+	},
+	names = pigman_names,
+	messages = {
+		"Cheese, fresh off the rack. Smell that.",
+		"Milk in, cheese out -- that's the whole of my day.",
+		"The smoked scamorza's ready, if you've the coin.",
+		"A wheel of this keeps a month on the road.",
+		"My curds are the softest this side of the valley.",
+	}
+}
+
 -- Farmer - sells crops, seeds, and farming supplies
 lottmobs.pigman_farmer = {
 	items = {
@@ -567,6 +589,9 @@ lottmobs.pigman_profession_map = {
 	["grocer"] = lottmobs.pigman_foodseller,
 	["fishmonger"] = lottmobs.pigman_foodseller,
 	["tavern cook"] = lottmobs.pigman_foodseller,
+	["cheesemaker"] = lottmobs.pigman_cheesemaker,
+	["cheesemonger"] = lottmobs.pigman_cheesemaker,
+	["dairymaid"] = lottmobs.pigman_cheesemaker,
 
 	-- Building trades
 	["stonemason"] = lottmobs.pigman_stonemason,
@@ -754,7 +779,10 @@ mobs:register_mob("lottmobs:pigman_trader", {
 	race = "pigman",
 	hp_min = 15,
 	hp_max = 25,
-	collisionbox = {-0.35, -1.0, -0.35, 0.35, 0.8, 0.35},
+	-- character.b3d has its origin at the feet (0 .. 1.7 nodes), unlike the old
+	-- lottarmor_character.b3d which is centred (-1.02 .. 0.78). Using a centred
+	-- box here made the trader hover a full node above the ground.
+	collisionbox = {-0.35, -0.01, -0.35, 0.35, 1.69, 0.35},
 	textures = {
 		{"wheat_farmer_by_addi.png"},
 		{"baeuerin.png"},
@@ -814,6 +842,130 @@ mobs:register_mob("lottmobs:pigman_trader", {
 	end,
 })
 
+-- Career -> skin. A handful of village skins were drawn for the trades the game
+-- actually hands out, and every title is funnelled into one of them, so a smith
+-- looks like a smith whether the bed row calls him "smith", "goldsmith" or
+-- "weaponsmith". These arrive as 64x64 sheets and are cropped to the top 32 rows
+-- -- the legacy layout the character mesh reads (skinsdb ships both) -- so left
+-- limbs mirror the right and there is no second layer, same as the older skins.
+local CAREER_SKIN = {
+	-- the forge (the coppersmith has a skin of his own now)
+	smith = "villager_blacksmith.png", blacksmith = "villager_blacksmith.png",
+	bronzesmith = "villager_blacksmith.png",
+	goldsmith = "villager_blacksmith.png", tinsmith = "villager_blacksmith.png",
+	weaponsmith = "villager_blacksmith.png", toolsmith = "villager_blacksmith.png",
+	["ore seller"] = "villager_blacksmith.png",
+	coppersmith = "villager_coppersmith.png",
+	-- the counter
+	merchant = "villager_merchant.png", trader = "villager_merchant.png",
+	shopkeeper = "villager_merchant.png", clothier = "villager_merchant.png",
+	tailor = "villager_merchant.png", potter = "villager_merchant.png",
+	claytrader = "villager_merchant.png", jeweler = "villager_merchant.png",
+	iceman = "villager_iceman.png",
+	-- the quarry (the stoneminer has a skin of his own)
+	stonemason = "villager_stonemason.png", bricklayer = "villager_stonemason.png",
+	potterer = "villager_stonemason.png", stoneminer = "villager_stoneminer.png",
+	-- the workshop
+	carpenter = "villager_carpenter.png", toolmaker = "villager_carpenter.png",
+	doormaker = "villager_carpenter.png", stairmaker = "villager_carpenter.png",
+	furnituremaker = "villager_carpenter.png", cooper = "villager_carpenter.png",
+	wheelwright = "villager_carpenter.png",
+	-- the land
+	farmer = "villager_farmer.png", ["seed seller"] = "villager_farmer.png",
+	["flower seller"] = "villager_farmer.png", gardener = "villager_farmer.png",
+	miller = "villager_farmer.png", shepherd = "villager_farmer.png",
+	cheesemaker = "villager_farmer.png", cheesemonger = "villager_farmer.png",
+	dairymaid = "villager_farmer.png",
+	-- the inn
+	innkeeper = "villager_innkeeper.png", barkeeper = "villager_innkeeper.png",
+	landlord = "villager_innkeeper.png", tavernkeeper = "villager_innkeeper.png",
+	-- the church
+	priest = "villager_priest.png", cleric = "villager_priest.png",
+	monk = "villager_priest.png", druid = "villager_priest.png",
+	-- the tannery: hides, tanned leather, leather armour (economy.lua P.tanner)
+	tanner = "villager_tanner.png", leatherworker = "villager_tanner.png",
+	currier = "villager_tanner.png", saddler = "villager_tanner.png",
+	-- the dye-vats: the dyer's stained green robe and apron
+	dyemaker = "villager_dyemaker.png", dyemakerl = "villager_dyemaker.png",
+	-- the road: inn guests and travelling adventurers wear the explorer's cloak
+	guest = "villager_explorer.png", adventurer = "villager_explorer.png",
+	explorer = "villager_explorer.png", wanderer = "villager_explorer.png",
+	-- ...and an adventurer talked into settling keeps the coat of its kind, so a
+	-- retired veteran stays a veteran once it has a bed. These mirror the per-kind
+	-- skins village_life's adventurer.lua forces on a live traveller; the gendered
+	-- wayfarer and the two-coat pirate are in GENDERED_SKIN just below.
+	veteran = "villager_veteran.png", sailor = "villager_sailor.png",
+	barbarian = "villager_barbarian.png",
+}
+
+-- Careers with a female cut, and some with two variants. The variant is chosen
+-- from a stable seed (the villager's identity), never at random: a random pick
+-- would land on a different face every mapblock reload -- the reload-flip the
+-- apply_role note in village_life warns about. m/f each hold a list; a career
+-- with no list for the asked gender falls through to the plain career skin (nil
+-- for these), leaving that villager on its default rather than a wrong-sexed one.
+local GENDERED_SKIN = {
+	guard   = {m = {"villager_guard.png", "villager_guard_default.png",
+	                "villager_guard3.png"},
+	           f = {"villager_guard_f.png", "villager_guard_f2.png",
+	                "villager_guard_f3.png", "villager_guard_f4.png"}},
+	soldier = {m = {"villager_guard.png", "villager_guard_default.png",
+	                "villager_guard3.png"},
+	           f = {"villager_guard_f.png", "villager_guard_f2.png",
+	                "villager_guard_f3.png", "villager_guard_f4.png"}},
+	housemaid = {f = {"villager_housemaid.png", "villager_housemaid2.png"}},
+	servant   = {f = {"villager_housemaid.png", "villager_housemaid2.png"}},
+	-- Settled adventurers whose kind has a gendered cut (the wayfarer's explorer
+	-- sheets) or two coats to pick between (the pirate). The variant is a stable
+	-- pick off the villager's id, so a settled pirate keeps the same coat on every
+	-- reload rather than flipping between the two.
+	wayfarer = {m = {"villager_explorer.png"}, f = {"villager_explorer_f.png"}},
+	pirate   = {m = {"villager_pirate.png", "villager_pirate2.png"},
+	            f = {"villager_pirate.png", "villager_pirate2.png"}},
+}
+
+-- Deterministic pick from a list, hashed off a stable seed string. One entry
+-- needs no hashing; this is only ever a handful of skins, so a rolling byte hash
+-- is plenty and does not pull in a generator.
+local function stable_pick(list, seed)
+	if #list <= 1 then return list[1] end
+	local s = tostring(seed or "")
+	local h = 2166136261
+	for i = 1, #s do h = (h * 16777619 + s:byte(i)) % 2147483647 end
+	return list[(h % #list) + 1]
+end
+
+-- The skin for a profession, or nil for anything with no drawn skin. Nil is
+-- deliberate: callers leave a skinless villager on whatever it already had (the
+-- mob's own registered set), so this only ever *adds* the village skins and can
+-- never point a villager at a texture that is not there. `gender` ("m"/"f") and
+-- `seed` (a stable per-villager string) matter only to the gendered careers.
+function lottmobs.pigman_trader_texture(profession, gender, seed)
+	profession = (profession and profession:lower()) or ""
+	local g = GENDERED_SKIN[profession]
+	if g then
+		local list = g[gender == "f" and "f" or "m"]
+		if list then return stable_pick(list, seed or profession) end
+	end
+	return CAREER_SKIN[profession]
+end
+
+-- The old spawn-time default for the professions the five careers don't cover:
+-- a female skin, the lumberjack's, or one of the generic male trader skins.
+-- Used only at spawn, never forced afterwards, so a non-career villager is not
+-- reshuffled on every mapblock reload.
+local MALE_DEFAULT = {
+	"kuhhaendler.png", "bauer_in_sonntagskleidung.png", "character.png",
+	"wheat_farmer_by_addi.png",
+}
+local function default_skin(profession, gender)
+	if gender == "f" then return "baeuerin.png" end
+	if profession == "lumberjack" or profession == "sawmill owner" then
+		return "holzfaeller.png"
+	end
+	return MALE_DEFAULT[math.random(1, #MALE_DEFAULT)]
+end
+
 -- Function to spawn a pigman trader with a specific profession (called by mg_villages)
 function lottmobs.spawn_pigman_trader(pos, profession, name, gender)
 	local obj = minetest.add_entity(pos, "lottmobs:pigman_trader")
@@ -827,25 +979,21 @@ function lottmobs.spawn_pigman_trader(pos, profession, name, gender)
 			if name then
 				ent.game_name = name
 			end
-			-- Set texture based on gender (matching mobf_trader behavior)
-			local texture
-			if gender == "f" then
-				texture = "baeuerin.png"
-			else
-				-- Select texture based on profession for males
-				if profession == "blacksmith" or profession == "smith" or profession == "coppersmith" or profession == "bronzesmith" then
-					texture = "blacksmith.png"
-				elseif profession == "lumberjack" or profession == "sawmill owner" then
-					texture = "holzfaeller.png"
-				elseif profession == "farmer" then
-					texture = "wheat_farmer_by_addi.png"
-				else
-					-- Random selection from village trader textures
-					local male_textures = {"kuhhaendler.png", "bauer_in_sonntagskleidung.png", "character.png", "wheat_farmer_by_addi.png"}
-					texture = male_textures[math.random(1, #male_textures)]
-				end
-			end
+			-- The five career skins are forced; everyone else keeps the old
+			-- default. base_texture, not just the object property: mob_activate
+			-- reselects base_texture on every load and would otherwise stamp a
+			-- random one back over a career skin on the first reload -- the old
+			-- "skin only sets when you right-click it" bug. apply_role re-forces
+			-- the career skin on every activation to close that for good.
+			local texture = lottmobs.pigman_trader_texture(profession, gender,
+							name or profession)
+					or default_skin(profession, gender)
 			if texture then
+				-- base_texture must be a TABLE ({"name.png"}), the same shape
+				-- creaturemob stores from the mob's registered textures list. It
+				-- re-applies it verbatim via set_properties on later refreshes, so
+				-- a bare string here renders as the missing-texture placeholder.
+				ent.base_texture = {texture}
 				obj:set_properties({textures = {texture}})
 			end
 		end

@@ -1,0 +1,4 @@
+The media assets (sounds) from Water Overhaul are all CC0 and sourced from https://opengameart.org/content/40-cc0-water-splash-slime-sfx
+Thank you to OpenGameArt.com user RubberDuck for their awesome contribution!
+Some sounds have been trimmed and all sounds have been downsampled for memory optimization.
+View LICENSE.txt for a copy of cc0 license.

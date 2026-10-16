@@ -45,7 +45,9 @@ mobs:register_mob("lottmobs:nune_guard", {
 	makes_footstep_sound = true,
 	view_range = 12,
     game_name = "Default Name",
-    order = "stand",
+    -- No standing order: an un-hired nune guard wanders its post like every other
+    -- lottmobs guard (elf/dwarf/mung set none), instead of freezing in place.
+    -- lottmobs.guard still sets order = "follow" when you hire/recruit one.
     whitelist = {},
     blacklist = {},
 	walk_velocity = 2,

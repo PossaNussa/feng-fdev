@@ -46,9 +46,30 @@ end
 -- HUD notifications
 -- =============================================================================
 
-local function show_hud_notification(player, text, duration)
+-- `icon` must be a texture name.  A HUD element of type "image" takes its
+-- texture in the `text` field, so handing a texture to a "text" element (or an
+-- item name to an "image" element) is what makes a raw "something.png" show up
+-- on screen instead of the picture.
+local function show_hud_notification(player, text, duration, icon)
 	duration = duration or 4
-	local hud_id = player:hud_add({
+	local hud_ids = {}
+
+	-- Accept "foo.png" and "foo.png^[modifier"; skip anything that is an item
+	-- name rather than a texture, which would only draw a broken image.
+	if icon and icon:find("%.png") then
+		local image_id = player:hud_add({
+			hud_elem_type = "image",
+			position = {x = 0.5, y = 0.15},
+			offset = {x = 0, y = -38},
+			text = icon,
+			scale = {x = 3, y = 3},
+			alignment = {x = 0, y = 0},
+			z_index = 1000,
+		})
+		if image_id then hud_ids[#hud_ids + 1] = image_id end
+	end
+
+	local text_id = player:hud_add({
 		hud_elem_type = "text",
 		position = {x = 0.5, y = 0.15},
 		offset = {x = 0, y = 0},
@@ -59,14 +80,17 @@ local function show_hud_notification(player, text, duration)
 		size = {x = 2, y = 2},
 		z_index = 1000,
 	})
-	if hud_id then
-		minetest.after(duration, function()
-			local p = minetest.get_player_by_name(player:get_player_name())
-			if p then
-				p:hud_remove(hud_id)
+	if text_id then hud_ids[#hud_ids + 1] = text_id end
+
+	if #hud_ids == 0 then return end
+	minetest.after(duration, function()
+		local p = minetest.get_player_by_name(player:get_player_name())
+		if p then
+			for _, id in ipairs(hud_ids) do
+				p:hud_remove(id)
 			end
-		end)
-	end
+		end
+	end)
 end
 
 -- =============================================================================
@@ -75,7 +99,7 @@ end
 
 local function on_quest_complete(player, q)
 	mark_quest_done(player, q.id)
-	show_hud_notification(player, "Quest complete: " .. q.desc)
+	show_hud_notification(player, "Quest complete: " .. q.desc, nil, q.icon)
 
 	-- Check if the quest's stage just completed
 	local completed = get_completed(player)
@@ -109,20 +133,40 @@ end
 
 local esc = minetest.formspec_escape
 
--- Get the display item for a quest (for item_image in formspec)
+-- Get the display item for a quest (for item_image in formspec).
+-- Resolved once per quest: the item list cannot change after load, and this
+-- runs on every redraw of the tab.
+local display_item_cache = {}
+
 local function quest_display_item(q)
-	if q.items then return q.items[1] or "" end
-	-- For group-based quests, find any registered item in that group
-	if q.groups then
-		for name, def in pairs(minetest.registered_nodes) do
-			for _, g in ipairs(q.groups) do
-				if minetest.get_item_group(name, g) > 0 then
-					return name
+	local cached = display_item_cache[q.id]
+	if cached then return cached end
+
+	local item = ""
+	if q.display_item then
+		item = q.display_item
+	elseif q.items and q.items[1] then
+		item = q.items[1]
+	elseif q.groups then
+		-- For group-based quests, pick a registered item from that group. The
+		-- lowest name wins so the tab shows the same item every time rather
+		-- than whatever pairs() happened to hand back first.
+		local best
+		for name in pairs(minetest.registered_items) do
+			if name ~= "" then
+				for _, g in ipairs(q.groups) do
+					if minetest.get_item_group(name, g) > 0
+							and (best == nil or name < best) then
+						best = name
+					end
 				end
 			end
 		end
+		item = best or ""
 	end
-	return ""
+
+	display_item_cache[q.id] = item
+	return item
 end
 
 i3.new_tab("quests", {
@@ -162,7 +206,11 @@ i3.new_tab("quests", {
 
 			-- Item image
 			fs("item_image[0.5," .. (y - 0.2) .. ";0.6,0.6;" .. quest_display_item(q) .. "]")
-			-- Checkbox + description
+			-- Checkbox + description.  esc() must wrap the whole thing: the
+			-- checkbox contains [ and ], which would otherwise terminate the
+			-- label element early and blank out the entire quest list.
+			-- colorize's escape sequences pass through esc() unharmed -- they
+			-- start with a literal ESC byte, not a backslash.
 			local desc_color = done and "#00FF00" or "#FFFFFF"
 			fs("label[1.3," .. y .. ";" .. esc(check .. minetest.colorize(desc_color, q.desc)) .. "]")
 			y = y + 0.6
@@ -193,16 +241,25 @@ i3.new_tab("quests", {
 -- Craft trigger
 -- =============================================================================
 
--- Build lookup: item_name -> list of quest defs
+-- Build lookup: item_name -> list of quest defs.
+--
+-- Quests may also match on groups.  Several mods register a family of items
+-- rather than the single one a quest names -- craft_table, for instance, has
+-- fifteen coloured tables and no plain "craft_table:simple" -- so matching by
+-- exact name alone quietly never fires.
 local craft_triggers = {}
+local craft_group_triggers = {}
 for _, stage in ipairs(quests.stages) do
 	for _, q in ipairs(stage.quests) do
 		if q.trigger == "craft" then
-			for _, item_name in ipairs(q.items) do
+			for _, item_name in ipairs(q.items or {}) do
 				if not craft_triggers[item_name] then
 					craft_triggers[item_name] = {}
 				end
 				table.insert(craft_triggers[item_name], q)
+			end
+			if q.groups then
+				table.insert(craft_group_triggers, q)
 			end
 		end
 	end
@@ -211,12 +268,24 @@ end
 minetest.register_on_craft(function(itemstack, player, old_craft_grid, craft_inv)
 	if not player or not player:is_player() then return end
 	local item_name = itemstack:get_name()
-	local matching = craft_triggers[item_name]
-	if not matching then return end
 
-	for _, q in ipairs(matching) do
+	local matching = craft_triggers[item_name]
+	if matching then
+		for _, q in ipairs(matching) do
+			if not is_quest_done(player, q.id) then
+				on_quest_complete(player, q)
+			end
+		end
+	end
+
+	for _, q in ipairs(craft_group_triggers) do
 		if not is_quest_done(player, q.id) then
-			on_quest_complete(player, q)
+			for _, group in ipairs(q.groups) do
+				if minetest.get_item_group(item_name, group) > 0 then
+					on_quest_complete(player, q)
+					break
+				end
+			end
 		end
 	end
 end)

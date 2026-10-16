@@ -1581,7 +1581,7 @@ int ModApiMapgen::l_clear_registered_schematics(lua_State *L)
 }
 
 
-// generate_ores(vm, p1, p2)
+// generate_ores(vm, p1, p2, [biomemap])
 int ModApiMapgen::l_generate_ores(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
@@ -1607,6 +1607,21 @@ int ModApiMapgen::l_generate_ores(lua_State *L)
 	v3s16 pmax = lua_istable(L, 3) ? check_v3s16(L, 3) :
 			mg.vm->m_area.MaxEdge - v3s16(1,1,1) * MAP_BLOCKSIZE;
 	sortBoxVerticies(pmin, pmax);
+
+	// Optional flat biomemap (biome ids, one per column, Lua index
+	// (z - pmin.Z) * width + (x - pmin.X) + 1). Lets Lua-driven biome
+	// painters (biomegen) keep ores' biome restrictions working.
+	std::vector<biome_t> biomemap;
+	if (lua_istable(L, 4)) {
+		u32 len = (u32)(pmax.X - pmin.X + 1) * (u32)(pmax.Z - pmin.Z + 1);
+		biomemap.resize(len);
+		for (u32 i = 0; i < len; i++) {
+			lua_rawgeti(L, 4, i + 1);
+			biomemap[i] = (biome_t)lua_tointeger(L, -1);
+			lua_pop(L, 1);
+		}
+		mg.biomemap = biomemap.data();
+	}
 
 	u32 blockseed = Mapgen::getBlockSeed(pmin, mg.seed);
 

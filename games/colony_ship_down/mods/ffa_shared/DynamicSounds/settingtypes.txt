@@ -1,0 +1,104 @@
+# DynamicSounds settings
+
+# Wrap minetest.sound_play to apply occlusion/reflections to all sounds
+# type: bool
+# default: false
+# scope: world
+# description: When true, all sounds played via minetest.sound_play will be processed by DynamicSounds.
+dynamicsounds.enable_wrapper (Wrap all sounds) bool true
+
+# Occlusion strength [0..1]
+# type: float
+# default: 0.7
+# scope: world
+# description: Multiplier applied when blocked. Higher = stronger muffling/attenuation.
+dynamicsounds.occlusion_strength (Occlusion strength) float 0.7 0.0 1.0
+
+# Raycast step resolution in nodes
+# type: float
+# default: 1.0
+# scope: world
+# description: Step size used when checking along path between source and listener for blocking nodes.
+dynamicsounds.raycast_step (Raycast step) float 0.5 0.1 2.0
+
+# Maximum nodes to inspect when tracing to listener
+# type: int
+# default: 24
+# scope: world
+# description: Higher costs more. Limits how far occlusion is checked.
+dynamicsounds.max_trace_nodes (Max trace nodes) int 64 8 256
+
+# Speed of sound used for reflection delay (m/s)
+# type: float
+# default: 340
+# scope: world
+# description: Used to compute reflection delay (distance / speed).
+dynamicsounds.speed_of_sound (Speed of sound) float 340 100 1000
+
+# Number of simple reflections to create
+# type: int
+# default: 2
+# scope: world
+# description: Each reflection spawns a delayed, quieter copy of the sound.
+dynamicsounds.max_reflections (Max reflections) int 4 0 8
+
+# Echo decay per reflection
+# type: float
+# default: 0.5
+# scope: world
+# description: Multiplicative gain factor per reflection.
+dynamicsounds.echo_decay (Echo decay) float 0.65 0.1 0.99
+
+# Material muffle factors by group (CSV key:value)
+# type: string
+# default: stone:0.9,wood:0.6,leaves:0.2,glass:0.3,metal:0.8,water:0.9
+# scope: world
+# description: Factor contributed by blocking nodes with matching group. Higher = more muffling/attenuation.
+dynamicsounds.material_muffle_factor (Material muffle factors) string stone:0.9,wood:0.6,leaves:0.2,glass:0.3,metal:0.8,water:0.9
+
+# Enclosure detection samples along axis directions near the listener
+dynamicsounds.enclosure_probe_steps (Enclosure probe steps) int 6 2 16
+dynamicsounds.enclosure_occlusion_boost (Enclosure occlusion boost) float 0.5 0.0 2.0
+dynamicsounds.enclosure_reflection_boost (Enclosure reflection boost) float 1.0 0.0 3.0
+
+# Late reverb tail for enclosed spaces
+dynamicsounds.late_reverb_taps (Late reverb taps) int 6 0 16
+dynamicsounds.late_reverb_decay (Late reverb decay) float 0.7 0.3 0.99
+dynamicsounds.late_reverb_min_ms (Late reverb min delay ms) int 80 30 200
+dynamicsounds.late_reverb_max_ms (Late reverb max delay ms) int 450 120 1200
+
+# Non-positional and reflection realism
+dynamicsounds.process_non_positional (Process non-positional sounds) bool true
+dynamicsounds.ambient_cover_muffle (Ambient cover muffle) float 0.6 0.0 1.0
+dynamicsounds.reflection_raycast (Reflection raycast) bool true
+dynamicsounds.nonpos_profile (Nonpos processing profile: smart/ui/ambient) enum smart ui,ambient
+dynamicsounds.ambient_name_patterns (Ambient name patterns CSV) string rain,weather,ambient,wind,water,fire
+dynamicsounds.ui_name_patterns (UI name patterns CSV) string pickup,item,click,ui,pop,xp
+dynamicsounds.footstep_name_patterns (Footstep name patterns CSV) string footstep,step,walk,run,land,jump
+dynamicsounds.material_reflectivity (Material reflectivity CSV) string stone:0.95,metal:0.97,glass:0.9,ice:0.85,wood:0.6,dirt:0.35,sand:0.3,gravel:0.35,wool:0.15,leaves:0.1,water:0.05
+dynamicsounds.secondary_reflections (Enable secondary bounces) bool true
+dynamicsounds.max_secondary_reflections (Max secondary bounces per first hit) int 2 0 4
+dynamicsounds.near_distance (Near distance meters) float 1.8 0.5 4.0
+dynamicsounds.near_min_direct_gain (Near min direct gain) float 0.2 0.0 0.8
+dynamicsounds.near_occlusion_relax (Near occlusion relax 0-1) float 0.5 0.0 1.0
+dynamicsounds.near_occlusion_distance (Near occlusion distance m) float 2.0 0.5 4.0
+dynamicsounds.occlusion_start_offset (Occlusion start offset m) float 0.6 0.0 2.0
+dynamicsounds.handle_ttl (Group handle auto-cleanup seconds; 0=disabled) int 0 0 600
+
+# Room and echo realism
+dynamicsounds.room_probe_maxdist (Room probe max distance) int 40 10 100
+dynamicsounds.rt60_scale (Reverb length scale) float 0.15 0.05 0.6
+dynamicsounds.reflection_absorb (Reflection absorption proxy) float 0.25 0.05 0.9
+dynamicsounds.reverb_tap_density (Reverb tap density, taps/sec) int 60 0 240
+dynamicsounds.pitch_muffle_amount (Pitch muffle amount) float 0.02 0.0 0.2
+dynamicsounds.min_reflection_delay_ms (Minimum reflection delay ms) int 45 0 150
+dynamicsounds.late_reverb_predelay_ms (Late reverb predelay ms) int 70 0 200
+dynamicsounds.occluded_reflection_boost (Extra echo boost when occluded) float 0.6 0.0 2.0
+dynamicsounds.occluded_min_reflection_delay_ms (Min reflection delay when occluded ms) int 18 0 100
+dynamicsounds.occluded_diffuse_spill (Enable occluded diffuse spill) bool true
+dynamicsounds.occluded_direct_gain_floor (Direct gain floor when occluded) float 0.06 0.0 0.3
+dynamicsounds.reverb_tail_min_gain (Late tail min base gain) float 0.22 0.0 0.8
+dynamicsounds.indoor_outdoor_reflection_mult (Outdoor-to-indoor reflection multiplier) float 0.35 0.0 1.0
+dynamicsounds.indoor_outdoor_skip_tail (Skip late tail for outdoor->indoor) bool true
+dynamicsounds.indoor_outdoor_disable_spill (Disable diffuse spill for outdoor->indoor) bool true
+dynamicsounds.indoor_outdoor_extra_occlusion (Extra occlusion for outdoor->indoor direct) float 0.2 0.0 0.8

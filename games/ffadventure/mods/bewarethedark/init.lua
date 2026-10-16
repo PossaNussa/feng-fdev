@@ -86,6 +86,8 @@ minetest.register_on_respawnplayer(function(player)
     M.hud_update(player, 20)
 end)
 
+local artificial_only = minetest.settings:get_bool("bewarethedark_artificial_only", false)
+
 minetest.register_globalstep(function(dtime)
     M.timer = M.timer + dtime
     if M.timer < C.tick_time then return end
@@ -103,7 +105,9 @@ minetest.register_globalstep(function(dtime)
                 pos.y = math.floor(pos.y) + 1.5
                 local node = minetest.get_node(pos)
 
-                local light = minetest.get_node_light(pos) or 9
+                -- bewarethedark_artificial_only: count lamps only, never sunlight
+                -- (light "at midnight"), e.g. for games set in space.
+                local light = minetest.get_node_light(pos, artificial_only and 0 or nil) or 9
                 if node.name == "ignore" then
                     light = 9
                 end

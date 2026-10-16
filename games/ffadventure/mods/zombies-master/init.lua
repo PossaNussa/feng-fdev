@@ -1679,10 +1679,10 @@ mobs:register_mob("zombies:gnoll", {
 end,
 	makes_footstep_sound = true,
 	sounds = {
-		random = "hyena-laugh",  -- Replace with your lion sounds
+		random = {name = "hyena-laugh", gain = 0.4},  -- 60% quieter laugh
 		damage = "growl-101263",
 		attack = "hyowl",
-		death = "hyena-laugh",
+		death = {name = "hyena-laugh", gain = 0.1},  -- much quieter death laugh
 	},
 	walk_velocity = 1.2,  -- Adjust if you want different movement speed
 	run_velocity = 1.8,  -- Lions are faster than zombies
@@ -4605,11 +4605,8 @@ minetest.register_craft({
 minetest.register_craftitem("zombies:clownfish_raw", {
 	description = ("Clownfish"),
 	inventory_image = "mcl_fishing_clownfish_raw.png",
-	on_place = minetest.item_eat(1),
-	on_secondary_use = minetest.item_eat(1),
 	stack_max = 95,
-	groups = { food=2, eatable = 1 },
-	_mcl_saturation = 0.2,
+	groups = { food=2 },
 })
 
   mobs:register_spawn("zombies:salmon", {"default:water_source"}, 15, 0,8000, 3, 31000, nil)

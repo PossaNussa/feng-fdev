@@ -8,6 +8,25 @@ calendar = {}
 
 local epoch_offset = 80  -- Set the desired starting year (e.g., year 80)
 
+-- Day-of-year that a brand new world starts on, 0-based, in a 12x30 = 360 day
+-- year. 80 = 21 March, the vernal equinox and the first day of spring.
+--
+-- Worlds used to start on 1 January, i.e. the dead of winter: no tall grass, a
+-- deep seasonal cold penalty and nothing to forage, which makes the opening
+-- hunter-gatherer stretch close to unplayable. Starting at the equinox instead
+-- puts day one at the beginning of the growing season.
+--
+-- Applied only where the *live* day count is read. A total_days passed in by a
+-- caller is already an absolute calendar day number and is used as-is, which is
+-- what keeps gui.lua's month navigation (which reconstructs total_days from a
+-- date this module handed it) self-consistent.
+calendar.START_DAY_OF_YEAR = 80
+
+--- The current absolute calendar day: elapsed world days plus the start offset.
+function calendar.get_current_day()
+	return (minetest.get_day_count() or 0) + calendar.START_DAY_OF_YEAR
+end
+
 if not minetest.translate then
 	-- No translation system available, use dummy functions
 	function calendar._translate(textdomain, str, ...)
@@ -75,7 +94,7 @@ end
 
 calendar.get_holidays = function(total_days)
 	if not total_days then
-		total_days = minetest.get_day_count()
+		total_days = calendar.get_current_day()
 	end
 	local days, months, years = calendar.get_date(total_days)
 	local found_holidays = {}
@@ -98,14 +117,14 @@ end
 
 calendar.get_weekday = function(total_days)
 	if not total_days then
-		total_days = minetest.get_day_count()
+		total_days = calendar.get_current_day()
 	end
 	return (total_days + calendar.FIRST_WEEK_DAY) % calendar.WEEK_DAYS
 end
 
 calendar.get_date = function(total_days, ordinal)
 	if not total_days then
-		total_days = minetest.get_day_count()
+		total_days = calendar.get_current_day()
 	end
 
 	local y = math.floor(total_days / calendar.YEAR_DAYS) + epoch_offset -- elapsed years in epoch
@@ -137,7 +156,7 @@ end
 
 calendar.get_date_string = function(format, total_days)
 	if not total_days then
-		total_days = minetest.get_day_count()
+		total_days = calendar.get_current_day()
 	end
 
 	if format == nil then

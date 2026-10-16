@@ -63,6 +63,7 @@ local function make_heightmaps(minp, maxp)
 	local terrain_height_map = {}
 	local lake_height_map = {}
 	local dpmax_map = {}
+	local rwidth_map = {}
 
 	local i = 1
 	for z=minp.z, maxp.z do
@@ -92,6 +93,12 @@ local function make_heightmaps(minp, maxp)
 					c_SE - (1-xf) - (1-zf), -- South-East corner (7)
 					c_SW -    xf  - (1-zf), -- South-West corner (8)
 				}
+				-- The river width of each of those 8 sections, same order.
+				-- A section with width 0 carries no river at all.
+				local section_widths = {
+					r_west, r_north, r_east, r_south,
+					c_NW, c_NE, c_SE, c_SW,
+				}
 
 				-- Find the maximal depth factor, which determines to which of the 8 river sections (4 edges + 4 corners) the current point belongs.
 				-- If imax is still at 0, it means that we are not in a river.
@@ -103,11 +110,24 @@ local function make_heightmaps(minp, maxp)
 						imax = i
 					end
 				end
-				-- Track unclamped max depth_factor for blend zone detection (v7_rivers)
-				local raw_dpmax = depth_factors[1]
-				for _i=2, 8 do
-					if depth_factors[_i] > raw_dpmax then
+				-- Signed distance to the nearest actual river, in polygon
+				-- fractions, for blend zone detection (v7_rivers): > 0 inside
+				-- the river, 0 on its bank, < 0 outside it.
+				--
+				-- Only sections that carry a river may be considered.  A
+				-- section with width 0 has depth factor -distance_to_section,
+				-- so including it would make this the distance to the nearest
+				-- polygon EDGE, which is between -0.5 and 0 for every point on
+				-- the map whether there is a river within a hundred blocks or
+				-- not.  v7_rivers would then blend the whole world towards the
+				-- river heightmap, hardest along the polygon lattice, and scar
+				-- the terrain into a grid of squares.
+				local raw_dpmax = -math.huge
+				local raw_width = 0
+				for _i=1, 8 do
+					if section_widths[_i] > 0 and depth_factors[_i] > raw_dpmax then
 						raw_dpmax = depth_factors[_i]
+						raw_width = section_widths[_i]
 					end
 				end
 
@@ -179,16 +199,24 @@ local function make_heightmaps(minp, maxp)
 				terrain_height_map[i] = terrain_height
 				lake_height_map[i] = lake_height
 				dpmax_map[i] = raw_dpmax
+				rwidth_map[i] = raw_width
 			else
+				-- Outside the river grid entirely (past the edge of the
+				-- pregenerated map). dpmax alone cannot say so -- it is also
+				-- -math.huge for any in-grid column with no river near it -- and
+				-- the heights here are the margin elevation, not terrain, so a
+				-- consumer differencing them against anything gets nonsense.
+				-- A negative width is the marker for "no data here".
 				terrain_height_map[i] = out_elev
 				lake_height_map[i] = out_elev
 				dpmax_map[i] = -math.huge
+				rwidth_map[i] = -1
 			end
 			i = i + 1
 		end
 	end
 
-	return terrain_height_map, lake_height_map, dpmax_map
+	return terrain_height_map, lake_height_map, dpmax_map, rwidth_map
 end
 
 return make_heightmaps

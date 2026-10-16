@@ -557,7 +557,8 @@ mob_basics.spawn_mob = function( pos, mob_typ, player_name, mob_entity_name, pre
 		initialize      = true;
 	end
 	-- slightly above the position of the player so that it does not end up in a solid block
-	local object = minetest.add_entity( {x=pos.x, y=(pos.y+1.5), z=pos.z}, mob_entity_name );
+	-- (the mob's origin is at its feet, so +0.5 puts it just above the node it stands on)
+	local object = minetest.add_entity( {x=pos.x, y=(pos.y+0.5), z=pos.z}, mob_entity_name );
 	if( not( initialize )) then
 		if( object ~= nil ) then
 			local self = object:get_luaentity();

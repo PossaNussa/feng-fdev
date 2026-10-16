@@ -1,5 +1,9 @@
 local MODNAME = minetest.get_current_modname()
 
+-- Public API, so mobs (villagers, pigmen) can speak into proximity chat and be
+-- counted as listeners. Everything else stays module-local.
+proxchat = {}
+
 -- Setting defaults
 local defaults = {
     distance = 32,
@@ -20,42 +24,89 @@ local function player_config_dist(name)
     return minetest.get_player_by_name(name):get_meta():get_int(MODNAME .. ":chat_distance")
 end
 
--- Intercept chat messages and send to players in range (including self)
-minetest.register_on_chat_message(function(name, msg)
-    local pos = minetest.get_player_by_name(name):get_pos()
-    local heard = false
-    local player_count = 0
+-- The radius a message from `sender` carries. Depends on the sender and the
+-- message (shouting and exclamation reach further), not on the recipient, so it
+-- is the same for everyone and computed once.
+local function hearing_distance(sender, msg)
+    local config_dist = player_config_dist(sender)
+    local max_dist = (setting("player_config") and config_dist > 0 and config_dist)
+            or tonumber(setting("distance"))
+    if msg:gsub("[^A-Z]", ""):len() > msg:gsub("[^a-zA-Z]", ""):len() then
+        max_dist = max_dist * 2
+    end
+    return max_dist + 2 * msg:gsub("[^!]", ""):len()
+end
 
+-- Per-recipient message filters: fn(from, to_name, msg, dist) -> msg or nil
+-- (nil = don't deliver). Lets other mods garble, translate or block lines.
+proxchat.message_filters = {}
+
+function proxchat.register_message_filter(fn)
+    proxchat.message_filters[#proxchat.message_filters + 1] = fn
+end
+
+-- Send one line to every player within `max_dist` of `pos`. Returns how many
+-- players received it. `from` is the speaker label (a player or a villager).
+-- Player lines go through minetest.format_chat_message so chat-format mods
+-- (rank/job tags) still apply.
+local function deliver(pos, from, msg, max_dist, from_player)
+    local count = 0
     for _, player in ipairs(minetest.get_connected_players()) do
         local dist = vector.distance(pos, player:get_pos())
-        local config_dist = player_config_dist(name)
-        -- If per-player distance is enabled and the player has a configured value, use it, or use the default
-        local max_dist = (setting("player_config") and config_dist > 0 and config_dist) or tonumber(setting("distance"))
-
-        -- Check if the majority of the text is in all capital letters
-        local is_majority_caps = msg:gsub("[^A-Z]", ""):len() > msg:gsub("[^a-zA-Z]", ""):len()
-        if is_majority_caps then
-            max_dist = max_dist * 2  -- Double the distance
-        end
-        -- Add +2 to distance for each '!' in the message
-        local exclamation_count = msg:lower():gsub("[^!]", ""):len()
-        max_dist = max_dist + 2 * exclamation_count
-
         if dist <= max_dist then
-            -- Append distance from player if enabled
-            local show_dist = setting("show_distance") and ("(%sm) "):format(math.floor(dist)) or ""
-            minetest.chat_send_player(player:get_player_name(), ("%s<%s> %s"):format(show_dist, name, msg))
-            heard = true
-            player_count = player_count + 1
+            local to = player:get_player_name()
+            local line = msg
+            for _, fn in ipairs(proxchat.message_filters) do
+                if line then line = fn(from, to, line, dist) end
+            end
+            if line then
+                local show_dist = setting("show_distance") and ("(%sm) "):format(math.floor(dist)) or ""
+                local text = from_player and minetest.format_chat_message(from, line)
+                    or ("<%s> %s"):format(from, line)
+                minetest.chat_send_player(to, show_dist .. text)
+                count = count + 1
+            end
         end
     end
+    return count
+end
 
-    if not heard then
+-- Non-player listeners. A mob mod registers a check answering "is one of my
+-- mobs in earshot of this position?", so a player standing among a talkative
+-- crowd of villagers is not told they are all alone.
+proxchat.listener_checks = {}
+
+function proxchat.register_listener_check(fn)
+    proxchat.listener_checks[#proxchat.listener_checks + 1] = fn
+end
+
+local function npc_in_range(pos, max_dist)
+    for _, fn in ipairs(proxchat.listener_checks) do
+        if fn(pos, max_dist) then return true end
+    end
+    return false
+end
+
+-- Make a position speak into proximity chat, heard by nearby players. Used for
+-- ambient villager gossip. Returns how many players heard it.
+function proxchat.speak(pos, from, msg)
+    if not pos or not from or not msg then return 0 end
+    return deliver(pos, from, msg, tonumber(setting("distance")))
+end
+
+-- Intercept chat messages and send to players in range (including self)
+minetest.register_on_chat_message(function(name, msg)
+    local player = minetest.get_player_by_name(name)
+    if not player then return end
+    local pos = player:get_pos()
+    local max_dist = hearing_distance(name, msg)
+
+    -- deliver counts the speaker too, so one recipient means only the speaker
+    -- heard it. They are "alone" only if no other player and no nearby villager
+    -- or pigman heard them either.
+    local heard = deliver(pos, name, msg, max_dist, true)
+    if heard <= 1 and not npc_in_range(pos, max_dist) then
         minetest.chat_send_player(name, "Nobody can hear you. You are all alone.")
-		return true
-    elseif player_count == 1 then
-        minetest.chat_send_player(name, "Nobody can hear you. You are all alone.")
-		return true
     end
 
     return true

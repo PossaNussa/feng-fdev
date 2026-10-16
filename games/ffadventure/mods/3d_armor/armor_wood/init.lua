@@ -208,8 +208,8 @@ if armor.materials.wood then
 	minetest.register_craft({
 		output = "3d_armor:boots_"..s,
 		recipe = {
-			{"bonemeal:bone", "", "bonemeal:bone"},
-			{"bonemeal:bone", "", "bonemeal:bone"},
+			{m, "", m},
+			{m, "", m},
 		},
 	})
 		minetest.register_craft({

@@ -3,8 +3,8 @@ local dpath = minetest.get_modpath("hardcore_farming") .. "/"
 
 hardcore_farming = {
     replace_rate = tonumber(minetest.settings:get("eat_crops_delay")) or 15,
-    interval = tonumber(minetest.settings:get("spawn_pests_delay")) or 50,
-    chance = tonumber(minetest.settings:get("spawn_pests_probability")) or 10,
+    interval = tonumber(minetest.settings:get("spawn_pests_delay")) or 950,
+    chance = tonumber(minetest.settings:get("spawn_pests_probability")) or 100000,
  }
 
 function getNodesByGroup(group)

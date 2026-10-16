@@ -23,10 +23,10 @@ enable_lavacooling (Lavacooling) bool true
 #    players.
 give_initial_stuff (Give initial items) bool false
 
-#    If enabled, players respawn at the bed they last lay on instead of normal
-#    spawn.
-#    This setting is only read at startup.
-enable_bed_respawn (Respawn at bed) bool true
+#    In this game beds never set respawn points, so this setting has no effect
+#    on the beds mod. It is left here only for the spawn/alone mods, which read
+#    it at startup.
+enable_bed_respawn (Respawn at bed) bool false
 
 #    If enabled, the night can be skipped if more than half of the players are
 #    in beds.

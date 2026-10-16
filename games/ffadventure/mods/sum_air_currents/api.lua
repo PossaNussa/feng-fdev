@@ -29,16 +29,60 @@ end
 ac.get_node_dist = function(p, direction, nodes)
   -- go 10 nodes in the wind direction to look for nodes
   local pos = {x=p.x, y=p.y, z=p.z}
-  local dir = direction
-  dir.y = 0.2 -- go up at a slight angle
+  -- Copy: this used to assign straight into the caller's vector, so passing
+  -- ac.wind_dir in would have tilted the global wind field permanently.
+  local dir = {x=direction.x, y=0.2, z=direction.z} -- go up at a slight angle
   for i=1, nodes do
     pos = vector.add(pos, dir)
     local node = minetest.get_node(pos).name
-    if minetest.registered_nodes[node].walkable then
+    local ndef = minetest.registered_nodes[node]
+    -- An unknown node (mod removed since the world was built) has no
+    -- definition; treat it as solid rather than indexing nil, which would
+    -- abort the globalstep for every player on the server.
+    if not ndef or ndef.walkable then
       return i
     end
   end
   return nodes
+end
+
+
+-- Is this position sheltered from the sky?
+--
+-- This has to mean the same thing here as it does to the weather and
+-- temperature mods, or the player gets shoved around inside a building that
+-- regional_weather and tempsurvive both agree is indoors. climate_api owns the
+-- canonical test -- natural light below 14, or any non-air node in the column
+-- above -- so borrow it when climate_api is loaded and mirror it when not.
+--
+-- `pos` is tested directly. climate_api's influence samples one node above
+-- whatever it is handed, so it gets pos - (0,1,0) to land back on `pos`.
+local CEILING_CHECKS = 10
+ac.is_indoors = function(pos)
+  if climate_mod and climate_mod.influences
+      and type(climate_mod.influences.indoors) == "function" then
+    local ok, indoors = pcall(climate_mod.influences.indoors,
+      vector.subtract(pos, {x = 0, y = 1, z = 0}))
+    if ok and indoors ~= nil then
+      return indoors
+    end
+  end
+
+  -- 14 rather than 15 on purpose, same as climate_api: walking under a single
+  -- overhanging node should not flap the wind on and off.
+  if (minetest.get_natural_light(pos, 0.5) or 0) < 14 then
+    return true
+  end
+  local checks = (climate_mod and climate_mod.settings
+    and climate_mod.settings.ceiling_checks) or CEILING_CHECKS
+  for i = 1, checks do
+    local node = minetest.get_node_or_nil(
+      {x = pos.x, y = pos.y + i, z = pos.z})
+    if node ~= nil and node.name ~= "air" and node.name ~= "ignore" then
+      return true
+    end
+  end
+  return false
 end
 
 
@@ -62,8 +106,11 @@ ac.get_wind_expensive = function(p, password)
       speed = 0,
       strength = 0,}
   end
-  local light = ac.get_light(p)
-  if light < 1 then
+  -- Was `ac.get_light(p) < 1`, i.e. only pitch darkness counted as sheltered.
+  -- Any room with daylight leaking in through a door or window still took the
+  -- full push, which is why wind kept shoving players indoors while the
+  -- particles (gated on light == 15) correctly stayed outside.
+  if ac.is_indoors(p) then
     return {
       vector = vector.new(),
       speed = 0,

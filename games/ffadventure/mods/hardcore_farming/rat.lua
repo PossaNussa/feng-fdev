@@ -8,8 +8,8 @@ mobs:register_mob("hardcore_farming:rat", {
 	group_attack = true,
 	reach = 2,
 	damage = 3,
-	hp_min = 2,
-	hp_max = 5,
+	hp_min = 1,
+	hp_max = 3,
 	armor = 100,
 	collisionbox = {-0.4, -0.01, -0.4, 0.4, 0.6, 0.4},
 	visual = "mesh",
@@ -41,7 +41,7 @@ mobs:register_mob("hardcore_farming:rat", {
 			"dfarm:carrot_4"},
 				replace_with = "air",
 	drops = {
-		{name = "mobs:meat_raw", chance = 1, min = 1, max = 3},
+		{name = "animalia:rat_raw", chance = 1, min = 1, max = 1},
 
 	},
 	water_damage = 0,

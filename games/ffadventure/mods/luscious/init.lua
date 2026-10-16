@@ -17,7 +17,15 @@ minetest.mkdir(wp)
 local mgp = minetest.get_mapgen_params()
 local chunksize = 16 * mgp.chunksize
 
+-- Palette index for a column. `p2` comes from a byte lookup into the biome map
+-- and is nil whenever that lookup lands outside the stored data, so callers must
+-- pass a fallback rather than let nil reach the arithmetic below.
+local DEFAULT_P2 = 1
+
 local function cmpy(p2, y)
+	if not p2 then
+		return DEFAULT_P2
+	end
 	if y > 0 then
 		local h1 = p2 % 16
 		local h2 = math.floor(p2 / 16) * 16
@@ -45,8 +53,16 @@ local function on_construct(pos)
 	f:close()
 	local map = minetest.decompress(z)
 
+	-- A chunk whose biome map came out empty (see the on_generated guard) has
+	-- nothing to say about this column; leave the node's existing colour alone
+	-- rather than repainting it with the fallback.
+	local b = string.byte(map, l + 1)
+	if not b then
+		return
+	end
+
 	local node = minetest.get_node(pos)
-	node.param2 = cmpy(string.byte(map, l + 1), pos.y)
+	node.param2 = cmpy(b, pos.y)
 	minetest.swap_node(pos, node)
 end
 
@@ -101,6 +117,12 @@ for _, v in pairs({
 }) do
 	local def = minetest.registered_nodes[v]
 	local tile, _ = def.tiles[1]:gsub("dry_", ""):gsub("default_", "luscious_")
+	-- No on_construct here: always_greener's mapcolors pass owns tall-grass
+	-- colouring now (whole-chunk, after the biome painter, on the painted zone
+	-- climate). luscious's on_construct read a per-chunk biome map file that is
+	-- never written under climate_zones_v7's `nobiomes` (its on_generated bails
+	-- on the empty engine heatmap), so it only error-spammed. The palette and
+	-- tiles stay -- that is the gradient mapcolors indexes into.
 	minetest.override_item(v, {
 		paramtype2 = "color",
 		palette_index = 136,
@@ -108,7 +130,6 @@ for _, v in pairs({
 		color = "#7dea1eff",
 		tiles = {tile},
 		place_param2 = 136,
-		on_construct = on_construct,
 	})
 end
 for i = 1, 3 do
@@ -116,14 +137,13 @@ for i = 1, 3 do
 end
 
 -- content ids
+--
+-- Tall grass (grass_*, dry_grass_*, junglegrass, nettle) is deliberately absent:
+-- always_greener's mapcolors pass colours it now, from the main env after the
+-- biome painter, so the tufts cover the whole chunk on the painted zone climate
+-- instead of the lattice this heatmap-based pass produced under `nobiomes`.
+-- Only leaves remain here.
 local cn = {
-	["default:grass_1"] = 1,
-	["default:grass_2"] = 1,
-	["default:grass_3"] = 1,
-	["default:grass_4"] = 1,
-	["default:grass_5"] = 1,
-	["nettle:nettle"] = 1,
-	["default:junglegrass"] = 1,
 	["default:leaves"] = 1,
 	["default:aspen_leaves"] = 1,
 	["default:jungleleaves"] = 1,
@@ -137,18 +157,53 @@ for k, _ in pairs(cn) do
 	cs[minetest.get_content_id(k)] = 1
 end
 
+local warned_empty = false
+
 minetest.register_on_generated(function(minp, maxp, blockseed)
 	local v = vector.apply(minp, function(a) return (a - 48) / chunksize end)
 	local heatmap = minetest.get_mapgen_object("heatmap")
 	local humiditymap = minetest.get_mapgen_object("humiditymap")
-	local map = ""
-	for i = 1, #heatmap do
+
+	-- Both maps must be dense arrays of one entry per column. They come back
+	-- empty (not nil) when the mapgen reports a zero-area chunk, and a mod that
+	-- publishes its own map via gennotify can hand us a sparse one -- in which
+	-- case `#` returns an arbitrary border and indexing inside it still yields
+	-- nil. Writing a map file built from those would poison this chunk for
+	-- on_construct forever, so bail out and leave the chunk uncoloured.
+	local columns = chunksize * chunksize
+	if not heatmap or not humiditymap
+			or #heatmap < columns or #humiditymap < columns then
+		if not warned_empty then
+			warned_empty = true
+			minetest.log("warning", "[luscious] mapgen heat/humidity maps are unusable" ..
+				" (heatmap=" .. (heatmap and #heatmap or "nil") ..
+				", humiditymap=" .. (humiditymap and #humiditymap or "nil") ..
+				", expected " .. columns .. ") at minp=" .. minetest.pos_to_string(minp) ..
+				" maxp=" .. minetest.pos_to_string(maxp) ..
+				"; grass colouring disabled for affected chunks")
+		end
+		return
+	end
+
+	local parts = {}
+	for i = 1, columns do
 		local h1 = heatmap[i]
 		local h2 = humiditymap[i]
+		if not h1 or not h2 then
+			if not warned_empty then
+				warned_empty = true
+				minetest.log("warning", "[luscious] mapgen heat/humidity maps have a" ..
+					" hole at index " .. i .. " of " .. columns ..
+					" at minp=" .. minetest.pos_to_string(minp) ..
+					"; grass colouring disabled for affected chunks")
+			end
+			return
+		end
 		h1 = math.floor(math.min(math.max(math.floor(h1), 0), 100) / 6.6)
 		h2 = math.floor(math.min(math.max(math.floor(h2), 0), 100) / 6.6)
-		map = map .. string.char(h1 + (h2 * 16))
+		parts[i] = string.char(h1 + (h2 * 16))
 	end
+	local map = table.concat(parts)
 	local p = string.format("%d", minetest.hash_node_position(v))
 
 	local f = assert(io.open(wp .. "/" .. p, "w"), wp .. "/" .. p)

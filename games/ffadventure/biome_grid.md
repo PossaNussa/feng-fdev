@@ -187,3 +187,30 @@ Key: ICE=ice_land, ICE2=icesheet, TND=tundra, FRS=frost_land,
    specific elevations — good for shorelines, alpine, etc.
 7. **Humidity > 100 or < 0**: valid Lua numbers but place biome outside the
    normal 0–100 Voronoi space. Avoid — use 0–99 instead.
+
+---
+
+## Zone Climate (climate_zones_v7, 2026-07-25)
+
+Biome **selection** no longer uses the engine's smooth heat/humidity noise.
+The `climate_zones_v7` mod (in the climate_zones modpack) splits the world
+into Voronoi zones (`climate_v7_zone_size`, default 384 nodes) and assigns
+each zone ONE heat/humidity pair, so each zone resolves to exactly one biome
+from this grid — rare grid points get full-sized territory instead of
+slivers.
+
+- **Heat is latitude-based**: 100 at `climate_v7_equator_z` (default
+  z=-8000, south), 0 at `climate_v7_pole_z` (default z=+8000, north),
+  linear in between, clamped beyond. Spawn (z=0) sits at heat ~50.
+  Each zone deviates by up to ±`climate_v7_heat_jitter` (default 14).
+- **Humidity** is a seeded regional noise sampled once per zone (full 0–100
+  range, coherent wet/dry belts across a few zones).
+- **Altitude chill**: `climate_v7_altitude_chill` (default 0.08 heat/node
+  above sea level) — high mountains select colder biomes.
+- Practical consequence for the grid: at a given latitude only a heat band
+  of roughly ±(jitter + a few zone steps) is reachable, so east–west variety
+  comes from the humidity axis. The full heat axis unfolds north–south over
+  16 km by default.
+- `core.get_heat/get_humidity/get_biome_data` are overridden to match, so
+  regional_weather, tempsurvive, and mob spawn climate checks all follow the
+  zone climate.

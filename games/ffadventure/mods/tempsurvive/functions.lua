@@ -54,13 +54,153 @@ minetest.register_privilege("no_temperature", {
 	give_to_singleplayer= false,
 })
 
+-- Volcano heat tuning ----------------------------------------------------------
+-- Grouped so the volcano's thermal footprint can be retuned in one place.
+local VOLCANO_CORE_HEAT      = 40   -- peak ambient bonus (deg) right at the axis
+local VOLCANO_HEAT_REACH_EXTRA = 120 -- how far past the cone's base the heat reaches
+local VOLCANO_DORMANT_WEIGHT = 0.35 -- dormant volcanoes are only mildly warm
+local VOLCANO_BOIL_DPS       = 2    -- HP/tick burn from standing in boiling water
+local VOLCANO_STEAM_INTERVAL = 1.5  -- min seconds between steam bursts per player
+
+-- Nearby volcanoes, cached per player and refreshed only when the player crosses
+-- into a new volcano region (regions are ~1280 nodes wide, so this recomputes
+-- rarely). Returns the list of volcano descriptors in the 3x3 block of regions
+-- around the player -- the same sweep /findvolcano uses.
+tempsurvive.nearby_volcanoes=function(pos, ptemp)
+	if not (minetest.global_exists("magma_conduits") and magma_conduits.get_volcano) then
+		return nil
+	end
+	local rs = magma_conduits.volcano_region_size
+	local ckey = math.floor((pos.x+32)/rs) .. ":" .. math.floor((pos.z+32)/rs)
+	if ptemp and ptemp.volc_corner == ckey and ptemp.volc_list then
+		return ptemp.volc_list
+	end
+
+	local list = {}
+	for dx = -1, 1 do
+		for dz = -1, 1 do
+			local v = magma_conduits.get_volcano({x=pos.x+dx*rs, y=0, z=pos.z+dz*rs})
+			if v then list[#list+1] = v end
+		end
+	end
+	if ptemp then
+		ptemp.volc_corner = ckey
+		ptemp.volc_list = list
+	end
+	return list
+end
+
+-- Weight of a volcano by state: active radiates fully, dormant is mild, extinct
+-- is thermally dead (a cold cone in a cold biome stays cold).
+local function volcano_weight(state)
+	if state >= magma_conduits.volcano_state_dormant then
+		return 1.0                       -- active
+	elseif state >= magma_conduits.volcano_state_extinct then
+		return VOLCANO_DORMANT_WEIGHT    -- dormant
+	end
+	return 0                             -- extinct
+end
+
+-- Ambient heat bonus + whether the player is standing in the boiling-water zone
+-- of an ACTIVE volcano. Returns (heat_bonus, boiling).
+tempsurvive.get_volcano_effect=function(pos, volcanoes)
+	if not volcanoes then return 0, false end
+	local best_heat = 0
+	local boiling = false
+	for _, v in ipairs(volcanoes) do
+		local w = volcano_weight(v.state)
+		if w > 0 then
+			local dx = pos.x - v.location.x
+			local dz = pos.z - v.location.z
+			local d = math.sqrt(dx*dx + dz*dz)
+			local reach = v.base_radius + VOLCANO_HEAT_REACH_EXTRA
+			if d < reach then
+				-- Ease-in falloff: hot core, softens toward the edge.
+				local f = 1 - d / reach
+				local heat = VOLCANO_CORE_HEAT * f * f * w
+				if heat > best_heat then best_heat = heat end
+			end
+			-- Boiling water only within the cone footprint of an active volcano.
+			if w >= 1.0 and d < v.base_radius then
+				boiling = true
+			end
+		end
+	end
+	return best_heat, boiling
+end
+
+-- Volcano heat bonus at an ARBITRARY position, for callers with no player to
+-- hang a cache on (the snow/ice melt ABMs). get_volcano() has a waypoint
+-- side-effect and reseeds the RNG, so it must never be called per-node; the
+-- volcano descriptors for a region are static, so cache the 3x3 sweep per region
+-- corner and reuse it. Returns just the ambient heat bonus (deg).
+local volc_heat_cache = {}       -- ckey -> { list = {...}, t = seconds }
+local VOLC_CACHE_TTL = 60        -- refresh a region's sweep at most this often
+tempsurvive.get_volcano_heat_at = function(pos)
+	if not (minetest.global_exists("magma_conduits") and magma_conduits.get_volcano) then
+		return 0
+	end
+	local rs = magma_conduits.volcano_region_size
+	local ckey = math.floor((pos.x + 32) / rs) .. ":" .. math.floor((pos.z + 32) / rs)
+	local now = minetest.get_gametime() or 0
+	local c = volc_heat_cache[ckey]
+	if not c or (now - c.t) > VOLC_CACHE_TTL then
+		local list = {}
+		for dx = -1, 1 do
+			for dz = -1, 1 do
+				local v = magma_conduits.get_volcano({ x = pos.x + dx * rs, y = 0, z = pos.z + dz * rs })
+				if v then list[#list + 1] = v end
+			end
+		end
+		-- Keep the table from growing without bound as the player roams: clear it
+		-- wholesale when it gets large. Regions are ~1280 nodes wide so this is rare.
+		local n = 0
+		for _ in pairs(volc_heat_cache) do n = n + 1 end
+		if n > 64 then volc_heat_cache = {} end
+		c = { list = list, t = now }
+		volc_heat_cache[ckey] = c
+	end
+	local heat = tempsurvive.get_volcano_effect(pos, c.list)
+	return heat
+end
+
+-- Visible "boiling" cue: a short burst of steam around the player, throttled so
+-- it isn't re-spawned every step. Telegraph via particles, never chat.
+tempsurvive.emit_steam=function(player, ptemp, pos)
+	local now = minetest.get_us_time() / 1e6
+	if ptemp.last_steam and now - ptemp.last_steam < VOLCANO_STEAM_INTERVAL then
+		return
+	end
+	ptemp.last_steam = now
+	minetest.add_particlespawner({
+		amount = 12,
+		time = VOLCANO_STEAM_INTERVAL,
+		minpos = {x=pos.x-1.5, y=pos.y-0.4, z=pos.z-1.5},
+		maxpos = {x=pos.x+1.5, y=pos.y+0.2, z=pos.z+1.5},
+		minvel = {x=-0.2, y=0.6, z=-0.2},
+		maxvel = {x=0.2, y=1.4, z=0.2},
+		minacc = {x=0, y=0.2, z=0},
+		maxacc = {x=0, y=0.5, z=0},
+		minexptime = 1.5,
+		maxexptime = 3,
+		minsize = 2,
+		maxsize = 5,
+		collisiondetection = false,
+		texture = "default_smoke.png^[colorize:white:128",
+		playername = player:get_player_name(),
+	})
+end
+
 -- Bio temperature: uses engine biome heat, height, day/night cycle, underground geothermal
-tempsurvive.get_bio_temperature=function(pos)
+-- volcano_heat is the precomputed ambient volcano bonus (see get_volcano_effect).
+tempsurvive.get_bio_temperature=function(pos, volcano_heat)
+	volcano_heat = volcano_heat or 0
 	-- Underground: progressively warmer with depth (geothermal)
 	-- Comfortable near surface, hot approaching mantle at y=-1000
 	if pos.y < -20 then
 		local depth = math.abs(pos.y)
-		return math.min(50, depth * 0.04)
+		-- Near the deep magma pipe it reads hot on top of the geothermal gradient.
+		return math.min(60, depth * 0.04 + volcano_heat)
 	end
 
 	-- Surface: use engine biome heat, scaled so cold biomes are cold but survivable
@@ -81,6 +221,10 @@ tempsurvive.get_bio_temperature=function(pos)
 	-- Light level warms slightly (sunlight, torchlight nearby)
 	local l = minetest.get_node_light(pos) or 0
 	temp = temp + l * 0.15
+
+	-- Volcano proximity: overrides the cold-biome bias so climbing an active
+	-- volcano is hot, not freezing.
+	temp = temp + volcano_heat
 
 	return temp
 end
@@ -157,7 +301,10 @@ minetest.register_globalstep(function(dtime)
 		local ptemp=tempsurvive.player[player:get_player_name()]
 		if ptemp and not ptemp.full_resistance then
 			local pos=player:get_pos()
-			local temp=tempsurvive.get_bio_temperature(pos)
+			local volcanoes=tempsurvive.nearby_volcanoes(pos, ptemp)
+				local vheat, vboil=tempsurvive.get_volcano_effect(pos, volcanoes)
+				local temp=tempsurvive.get_bio_temperature(pos, vheat)
+				local burn=0 -- immediate HP loss this tick (bypasses temp smoothing)
 			local itn=player:get_wielded_item():get_name()
 
 			if tempsurvive.nodes[itn] then
@@ -170,13 +317,42 @@ minetest.register_globalstep(function(dtime)
 			temp=tempsurvive.get_artificial_temperature(pos,temp)
 			temp=tempsurvive.get_weather_temperature(player,temp)
 
-			-- Water immersion: standing in water chills the player
+			-- Water immersion. Near an active volcano the water boils and scalds
+				-- (covers dynamic_liquid shallows too -- they carry group:water);
+				-- everywhere else it chills. get_item_group matches source, flowing
+				-- and shallow variants alike.
 			local pnode = minetest.get_node(pos)
 			if minetest.get_item_group(pnode.name, "water") > 0 then
-				temp = temp - 5
+				if vboil then
+						temp = temp + 30
+						burn = burn + VOLCANO_BOIL_DPS
+						tempsurvive.emit_steam(player, ptemp, pos)
+					else
+						temp = temp - 5
+					end
 			end
 
-			-- Smooth convergence toward target temperature (lerp)
+			-- Scorching ground: standing on hot obsidian / lava-cooked stone burns.
+				-- A solid floor node never intersects the player's box, so the
+				-- engine's damage_per_second can't fire -- check the feet node.
+				local feet = minetest.get_node({
+					x = math.floor(pos.x + 0.5),
+					y = math.floor(pos.y - 0.5),
+					z = math.floor(pos.z + 0.5),
+				})
+				local bf = minetest.get_item_group(feet.name, "tempsurvive_burn")
+				if bf > 0 then
+					burn = burn + bf
+					temp = temp + 15
+				end
+
+				-- Direct contact burns (boiling water, scorching ground) apply
+				-- immediately, on top of the slow heat convergence below.
+				if burn>0 then
+					player:set_hp(player:get_hp()-burn)
+				end
+
+				-- Smooth convergence toward target temperature (lerp)
 			-- ~30s to feel significant change, ~60s to mostly stabilize
 			ptemp.temp = ptemp.temp + (temp - ptemp.temp) * 0.03
 

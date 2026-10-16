@@ -354,5 +354,5 @@ minetest.register_decoration({
   rotation = rotx,
   y_min = -100,
   y_max = -10,
-  flags = {place_center_z = true, place_center_x = true},
+  flags = "place_center_x, place_center_z",
 })

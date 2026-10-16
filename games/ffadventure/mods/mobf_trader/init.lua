@@ -294,6 +294,8 @@ mobs:register_mob("mobf_trader:trader", {
     attack_animals = false,
     visual = "mesh",
     mesh = "character.b3d",
+    -- feet-origin model: box has to start at the ground, not at the mob's waist
+    collisionbox = {-0.3, -0.01, -0.3, 0.3, 1.69, 0.3},
     textures = {"villager_male.png"},
     makes_footstep_sound = true,
     walk_velocity = 1,

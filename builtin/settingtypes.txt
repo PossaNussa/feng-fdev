@@ -464,6 +464,12 @@ viewing_range (Viewing range) int 190 20 4000
 
 # FlashEng colored lighting & particle settings
 enable_colored_lighting_tint (Enable colored lighting tint) bool true
+
+#    How strongly coloured light sources (light_colour) tint nearby surfaces and objects.
+colored_lighting_strength (Colored lighting strength) float 1.0 0.0 1.0
+
+# How vivid coloured light is. 1 = mixed naturally; higher pushes lit surfaces further towards the light's colour.
+colored_lighting_saturation (Colored lighting saturation) float 1.8 0.0 4.0
 colored_lighting_samples (Colored lighting samples) int 8 0 32
 colored_lighting_max_distance (Colored lighting max distance) int 2 0 8
 
@@ -474,6 +480,11 @@ max_particles (Max concurrent particles) int 20000 100 200000
 # Blocks within viewing_range are rendered in full detail; beyond that and up to viewing_range + lod_distance,
 # blocks are rendered in simplified (low-detail) mode.
 lod_distance (Low-detail render distance) int 200 0 4000
+
+# How far-away (low-detail) blocks are drawn.
+# solid: every visible face of solid and liquid nodes (walls, cliffs and hulls stay visible), decorations skipped.
+# top: only upward faces (cheapest, flat terrain only).
+lod_mode (Low-detail mode) enum solid solid,top
 
 # Interval (in seconds) between server inventory synchronizations.
 # Lower values reduce the delay between actions (digging, dropping) and inventory updates but increase network traffic.

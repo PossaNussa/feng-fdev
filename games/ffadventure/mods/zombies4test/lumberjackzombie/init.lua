@@ -113,6 +113,93 @@ local function record_invocation(pname, deity)
   faith_data.players[pname][deity] = (faith_data.players[pname][deity] or 0) + 1
 end
 
+-- ================================
+-- Public faith API
+-- ================================
+--
+-- Everything above is file-local, so until now nothing outside this mod could
+-- see the pantheon or a player's standing in it, and faith could only move by
+-- someone typing a god's name in chat. That is enough for the holy water
+-- recipe and not enough for anyone else to build on -- a priest cannot preach
+-- about a god they cannot name, and a deed cannot be pleasing to one.
+--
+-- Nothing below changes how the existing mechanic behaves. It exposes what was
+-- already there, and adds the one thing that was missing: a way to grant faith
+-- for something other than speaking.
+
+lumberjackzombie = lumberjackzombie or {}
+
+-- Is this the name of a god? Case-insensitive, like the chat matcher.
+function lumberjackzombie.is_deity(name)
+  return name ~= nil and DEITIES[tostring(name):lower()] == true
+end
+
+-- Every god's name, as a sorted list. A copy: callers must not be able to
+-- edit the pantheon by editing what they were handed.
+function lumberjackzombie.deities()
+  local out = {}
+  for d in pairs(DEITIES) do out[#out + 1] = d end
+  table.sort(out)
+  return out
+end
+
+-- Add a god at runtime, so a pantheon can be extended without editing this
+-- table. Returns false if it was already known.
+function lumberjackzombie.register_deity(name)
+  name = tostring(name):lower()
+  if DEITIES[name] then return false end
+  DEITIES[name] = true
+  faith_data.global[name] = faith_data.global[name] or 0
+  return true
+end
+
+-- How much this player has invoked one god, or a table of all of them.
+function lumberjackzombie.get_faith(pname, deity)
+  local counts = faith_data.players[pname]
+  if not deity then
+    local out = {}
+    for d in pairs(DEITIES) do out[d] = (counts and counts[d]) or 0 end
+    return out
+  end
+  return (counts and counts[tostring(deity):lower()]) or 0
+end
+
+-- How much the world has invoked one god.
+function lumberjackzombie.get_global_faith(deity)
+  return faith_data.global[tostring(deity):lower()] or 0
+end
+
+-- The god this player has called on most, and by how much. Nil if they have
+-- never named one.
+function lumberjackzombie.patron_of(pname)
+  local counts = faith_data.players[pname]
+  if not counts then return end
+  local best, best_n
+  for d, n in pairs(counts) do
+    if n > 0 and (not best_n or n > best_n) then best, best_n = d, n end
+  end
+  return best, best_n
+end
+
+-- Grant (or withdraw) faith for something other than speaking a name: an
+-- offering, a burial, a deed a god cares about. This is the mutator the chat
+-- handler always had privately and nothing else could reach.
+function lumberjackzombie.add_faith(pname, deity, n)
+  if not pname or not deity then return end
+  deity = tostring(deity):lower()
+  if not DEITIES[deity] then return end
+  n = n or 1
+
+  faith_data.global[deity] = math.max(0, (faith_data.global[deity] or 0) + n)
+  if not faith_data.players[pname] then
+    faith_data.players[pname] = {}
+    for d in pairs(DEITIES) do faith_data.players[pname][d] = 0 end
+  end
+  local was = faith_data.players[pname][deity] or 0
+  faith_data.players[pname][deity] = math.max(0, was + n)
+  return faith_data.players[pname][deity]
+end
+
 -- Save periodically (every 5 minutes)
 local faith_save_accum = 0
 minetest.register_globalstep(function(dtime)
@@ -497,7 +584,17 @@ minetest.register_craftitem("lumberjackzombie:holy_water", {
   stack_max = 1,
   on_use = function(itemstack, user)
     if user and user:is_player() then
-      if cure_player(user, true) then
+      -- Holy water cures both the vampiric affliction (this mod) and
+      -- petz lycanthropy. Try each; consume the bottle if either took.
+      local cured = cure_player(user, true)
+
+      if minetest.get_modpath("petz") and petz and petz.has_lycanthropy
+         and petz.has_lycanthropy(user) then
+        petz.cure_lycanthropy(user)
+        cured = true
+      end
+
+      if cured then
         if PRESENT_EMPTY_BOTTLE then
           return ItemStack(PRESENT_EMPTY_BOTTLE)
         else
@@ -532,6 +629,24 @@ local function make_holy_water_in_hand(player)
   stack:replace("lumberjackzombie:holy_water")
   player:set_wielded_item(stack)
   _aw_notify("vamp_bless", player)
+end
+
+-- Exposed so a priest can perform the blessing in person, rather than the
+-- player having to type the formula in chat. Same item list, same result -- the
+-- chat route is untouched.
+function lumberjackzombie.holding_water(player)
+  return player ~= nil and holding_water_bottle(player)
+end
+
+-- Bless what the player is holding, in the name of `deity`. Returns false if
+-- they are not holding water. The faith credit is the caller's business.
+function lumberjackzombie.bless_wielded(player, deity)
+  if not lumberjackzombie.holding_water(player) then return false end
+  make_holy_water_in_hand(player)
+  if deity then
+    lumberjackzombie.add_faith(player:get_player_name(), deity, 1)
+  end
+  return true
 end
 
 -- ================================

@@ -34,6 +34,12 @@ public:
 	// EmergeManager and ServerMap for every dimension queued during mod loading.
 	void finalizeRegistrations();
 
+	// Stop every dimension's emerge threads. Must be called during shutdown
+	// alongside the main EmergeManager::stopThreads(), otherwise those threads
+	// keep touching the environment and definition managers while they are
+	// being torn down.
+	void stopThreads();
+
 	// Move a player between dimensions. dim_name="" means the main world.
 	// Also clears the client's sent-block cache so it re-requests from new map.
 	void setPlayerDimension(session_t peer_id,

@@ -1,0 +1,3 @@
+Code: [LGPLv2.1+](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html) - [lisacvuk](https://content.luanti.org/users/lisacvuk/)   
+Tool level sound: [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) - [Freesound.org](https://freesound.org/people/MakoFox/sounds/126422/)
+Tool break sound: [CC0](https://creativecommons.org/publicdomain/zero/1.0/legalcode.txt) - [OpenGameArt.org](https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx)

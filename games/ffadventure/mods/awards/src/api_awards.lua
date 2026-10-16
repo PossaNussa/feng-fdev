@@ -146,7 +146,7 @@ function awards.unlock(name, award)
 			hud_elem_type = "text",
 			name = "award_au",
 			number = 0xFFFFFF,
-			scale = {x = 100, y = 20},
+			scale = {x = 600, y = 60}, -- text clip rectangle in px (100x20 clipped titles away)
 			text = hud_announce,
 			position = {x = 0.5, y = 0.05},
 			offset = {x = 0, y = 45},
@@ -156,7 +156,7 @@ function awards.unlock(name, award)
 			hud_elem_type = "text",
 			name = "award_title",
 			number = 0xFFFFFF,
-			scale = {x = 100, y = 20},
+			scale = {x = 600, y = 60}, -- text clip rectangle in px (100x20 clipped titles away)
 			text = title,
 			position = {x = 0.5, y = 0.05},
 			offset = {x = 0, y = 100},

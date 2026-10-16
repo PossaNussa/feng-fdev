@@ -44,6 +44,9 @@ main = function(moddata, moduledata, events)
         node = node or core.get_node(pos)
         -- not a light node
         if core.get_item_group(node.name, "tph_wielditem_light") == 0 then return end
+        -- someone currently owns a light here (e.g. another player re-lit this node, or the
+        -- overlap window handed it over): don't yank a live light out from under them.
+        if get_lightnode_data(pos) then return end
         -- we good
         core.remove_node(pos)
     end
@@ -52,15 +55,10 @@ main = function(moddata, moduledata, events)
     local function light_remove_node(pos, hash, immediate)
         pos = pos or (hash and core.get_position_from_hash(hash))
         if type(pos) ~= "table" then return end -- failure
-        -- we need to get rid of this node immediately (e.g. leaving)
-        if immediate then
-            handle_lightnode_removal(pos)
-        -- remove on after so it's more smooth
-        else
-            core.after(0, function() handle_lightnode_removal(pos) end)
-        end
         hash = hash or core.hash_node_position(pos)
-        -- player interactions
+        -- player interactions -- do the bookkeeping FIRST, so ownership is cleared before the
+        -- physical removal runs. handle_lightnode_removal now guards on ownership, so a deferred
+        -- removal that races a re-light by someone else is correctly skipped.
         local hashdata = get_lightnode_data(hash) -- will be a player name
         local pdata = hashdata and tph_wielditem.get_player_data(hashdata)
         -- remove from player data
@@ -77,6 +75,14 @@ main = function(moddata, moduledata, events)
         -- pdata should not be relied upon, however here's an event!
         events.wieldlight_unlit(table.copy(pos), pdata) -- ditto to item callback (excluding item definition)
         set_lightnode_data(hash, nil)
+        -- now the physical removal (ownership is already cleared above)
+        if immediate then
+            -- we need to get rid of this node immediately (e.g. leaving)
+            handle_lightnode_removal(pos)
+        else
+            -- remove on after so it's more smooth
+            core.after(0, function() handle_lightnode_removal(pos) end)
+        end
     end
 
     -- register light nodes
@@ -118,20 +124,11 @@ main = function(moddata, moduledata, events)
         })
     end
 
-    -- use player's properties and position to return a node adequate position
-    -- permits pos argument internally
-    -- returns node if successful the first time
-    local function player_to_node_pos(plr, pos, checklight)
-        -- get specific stuff for eye calculation
-        local pprops = plr:get_properties() or {} -- player properties
-        local eyeheight = pprops.eye_height or 1
-        -- where to place light
-        local nodepos = pos and table.copy(pos) or plr:get_pos()
-        -- add 80% of eyeheight (prevents light from despawning if you jump up into a node lol)
-        nodepos.y = math.ceil(nodepos.y + (eyeheight*0.8) )
-        -- otherwise just round regularly
-        nodepos.x = math.floor(nodepos.x + 0.5)
-        nodepos.z = math.floor(nodepos.z + 0.5)
+    -- validate an already integer-rounded candidate node position:
+    -- honour an existing brighter light here, treat our own light nodes as air, drop one node if blocked.
+    -- returns nodepos (possibly y-1) and a node table (nil forces a fresh get_node in add_light),
+    -- or nil when this spot is already lit enough and needs no light of ours.
+    local function resolve_node_pos(nodepos, checklight)
         -- check node
         local node = core.get_node(nodepos)
         -- don't do anything here!
@@ -152,6 +149,32 @@ main = function(moddata, moduledata, events)
         return nodepos, node
     end
 
+    -- use player's properties and position to return a node adequate position (fallback path,
+    -- used on join and dig-restore; the per-step path computes the candidate itself, see below)
+    -- permits pos argument internally
+    -- returns node if successful the first time
+    local function player_to_node_pos(plr, pos, checklight)
+        -- get specific stuff for eye calculation
+        local pprops = plr:get_properties() or {} -- player properties
+        local eyeheight = pprops.eye_height or 1
+        -- where to place light
+        local nodepos = pos and table.copy(pos) or plr:get_pos()
+        if not nodepos then return end
+        -- add 80% of eyeheight (prevents light from despawning if you jump up into a node lol)
+        nodepos.y = math.ceil(nodepos.y + (eyeheight*0.8) )
+        -- otherwise just round regularly
+        nodepos.x = math.floor(nodepos.x + 0.5)
+        nodepos.z = math.floor(nodepos.z + 0.5)
+        return resolve_node_pos(nodepos, checklight)
+    end
+
+    -- how far ahead of the player (in nodes) to place the light along horizontal movement, so a
+    -- fast walker stays inside the lit node instead of outrunning it ("light lags behind" fix).
+    local LEAD_NODES = 1.5
+    -- how long (seconds) the previous node stays lit after the light moves on, so there is no dark
+    -- frame between nodes while the new node's server-side relight catches up.
+    local OVERLAP = 0.2
+
     -- pos and node are optional
     local function add_light(plr, pdata, item, itemdef, pos, node)
         pdata = pdata or tph_wielditem.get_player_data(plr) -- get player's data for wlight
@@ -162,20 +185,36 @@ main = function(moddata, moduledata, events)
         -- check position
         if not pos then
             pos, node = player_to_node_pos(plr)
+            if not pos then return end -- already lit / couldn't resolve a spot
         end
         local hash = core.hash_node_position(pos) -- convert to hash
         -- at the same position
         if hash == pdata.wlight then return end
-        -- moved! found a previous light, must delete!
-        if pdata.wlight then light_remove_node(nil, pdata.wlight, nil) end
-        -- check if we should replace
+        -- can we even place here? if NOT, leave the old light exactly where it is:
+        -- retiring it now would strand the player in a dark node until the next placeable spot.
         node = node or core.get_node(pos)
-        -- not air, return
+        -- not air, return (old light stays lit)
         if node.name ~= "air" then return end
-        -- set node
+        -- place the NEW light FIRST and take ownership, so the player is never caught between
+        -- two dark nodes while the old light is being cleared.
         local lv = math.max(1, math.min(14, math.floor(itemdef.light_source)))
         node.name = "tph_wielditem:light_"..lv
         core.set_node(pos, node)
+        local oldhash = pdata.wlight
+        pdata.wlight = hash
+        set_lightnode_data(hash, pdata.name)
+        -- now retire the PREVIOUS node, but keep it lit for a short overlap window so it covers
+        -- the new node's server-side relight latency -- this is what removes the between-node flicker
+        -- (and the drain on light-sampling mechanics like sanity) when a player moves under load.
+        if oldhash and oldhash ~= hash then
+            set_lightnode_data(oldhash, nil) -- release ownership; the new node already owns the player
+            local oldpos = core.get_position_from_hash(oldhash)
+            if oldpos then
+                core.after(OVERLAP, function() handle_lightnode_removal(oldpos) end)
+                -- event parity with light_remove_node's unlit signal
+                events.wieldlight_unlit(table.copy(oldpos), pdata)
+            end
+        end
         -- item callback
         if type(itemdef.tph_wielditem_wieldlight_alit) == "function" then
             -- copy of new light position and copy of node (with light name, but same param1 and param2),
@@ -184,9 +223,6 @@ main = function(moddata, moduledata, events)
         end
         -- send event, ditto to callback
         events.wieldlight_alit(table.copy(pos), table.copy(node), itemdef, pdata)
-        -- and update hash mechanics
-        pdata.wlight = hash
-        set_lightnode_data(hash, pdata.name)
         -- return hash and pos on success
         return hash, pos
     end
@@ -197,27 +233,49 @@ main = function(moddata, moduledata, events)
     tph_wielditem.register_on_step(function(plr, item, index, dtime, def, pdata)
         -- current item exists and is a light source
         if def and type(def.light_source) == "number" and def.light_source ~= 0 then
-            -- old player position table (contains `raw` and `node`)
-            -- dirty, but helpful
+            -- per-player scratch: cached eye height + last targeted/placed node
             local oppos = stored_positions[pdata.name]
             if not oppos then
                 oppos = {}
                 stored_positions[pdata.name] = oppos
             end
-            -- get player's position for checking
-            local ppos = pdata.obj:get_pos()
-            -- we've moved (changes between oppos and ppos)
-            if not vector_equal(ppos, oppos.raw) then
-                -- update
-                oppos.raw = ppos
-                -- node pos, potential node return, optional 3rd "checklight" - don't modify if light source is here!
-                local npos, node = player_to_node_pos(pdata.obj, ppos, def.light_source)
-                if not npos then return end -- not doing anything here!
-                -- update will remove old light
-                add_light(pdata.obj, pdata, pdata.itemstack, def, npos, node)
-                -- update node position
-                oppos.node = npos
+            local obj = pdata.obj
+            local ppos = obj:get_pos()
+            if not ppos then return end
+            -- lead the light along horizontal velocity so it sits slightly ahead of the player,
+            -- keeping a fast/lagging walker inside the lit node instead of behind it.
+            local vel = obj:get_velocity()
+            local lx, lz = 0, 0
+            if vel then
+                local speed = math.sqrt(vel.x * vel.x + vel.z * vel.z)
+                if speed > 0.1 then
+                    lx = (vel.x / speed) * LEAD_NODES
+                    lz = (vel.z / speed) * LEAD_NODES
+                end
             end
+            -- cache eye height: player properties almost never change, so don't fetch a fresh
+            -- properties table every step just to read one field.
+            local eyeheight = oppos.eyeheight
+            if not eyeheight then
+                local pprops = obj:get_properties() or {}
+                eyeheight = pprops.eye_height or 1
+                oppos.eyeheight = eyeheight
+            end
+            -- cheap candidate node position: rounding only, no map or property lookups yet
+            local nx = math.floor(ppos.x + lx + 0.5)
+            local ny = math.ceil(ppos.y + eyeheight * 0.8)
+            local nz = math.floor(ppos.z + lz + 0.5)
+            -- still aiming at the same node? skip the whole expensive path (get_node + set_node + relight).
+            -- this is what makes the throttled globalstep cheap: standing/turning does no map work.
+            local last = oppos.target
+            if last and last.x == nx and last.y == ny and last.z == nz then return end
+            oppos.target = {x = nx, y = ny, z = nz}
+            -- resolve the real placement (block check, drop-by-one, existing-light guard)
+            local npos, node = resolve_node_pos({x = nx, y = ny, z = nz}, def.light_source)
+            if not npos then return end -- already lit enough here, nothing to do
+            -- placement (and retiring the old node) is handled inside add_light
+            add_light(obj, pdata, pdata.itemstack, def, npos, node)
+            oppos.node = npos
         -- not an existent definition or is not a light source
         -- check for if wield light hash exists, remove light node if so
         elseif pdata.wlight then

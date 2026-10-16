@@ -2,17 +2,19 @@ climate_api.register_influence("heat",
 	climate_api.environment.get_heat
 )
 
-climate_api.register_influence("base_heat",
-	minetest.get_heat
-)
+-- wrapped in closures (not captured by value) so mods that override
+-- minetest.get_heat/get_humidity after climate_api loads still take effect
+climate_api.register_influence("base_heat", function(pos)
+	return minetest.get_heat(pos)
+end)
 
 climate_api.register_influence("humidity",
 	climate_api.environment.get_humidity
 )
 
-climate_api.register_influence("biome_humidity",
-	minetest.get_humidity
-)
+climate_api.register_influence("biome_humidity", function(pos)
+	return minetest.get_humidity(pos)
+end)
 
 -- see https://en.wikipedia.org/wiki/Dew_point#Simple_approximation
 climate_api.register_influence("dewpoint", function(pos)

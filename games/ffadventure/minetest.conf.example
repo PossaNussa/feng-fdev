@@ -52,9 +52,10 @@ default:torch 99,default:cobble 99
 # stair and slab nodes in old maps with the new param2 versions.
 #enable_stairs_replace_abm = false
 
-# Whether to allow respawning in beds.
-# Default value is true.
-#enable_bed_respawn = true
+# In this game beds never set respawn points; the beds mod ignores this
+# setting. Only the spawn/alone mods still read it.
+# Default value is false.
+#enable_bed_respawn = false
 
 # Whether players can skip night by sleeping.
 # Default value is true.

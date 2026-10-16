@@ -12,8 +12,8 @@ if minetest.get_modpath("default") and minetest.get_modpath("farming") then
     minetest.register_craft({
         type = "shaped",
         recipe = {
-            {"default:diamond", "farming:string", "default:diamond"},
-            {"default:diamond", "farming:string", "default:diamond"},
+            {"default:diamond", "", "default:diamond"},
+            {"", "", ""},
             {"", "", ""}
         },
         output = "3d_armor_gloves_redo:gloves_diamond",

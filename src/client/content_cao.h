@@ -97,6 +97,10 @@ private:
 	MinimapMarker *m_marker = nullptr;
 	bool m_visuals_expired = false;
 	video::SColor m_last_light = video::SColor(0xFFFFFFFF);
+	// FlashEng coloured light tint cache
+	bool m_tint_valid = false;
+	v3s16 m_tint_pos;
+	video::SColorf m_tint = video::SColorf(1, 1, 1);
 	bool m_is_visible = false;
 	std::vector<MeshAnimationInfo> m_meshnode_animation;
 

@@ -67,7 +67,7 @@ function paleotest.lq_dumb_punch(self, target)
 				full_punch_interval = 0.1,
 				damage_groups = {fleshy = self.damage}
 			}, nil)
-			mob_core.punch_timer(self, self.punch_cooldown)
+			mob_core.punch_timer(self, self.punch_cooldown or 1)
 			return true
 		end
 	end

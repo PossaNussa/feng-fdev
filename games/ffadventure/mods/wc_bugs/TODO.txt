@@ -1,0 +1,16 @@
+<><><><><> WC BUGS TODO LIST <><><><><>
+
+- make /killbugs command work on adzebugs & rakebugs
+- make / killbugs command accept an integer for distance (currently set to 20) 
+- make prillbugs and peatles change facedir to match movement vector
+- make leeches attach themselves when player is swimming
+- make damage only remove leeches when not in water
+- make peatles hide within soil nodes
+
+- rework lodeworms from the ground up
+
+- grubs
+
+- glow grubs (gloom)
+
+? remove wurms & grubs, split into separate mod, wc_wurms

@@ -30,6 +30,11 @@ dofile(modpath .. "/api.lua")
 dofile(modpath .. "/beds.lua")
 dofile(modpath .. "/spawns.lua")
 
+-- Let the cottages mod's beds use the beds night-skip system (optional dep)
+if minetest.get_modpath("cottages") then
+	dofile(modpath .. "/cottages.lua")
+end
+
 -- awards_sleep.lua
 -- Defines the "Sleep the Day Away" award
 

@@ -965,12 +965,12 @@ end
 minetest.register_node("default:furnace", {
 	description = S("Kiln"),
     tiles = {
-        "default_furnace_top.png^[colorize:d2b48c:80",
-        "default_furnace_bottom.png^[colorize:d2b48c:80",
-        "default_furnace_side.png^[colorize:d2b48c:80",
-        "default_furnace_side.png^[colorize:d2b48c:80",
-        "default_furnace_side.png^[colorize:d2b48c:80",
-        "default_furnace_front.png^[colorize:d2b48c:80",
+        "default_furnace_top.png^[colorize:#d2b48c:80",
+        "default_furnace_bottom.png^[colorize:#d2b48c:80",
+        "default_furnace_side.png^[colorize:#d2b48c:80",
+        "default_furnace_side.png^[colorize:#d2b48c:80",
+        "default_furnace_side.png^[colorize:#d2b48c:80",
+        "default_furnace_front.png^[colorize:#d2b48c:80",
     },
 	paramtype2 = "facedir",
 	groups = {crumbly=2},
@@ -1020,12 +1020,12 @@ minetest.register_node("default:furnace", {
 minetest.register_node("default:furnace_active", {
 	description = S("Kiln"),
     tiles = {
-        "default_furnace_top.png^[colorize:d2b48c:80",
-        "default_furnace_bottom.png^[colorize:d2b48c:80",
-        "default_furnace_side.png^[colorize:d2b48c:80",
-        "default_furnace_side.png^[colorize:d2b48c:80",
-        "default_furnace_side.png^[colorize:d2b48c:80",
-        "default_furnace_front.png^[colorize:d2b48c:80",
+        "default_furnace_top.png^[colorize:#d2b48c:80",
+        "default_furnace_bottom.png^[colorize:#d2b48c:80",
+        "default_furnace_side.png^[colorize:#d2b48c:80",
+        "default_furnace_side.png^[colorize:#d2b48c:80",
+        "default_furnace_side.png^[colorize:#d2b48c:80",
+        "default_furnace_front.png^[colorize:#d2b48c:80",
 		{
 			image = "default_furnace_front_active.png",
 			backface_culling = false,

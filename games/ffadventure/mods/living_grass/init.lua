@@ -5,14 +5,14 @@
 living_grass = {}
 
 -- flower spread has interval 13, chance 300
-grow_interval = 20
-grow_chance = 500
-dry_interval = 40
-dry_chance = 1500
-regrow_interval = 40
-regrow_chance = 800
-death_interval = 60
-death_chance = 1800
+local grow_interval = 20
+local grow_chance = 500
+local dry_interval = 40
+local dry_chance = 1500
+local regrow_interval = 40
+local regrow_chance = 800
+local death_interval = 60
+local death_chance = 1800
 
 
 -- GROW
@@ -167,3 +167,13 @@ core.register_abm({
 		core.set_node(pos, {name = "air"})
 	end,
 })
+
+
+-- SEED
+-- Everything above this line only ever consumes grass. regrowth.lua is where
+-- new grass comes from.
+dofile(core.get_modpath(core.get_current_modname()) .. "/regrowth.lua")
+
+-- Worldgen barely places any tall grass to begin with -- default's decoration
+-- is bound to four biomes this game mostly does not use. See the file header.
+dofile(core.get_modpath(core.get_current_modname()) .. "/mapgen_grass.lua")

@@ -314,6 +314,14 @@ end
 
 minetest.register_globalstep(function(dtime)
     for _, player in pairs(minetest.get_connected_players()) do
+        -- Keep the builtin hotbar visible. Swapping hands can end up with the
+        -- hotbar row gone until relog; re-assert the flag here. hud_set_flags
+        -- only sends a change when a value actually flips, so while the hotbar
+        -- is already on this is a no-op (no flicker) and only acts the moment
+        -- something clears it.
+        if not player:hud_get_flags().hotbar then
+            player:hud_set_flags({hotbar = true})
+        end
         local itemstack = offhand.get_offhand(player)
         local offhand_item = itemstack:get_name()
         local offhand_hud = offhand[player].hud

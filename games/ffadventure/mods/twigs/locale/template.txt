@@ -1,0 +1,6 @@
+# textdomain: twigs
+Apple Tree Twig=
+Jungle Tree Twig=
+Pine Tree Twig=
+Acacia Tree Twig=
+Aspen Tree Twig=

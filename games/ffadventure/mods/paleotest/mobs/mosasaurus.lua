@@ -83,6 +83,7 @@ minetest.register_entity("paleotest:mosasaurus", {
     view_range = 32,
     reach = 6,
     damage = 18,
+    punch_cooldown = 2,
     knockback = 6,
     -- Movement & Physics
     max_speed = 4,

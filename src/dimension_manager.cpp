@@ -18,10 +18,21 @@ DimensionManager::DimensionManager(Server *server, MetricsBackend *mb)
 {
 }
 
+void DimensionManager::stopThreads()
+{
+	std::lock_guard<std::mutex> lock(m_mutex);
+	for (auto &kv : m_dims) {
+		if (kv.second.emerge)
+			kv.second.emerge->stopThreads();
+	}
+}
+
 DimensionManager::~DimensionManager()
 {
 	// Stop and destroy dimensions in reverse registration order.
 	// ServerMap destructor calls emerge->resetMap(), so destroy map first.
+	// Note: ~MapgenParams() deletes bparams, which is info.biome_params, so
+	// biome_params must NOT be deleted separately here.
 	for (auto &kv : m_dims) {
 		DimInfo &info = kv.second;
 		if (info.emerge)
@@ -29,8 +40,8 @@ DimensionManager::~DimensionManager()
 		delete info.map;
 		delete info.emerge;
 		delete info.mgparams;
-		delete info.biome_params;
 	}
+	m_dims.clear();
 }
 
 bool DimensionManager::registerDimension(const std::string &dim_name,
@@ -96,9 +107,10 @@ bool DimensionManager::doRegisterDimension(const std::string &dim_name,
 	} catch (const std::exception &e) {
 		errorstream << "DimensionManager: failed to create ServerMap for '"
 			<< dim_name << "': " << e.what() << std::endl;
+		info.emerge->stopThreads();
 		delete info.emerge;
+		// ~MapgenParams() deletes bparams (info.biome_params) for us.
 		delete info.mgparams;
-		delete info.biome_params;
 		return false;
 	}
 

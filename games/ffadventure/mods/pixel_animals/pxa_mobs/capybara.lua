@@ -65,8 +65,8 @@ mobs:register_mob("pixel_animals:capybara", {
 		"mcl_core:apple",	
 	},
 	view_range = 45,
-	owner = "", 
-	order = "follow",
+	owner = "",
+	order = "",
 	runaway = true ,
 	
 	on_rightclick = function(self, clicker)

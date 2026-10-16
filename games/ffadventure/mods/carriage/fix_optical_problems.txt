@@ -1,0 +1,28 @@
+How to fix visual glitches:
+
+If the models appear giant, floating, or facing the wrong way, please ensure the following when exporting from Blockbench or other 3D software:
+
+1. **Scale:** Minetest voxel ratio is 1/16. To counteract giant sizing, apply an export scale of 0.0625.
+2. **Transforms:** If using glTF (.glb/.gltf) format, apply all transforms (Scale and Rotation) in your 3D software before exporting to prevent massive inherited scales.
+3. **Orientation:** Orient your model so its "front" points towards North (Negative Z-axis) to prevent it from facing backward when attached.
+
+Specific fixes applied to Model-K and Model-KT:
+- visual_size = {x = -25, y = 25, z = -25} to scale up 2.5x and flip the carriage 180-degrees (negative X and Z).
+- collisionbox = {-0.75, 0, -0.75, 0.75, 1.5, 0.75} on the base carriage ensures the origin is on the ground, preventing the models and attached animals from flying and prevents sideways snagging.
+- Added self.object:set_animation({x=1, y=40}, 30, 0) in on_step to activate wheel spinning animations.
+
+How to scale the new models without affecting the attached animal:
+- You simply change the carriage's `visual_size` in the entity definition (e.g., `model_k_def.initial_properties.visual_size = {x = -25, y = 25, z = -25}`).
+- The attached animal's scale is dynamically counter-scaled based on the carriage's actual `visual_size` property (using `local c_size = self.object:get_properties().visual_size`), so it will always maintain its normal size regardless of how large or small you make the carriage model!
+
+How to position the player yourself (adjusting seating coordinates):
+If the player appears floating or not properly seated on the carriage benches, you can manually adjust their attachment position in `init.lua`.
+1. Look for `carriage_def.on_rightclick` in `init.lua`.
+2. Inside that function, locate the `clicker:set_attach` lines.
+   - Driver 1 (first passenger): `clicker:set_attach(self.object, "", {x=-0.4, y=0.2, z=-0.5}, {x=0, y=0, z=0})`
+   - Driver 2 (second passenger): `clicker:set_attach(self.object, "", {x=0.4, y=0.2, z=-0.5}, {x=0, y=0, z=0})`
+3. The `{x, y, z}` values inside the third argument control the position relative to the carriage's center:
+   - `x` moves the player left/right (e.g., `-0.4` is left side, `0.4` is right side).
+   - `y` moves the player up/down (increase to raise the player up).
+   - `z` moves the player forward/backward (decrease to move them backward on the seat).
+4. Save the file, restart your game/server, and try mounting again to see the effect!

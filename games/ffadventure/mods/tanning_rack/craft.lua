@@ -9,12 +9,12 @@ minetest.register_craft({
 })
 
 -- ======================================================================
--- REPLACE LEATHER INGREDIENTS IN EXISTING RECIPES WITH WORKED LEATHER
+-- REPLACE LEATHER INGREDIENTS IN EXISTING RECIPES WITH TANNED LEATHER
 -- ======================================================================
--- Any recipe that used raw leather/hide now requires worked leather
--- instead, forcing players to tan the material first.
+-- Any recipe that used raw leather/hide now requires tanned leather
+-- instead, forcing players to cure then tan the material first.
 
-local W = "tanning_rack:worked_leather"
+local W = "tanning_rack:tanned_leather"
 
 local function replace_leather_recipe(output, new_recipe)
     if not minetest.registered_items[output] then return end

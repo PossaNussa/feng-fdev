@@ -1,0 +1,3 @@
+
+# Only artificial light (lamps) keeps you sane; sunlight is ignored.
+bewarethedark_artificial_only (Artificial light only) bool false

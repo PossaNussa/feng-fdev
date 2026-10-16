@@ -100,7 +100,7 @@ minetest.register_node('default:rope', {
                 minetest.get_node({x = pos.x, y = pos.y, z = pos.z - 1}).name
             }
             for _, name in ipairs(adj_node_names) do
-                if name:find("^default:fence_") or name == "default:rope" then
+                if minetest.get_item_group(name, "fence") > 0 or name == "default:rope" then
                     can_place = true
                     break
                 end
@@ -323,7 +323,7 @@ minetest.register_node("default:hemp_rope", {
                 minetest.get_node({x = pos.x, y = pos.y, z = pos.z - 1}).name
             }
             for _, name in ipairs(adj_node_names) do
-                if name:find("^default:fence_") or name == "default:hemp_rope" then
+                if minetest.get_item_group(name, "fence") > 0 or name == "default:hemp_rope" then
                     can_place = true
                     break
                 end

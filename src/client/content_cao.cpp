@@ -871,6 +871,30 @@ void GenericCAO::updateLight(u32 day_night_ratio)
 	// based on the entity glow.
 	light = encode_light(light_at_pos, m_prop.glow);
 
+	// FlashEng: tint by nearby coloured lights (recomputed only when the
+	// object enters another node).
+	if (g_settings->getBool("enable_colored_lighting_tint")) {
+		const v3s16 np = floatToInt(m_position, BS);
+		if (!m_tint_valid || np != m_tint_pos) {
+			m_tint_valid = true;
+			m_tint_pos = np;
+			std::vector<ColoredLightEmitter> em;
+			const s16 R = 9;  // nearby lights dominate; keeps this cheap
+			Map &map = m_env->getMap();
+			if (gather_colored_emitters([&](v3s16 q) { return map.getNode(q); },
+					m_client->ndef(), np - v3s16(R, R, R), np + v3s16(R, R, R), em))
+				m_tint = colored_light_tint(em, v3f(np.X, np.Y + 1, np.Z),
+						core::clamp(g_settings->getFloat("colored_lighting_saturation"), 0.f, 4.f));
+			else
+				m_tint = video::SColorf(1, 1, 1);
+		}
+		const f32 s = core::clamp(g_settings->getFloat("colored_lighting_strength"), 0.f, 1.f);
+		const f32 keep = 1.f - s * (1.f - light.getAlpha() / 255.f);
+		light.setRed(core::clamp((s32)(light.getRed() * (keep + (1 - keep) * m_tint.r)), 0, 255));
+		light.setGreen(core::clamp((s32)(light.getGreen() * (keep + (1 - keep) * m_tint.g)), 0, 255));
+		light.setBlue(core::clamp((s32)(light.getBlue() * (keep + (1 - keep) * m_tint.b)), 0, 255));
+	}
+
 	if (light != m_last_light) {
 		m_last_light = light;
 		setNodeLight(light);

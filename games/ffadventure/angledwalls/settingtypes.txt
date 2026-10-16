@@ -1,0 +1,36 @@
+[Angled placement]
+
+#    Place blocks at 45 degrees by facing a diagonal while you place them.
+#    Players can also turn this off for themselves with /angled.
+angledwalls.enabled_by_default (Angled placement on by default) bool true
+
+#    How far from a true 45 degrees still counts as standing at an angle.
+#    Larger values angle blocks more eagerly; smaller values make it easier to
+#    place plain cubes without thinking about where you are facing.
+angledwalls.tolerance (Diagonal stance tolerance, degrees) int 20 1 44
+
+#    Key that places the corner piece (a block with a single chamfered corner,
+#    for joining a diagonal run to an axis-aligned wall) instead of the diagonal.
+angledwalls.corner_modifier (Corner piece modifier key) enum sneak sneak,aux1,none
+
+[Generated blocks]
+
+#    Generate angled variants for every ordinary cubic block in the game.
+#    Turning this off leaves the mod with no angled blocks at all; existing
+#    builds that use them will show unknown nodes.
+angledwalls.autogen (Generate angled variants) bool true
+
+#    Also generate the single-corner piece for every block.  This doubles the
+#    number of generated nodes.  Turning it off after building with corner
+#    pieces leaves unknown nodes behind.
+angledwalls.corner_shape (Generate corner pieces) bool true
+
+#    Upper limit on generated nodes, as a safety valve against the engine's
+#    32767 node limit.  Blocks are processed in alphabetical order, so the same
+#    ones are dropped on every start.  The count actually generated is logged at
+#    startup ("[angledwalls] N angled variants for M blocks").
+angledwalls.max_variants (Maximum generated variants) int 12000 0 30000
+
+#    Blocks to leave alone, comma separated.  Accepts node names and whole mods:
+#    "default:stone, mymod:*"
+angledwalls.exclude (Excluded blocks) string

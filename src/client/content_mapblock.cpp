@@ -470,10 +470,10 @@ void MapblockMeshGenerator::drawSolidNode()
 		}
 	}
 
-    // Level‑of‑detail: if far away, restrict faces to the top face only
+    // Level‑of‑detail (lod_mode = top): if far away, restrict faces to the top face only
     // (face index 0 corresponds to the +Y direction).  This reduces the
     // geometry complexity drastically by drawing only the upper surface.
-    if (data->m_far_away) {
+    if (data->m_far_away && data->m_lod_top_only) {
         faces &= (1 << 0);
     }
     if (!faces)

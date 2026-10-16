@@ -44,6 +44,12 @@ local function water_on_construct(pos)
 	minetest.swap_node(pos, node)
 end
 
+-- Exposed so other mods can colour their own water the same way.  dynamic_liquid's
+-- shallow puddles use this to look up the exact palette index for a position, so a
+-- puddle keeps the biome tint of the water around it instead of rendering white.
+always_greener = always_greener or {}
+always_greener.water_param2 = get_biome_water_color
+
 local alt_map = minetest.settings:get_bool('awg.water_color_dull', false)
 
 local src_palette  = alt_map and 'awg_water_colormap_2.png'      or 'awg_water_colormap.png'

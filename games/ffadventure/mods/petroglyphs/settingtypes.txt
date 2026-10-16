@@ -1,0 +1,33 @@
+[Petroglyphs]
+
+#    Lowest depth a panel may be cut at.  The default reaches the mantle,
+#    which is where the strange ones are.
+petroglyphs_y_min (Lowest panel depth) int -1250 -31000 31000
+
+#    Highest altitude a panel may be cut at.
+petroglyphs_y_max (Highest panel altitude) int 400 -31000 31000
+
+#    How much of the world was ever worked.  This is a threshold on a
+#    low-frequency noise: raise it and panels become rarer but stay just as
+#    clustered, lower it and worked country spreads.  0.40 is about a fifth of
+#    the world; 0.62 was under a tenth and made panels very hard to stumble on.
+petroglyphs_site_threshold (Worked-country threshold) float 0.40 -1.0 1.5
+
+#    Inside worked country, one mapchunk in this many carries a panel.
+petroglyphs_chunk_chance (Mapchunks per panel) int 3 1 64
+
+#    Log every panel the mapgen places to debug.txt (position and carving hand).
+#    Use this to confirm panels are generating as you explore new terrain.
+petroglyphs_log (Log placed panels) bool false
+
+#    Width in nodes of a province that shares one carving style.
+petroglyphs_culture_size (Province size) int 3000 256 20000
+
+#    Percent chance that any single mark in a panel is one of the two that
+#    belong to no known culture.
+petroglyphs_anomaly_percent (Anomalous mark chance) int 3 0 100
+
+#    List every rock's glyph set in the creative inventory.  Off by default:
+#    that is several hundred entries.  Only the desert stone set is listed;
+#    the rest are still generated and can be mined.
+petroglyphs_all_in_creative (All rocks in creative inventory) bool false

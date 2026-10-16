@@ -62,6 +62,70 @@ static video::SColorf compute_block_tint(MeshMakeData *data, const NodeDefManage
 }
 // =======================================================================
 
+// === FlashEng per-vertex coloured light ===================================
+static inline f32 srgb_to_linear(f32 c) { return std::pow(c, 2.2f); }
+
+bool gather_colored_emitters(const std::function<MapNode(v3s16)> &get_node,
+		const NodeDefManager *ndef, v3s16 minp, v3s16 maxp,
+		std::vector<ColoredLightEmitter> &out)
+{
+	bool any_colored = false;
+	v3s16 p;
+	for (p.Z = minp.Z; p.Z <= maxp.Z; p.Z++)
+	for (p.Y = minp.Y; p.Y <= maxp.Y; p.Y++)
+	for (p.X = minp.X; p.X <= maxp.X; p.X++) {
+		MapNode n = get_node(p);
+		if (n.getContent() == CONTENT_IGNORE || n.getContent() == CONTENT_AIR)
+			continue;
+		const ContentFeatures &cf = ndef->get(n);
+		if (cf.light_source == 0)
+			continue;
+		const video::SColor &c = cf.light_colour;
+		const bool white = c.getRed() == 255 && c.getGreen() == 255 && c.getBlue() == 255;
+		any_colored |= !white;
+		out.push_back({v3f(p.X, p.Y, p.Z), (f32)cf.light_source,
+			video::SColorf(srgb_to_linear(c.getRed() / 255.f),
+				srgb_to_linear(c.getGreen() / 255.f),
+				srgb_to_linear(c.getBlue() / 255.f))});
+	}
+	return any_colored;
+}
+
+video::SColorf colored_light_tint(const std::vector<ColoredLightEmitter> &em, const v3f &p,
+		f32 saturation)
+{
+	f32 r = 0, g = 0, b = 0, ws = 0;
+	for (const auto &e : em) {
+		const f32 d = std::fabs(e.pos.X - p.X) + std::fabs(e.pos.Y - p.Y) + std::fabs(e.pos.Z - p.Z);
+		const f32 c = e.level - d;
+		if (c <= 0)
+			continue;
+		const f32 w = c * c;
+		r += w * e.col.r;
+		g += w * e.col.g;
+		b += w * e.col.b;
+		ws += w;
+	}
+	if (ws <= 0)
+		return video::SColorf(1, 1, 1);
+	r = std::pow(r / ws, 1 / 2.2f);
+	g = std::pow(g / ws, 1 / 2.2f);
+	b = std::pow(b / ws, 1 / 2.2f);
+	// Keep perceived brightness: normalise by luminance, not the max channel,
+	// so coloured light changes hue without darkening the scene. Capped so
+	// saturated colours don't blow out.
+	const f32 lum = 0.2126f * r + 0.7152f * g + 0.0722f * b;
+	if (lum <= 0)
+		return video::SColorf(1, 1, 1);
+	r /= lum; g /= lum; b /= lum;
+	// Saturation: move the tint away from white (1,1,1).
+	r = 1.f + (r - 1.f) * saturation;
+	g = 1.f + (g - 1.f) * saturation;
+	b = 1.f + (b - 1.f) * saturation;
+	return video::SColorf(core::clamp(r, 0.f, 2.5f), core::clamp(g, 0.f, 2.5f), core::clamp(b, 0.f, 2.5f));
+}
+// =======================================================================
+
 /*
 	MeshMakeData
 */
@@ -636,7 +700,46 @@ MapBlockMesh::MapBlockMesh(Client *client, MeshMakeData *data):
 {
     const bool __tint_on = g_settings->getBool("enable_colored_lighting_tint");
     struct __TintGuard { ~__TintGuard() { g_apply_colored_tint = false; } } __tguard;
-    if (__tint_on) { g_apply_colored_tint = true; g_block_tint = compute_block_tint(data, data->m_nodedef); }
+    // (The old per-block tint is superseded by per-vertex colour below.)
+    std::vector<ColoredLightEmitter> __emitters;
+    bool __any_colored = false;
+    if (__tint_on) {
+        const v3s16 bn = data->m_blockpos * MAP_BLOCKSIZE;
+        const s16 margin = 14; // max light reach
+        // Fast path: walk the manipulator's node array directly (no per-node
+        // bounds/flag checks), only looking up features for emitting content.
+        const VoxelManipulator &vm = data->m_vmanip;
+        const VoxelArea &va = vm.m_area;
+        VoxelArea want(bn - v3s16(margin, margin, margin),
+            bn + v3s16(1, 1, 1) * (data->m_side_length - 1) + v3s16(margin, margin, margin));
+        v3s16 lo(std::max(want.MinEdge.X, va.MinEdge.X), std::max(want.MinEdge.Y, va.MinEdge.Y),
+            std::max(want.MinEdge.Z, va.MinEdge.Z));
+        v3s16 hi(std::min(want.MaxEdge.X, va.MaxEdge.X), std::min(want.MaxEdge.Y, va.MaxEdge.Y),
+            std::min(want.MaxEdge.Z, va.MaxEdge.Z));
+        const NodeDefManager *nd = data->m_nodedef;
+        if (vm.m_data) {
+            for (s16 z = lo.Z; z <= hi.Z; z++)
+            for (s16 y = lo.Y; y <= hi.Y; y++) {
+                u32 i = va.index(lo.X, y, z);
+                for (s16 x = lo.X; x <= hi.X; x++, i++) {
+                    const content_t c = vm.m_data[i].getContent();
+                    if (c == CONTENT_AIR || c == CONTENT_IGNORE)
+                        continue;
+                    const ContentFeatures &cf = nd->get(c);
+                    if (cf.light_source == 0)
+                        continue;
+                    const video::SColor &lc = cf.light_colour;
+                    const bool white = lc.getRed() == 255 && lc.getGreen() == 255 && lc.getBlue() == 255;
+                    __any_colored |= !white;
+                    __emitters.push_back({v3f(x, y, z), (f32)cf.light_source,
+                        video::SColorf(std::pow(lc.getRed() / 255.f, 2.2f),
+                            std::pow(lc.getGreen() / 255.f, 2.2f), std::pow(lc.getBlue() / 255.f, 2.2f))});
+                }
+            }
+        }
+    }
+    const f32 __tint_strength = core::clamp(g_settings->getFloat("colored_lighting_strength"), 0.f, 1.f);
+    const f32 __tint_saturation = core::clamp(g_settings->getFloat("colored_lighting_saturation"), 0.f, 4.f);
 
 	ZoneScoped;
 
@@ -679,6 +782,7 @@ MapBlockMesh::MapBlockMesh(Client *client, MeshMakeData *data):
 		// set far_away flag
 		if (dist_sq >= threshold_sq)
 			data->m_far_away = true;
+		data->m_lod_top_only = g_settings->get("lod_mode") == "top";
 	}
 
 	for (auto &m : m_mesh)
@@ -730,6 +834,25 @@ MapBlockMesh::MapBlockMesh(Client *client, MeshMakeData *data):
 			PreMeshBuffer &p = collector.prebuffers[layer][i];
 
 			p.applyTileColor();
+
+			// FlashEng: colour each vertex by the coloured lights around it.
+			// Vertex colour RGB holds the light brightness that the shader
+			// multiplies by day/artificial light, so tinting it here shows
+			// with and without shaders. Sunlit vertices (alpha) stay white.
+			if (__any_colored && __tint_strength > 0) {
+				const v3f origin = intToFloat(data->m_blockpos * MAP_BLOCKSIZE, 1.f);
+				for (auto &v : p.vertices) {
+					const v3f wp = origin + (v.Pos - offset) / BS;
+					video::SColorf t = colored_light_tint(__emitters, wp, __tint_saturation);
+					const f32 keep = 1.f - __tint_strength * (1.f - v.Color.getAlpha() / 255.f);
+					t.r = keep + (1.f - keep) * t.r;
+					t.g = keep + (1.f - keep) * t.g;
+					t.b = keep + (1.f - keep) * t.b;
+					v.Color.setRed(core::clamp((s32)(v.Color.getRed() * t.r), 0, 255));
+					v.Color.setGreen(core::clamp((s32)(v.Color.getGreen() * t.g), 0, 255));
+					v.Color.setBlue(core::clamp((s32)(v.Color.getBlue() * t.b), 0, 255));
+				}
+			}
 
 			// Generate animation data
 			// - Cracks

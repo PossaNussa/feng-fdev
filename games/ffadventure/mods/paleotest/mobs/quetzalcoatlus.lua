@@ -158,6 +158,7 @@ minetest.register_entity("paleotest:quetzalcoatlus", {
     view_range = 64,
     reach = 6,
     damage = 8,
+    punch_cooldown = 1.5,
     knockback = 8,
     lung_capacity = 60,
     soar_height = 12,

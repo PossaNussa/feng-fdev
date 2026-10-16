@@ -31,6 +31,36 @@ local all_direction_permutations = {
 local get_node = minetest.get_node
 local set_node = minetest.swap_node
 
+local neighbour_dirs = {
+	{x = 1, y = 0, z = 0},
+	{x = -1, y = 0, z = 0},
+	{x = 0, y = 0, z = 1},
+	{x = 0, y = 0, z = -1},
+	{x = 0, y = 1, z = 0},
+	{x = 0, y = -1, z = 0},
+}
+
+-- Deciding whether a lone node of water is really on its own.  The six faces are
+-- not enough: a node the flow has just pushed up onto a shore has the lake it
+-- came from diagonally beneath it, and calling that stranded starts a loop —
+-- it settles into a puddle, the puddle runs straight back into the lake, the
+-- lake pushes another node out, forever.  Water within one cell in any
+-- direction counts as the same body.
+local function has_liquid_nearby(pos, liquid)
+	local px, py, pz = pos.x, pos.y, pos.z
+	for y = py - 1, py + 1 do
+	for x = px - 1, px + 1 do
+	for z = pz - 1, pz + 1 do
+		if not (x == px and y == py and z == pz) and
+				get_node({x = x, y = y, z = z}).name == liquid then
+			return true
+		end
+	end
+	end
+	end
+	return false
+end
+
 -- Dynamic liquids
 -----------------------------------------------------------------------------------------------------------------------
 
@@ -56,6 +86,14 @@ local function invalidate_around_in_all(pos)
 	invalidate_in_all({x=x,   y=y-1, z=z  })
 	invalidate_in_all({x=x,   y=y,   z=z+1})
 	invalidate_in_all({x=x,   y=y,   z=z-1})
+end
+
+-- Shallow water moves nodes around with set_node, which fires none of the hooks
+-- below, so it has to say so itself.  Without this a source that gave up beside
+-- a puddle stays marked stable for the full TTL after the puddle has gone, and
+-- the flow behind it stands still for half a minute for no visible reason.
+dynamic_liquid.invalidate_stability = function(pos)
+	invalidate_around_in_all(pos)
 end
 
 -- Entries are only re-checked when their ABM fires, so stale entries for
@@ -105,7 +143,19 @@ dynamic_liquid.liquid_abm = function(liquid, flowing_liquid, chance)
 	minetest.register_abm({
 		label = "dynamic_liquid " .. liquid .. " and " .. flowing_liquid,
 		nodenames = {liquid},
-		neighbors = {flowing_liquid},
+		-- The trigger is "air", not flowing water.  This ABM moves a source into
+		-- an open cell itself (see the air checks below) — it never needed the
+		-- engine's flowing water to carry the water, only something to tell it a
+		-- source has somewhere to go.  Waking on flowing water made the whole
+		-- system a hostage to the engine's finite liquid flow: throttle that flow
+		-- down (to stop it flinging a sheet out ahead of the real water) and the
+		-- ABM stops firing, so the water sits still.  A source is worth looking at
+		-- the moment it touches air; the stable cache keeps still bodies cheap.
+		--
+		-- Flowing water and puddles stay on the list too: a source can be walled
+		-- in by a puddle (not floodable, so no air appears beside it) or sat in a
+		-- channel the engine has filled with flowing, and it must still wake then.
+		neighbors = {"air", flowing_liquid, "group:dynamic_liquid_shallow"},
 		interval = 1,
 		chance = chance or 1,
 		y_max = disable_flow_above,
@@ -116,6 +166,28 @@ dynamic_liquid.liquid_abm = function(liquid, flowing_liquid, chance)
 			local t = stable[h]
 			if t and (minetest.get_gametime() - t) < STABLE_TTL then return end
 
+			-- (A0) Water touching unloaded map holds still.  Nothing here ever
+			-- writes into an "ignore" cell, so the water is not literally draining
+			-- into the void — but whether a boundary source should fall, slosh or
+			-- thin depends on the water in the next chunk, and that chunk is not in
+			-- memory yet.  Deciding from the loaded half alone is what makes the
+			-- frontier "leak": the edge column settles out or runs sideways as
+			-- though the continuous water beyond it were open air.  Leave it be
+			-- until the neighbour emerges — the water there is uninterrupted, it is
+			-- just not loaded — and re-check every tick (deliberately NOT cached as
+			-- stable) so the join comes out seamless the moment the map catches up.
+			for i = 1, 6 do
+				local dir = neighbour_dirs[i]
+				if get_node({x = pos.x + dir.x, y = pos.y + dir.y, z = pos.z + dir.z}).name == "ignore" then
+					return
+				end
+			end
+
+			-- A puddle in the way is left alone here rather than being moved or
+			-- swapped: it clears itself out of a full node's path from its own
+			-- side, by merging into it (see shallow.lua).  Trading places with
+			-- it instead just moves the obstruction around, and the two halves
+			-- end up handing the same water back and forth forever.
 			local check_pos = {x=pos.x, y=pos.y-1, z=pos.z}
 			local check_node = get_node(check_pos)
 			local check_node_name = check_node.name
@@ -136,6 +208,58 @@ dynamic_liquid.liquid_abm = function(liquid, flowing_liquid, chance)
 				invalidate_around(check_pos)
 				return
 			end
+			-- A source with none of its own kind anywhere around it is a stranded
+			-- block, not part of a body of water.  Rather than let it wander off
+			-- in a random direction as a full cube, settle it out into shallow
+			-- water.  Nothing in an ocean, a lake or a river gets here, and
+			-- neither does anything at their edges.
+			if dynamic_liquid.shallow_variants[liquid] then
+				local isolated = true
+				for i = 1, 6 do
+					local dir = neighbour_dirs[i]
+					if get_node({x = pos.x + dir.x, y = pos.y + dir.y, z = pos.z + dir.z}).name == liquid then
+						isolated = false
+						break
+					end
+				end
+				-- Only worth the wider look once the cheap one says yes.
+				if isolated and has_liquid_nearby(pos, liquid) then
+					isolated = false
+				end
+				if isolated and dynamic_liquid.settle_as_shallow(pos, liquid) then
+					invalidate_around(pos)
+					return
+				end
+
+				-- Even when it is NOT stranded, a source that is only the exposed top
+				-- skin of water — one node deep on solid ground, with none of its own
+				-- liquid directly above or below it — should thin out rather than crawl
+				-- forward as a full cube.  This is the whole point of the mod: the
+				-- leading edge of a spreading sheet breaks down into 1/8 puddles and
+				-- runs out as thin as it can.  Deep water (a source above or below,
+				-- i.e. an ocean column or the body of a lake) is deliberately left to
+				-- slosh sideways as whole cubes by the loop below.  settle_as_shallow
+				-- itself refuses when there is nowhere for a puddle to go, so contained
+				-- water in a basin is never touched and never churns.
+				--
+				-- NB: the cell below MUST be non-liquid here.  A source riding on top
+				-- of the sea (liquid below) is left as a full cube on purpose — routing
+				-- it into the shallow system makes it merge DOWN into the body, which
+				-- rounds to the ledger and is not visibly conserved.  Smoothing proud
+				-- surface bumps has to be done by spreading them thin ACROSS the
+				-- surface, never by dissolving them into the water underneath.
+				--
+				-- check_node_name is still the node directly below (the fall branch
+				-- above returned if it was air/flowing, and the isolated scan did not
+				-- touch it), so no extra read is needed for the cell beneath.
+				local above_name = get_node({x=pos.x, y=pos.y+1, z=pos.z}).name
+				if check_node_name ~= liquid and above_name ~= liquid
+						and dynamic_liquid.settle_as_shallow(pos, liquid) then
+					invalidate_around(pos)
+					return
+				end
+			end
+
 			local perm = all_direction_permutations[math.random(24)]
 			local dirs -- declare outside of loop so it won't keep entering/exiting scope
 			for i=1,4 do

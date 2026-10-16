@@ -15,6 +15,12 @@ internal_api.min_dist = tonumber(core.settings:get("alone_min_dist")) or 1000
 internal_api.max_dist = tonumber(core.settings:get("alone_max_dist")) or 30000
 internal_api.player_dist = tonumber(core.settings:get("alone_player_dist")) or 500
 internal_api.spawn_attempts = tonumber(core.settings:get("alone_spawn_attempts")) or 5000
+-- Respawns re-roll the spawn point every time, so their search runs on every
+-- death and not once per player. A tighter budget keeps that off the server
+-- step; the first tier-matching hit usually lands within a handful of tries.
+internal_api.respawn_attempts = tonumber(core.settings:get("alone_respawn_attempts")) or 400
+
+internal_api.bed_respawn = core.settings:get_bool("enable_bed_respawn", true)
 
 internal_api.has_tpad = core.get_modpath("tpad")
 internal_api.has_named_waypoints = core.get_modpath("named_waypoints")
@@ -40,41 +46,12 @@ if internal_api.has_named_waypoints then
 end
 
 assert(loadfile(MP .. "/lua/util.lua"))(internal_api)
+assert(loadfile(MP .. "/lua/climate_filter.lua"))(internal_api)
 
 function internal_api.new_player_spawn(player)
-	local x, y, z
+	local pos = internal_api.find_spawn_pos(player, internal_api.spawn_attempts)
 
-	local pcg = internal_api.get_rand(player)
-
-	local count = 0
-	while (not y) and (count < internal_api.spawn_attempts) do
-		count = count + 1
-		x = pcg:next(internal_api.min_dist, internal_api.max_dist)
-		if pcg:next(1, 2) > 1 then x = -x end
-		z = pcg:next(internal_api.min_dist, internal_api.max_dist)
-		if pcg:next(1, 2) > 1 then z = -z end
-
-		local rpos = vector.new(x, 0, z)
-
-		local far_away = true
-		for _, ppos in pairs(internal_api.player_spawns) do
-			if vector.distance(rpos, ppos) < internal_api.player_dist then
-				far_away = false
-				break
-			end
-		end
-
-		if far_away then
-			local vm = core.get_voxel_manip()
-			-- local emin, emax = vm:read_from_map(rpos, rpos)
-			vm:read_from_map(rpos, rpos)
-
-			y = core.get_spawn_level(x, z)
-		end
-	end
-
-	if y then
-		local pos = vector.new(x, y, z)
+	if pos then
 		if internal_api.home_alone then
 			local y_offset
 			local has_house
@@ -87,6 +64,11 @@ function internal_api.new_player_spawn(player)
 
 			if has_house then
 				if y_offset ~= 0 then pos = vector.offset(pos, 0, y_offset, 0) end
+
+				-- A house is a spawn point the player was given rather than one
+				-- they wandered into, so it is theirs to keep: respawns stop
+				-- re-rolling once this is set.
+				player:get_meta():set_string("alone:home", core.pos_to_string(pos))
 
 				local home_str = S("@1's home", player:get_player_name())
 
@@ -109,9 +91,11 @@ function internal_api.new_player_spawn(player)
 			end
 		end
 
-		player:get_meta():set_string("alone:spawn", core.pos_to_string(pos))
 		player:set_pos(pos)
 
+		-- The registry of places to keep other players away from. Respawns
+		-- deliberately do not write to it: it records where people live, not
+		-- wherever they last happened to wake up.
 		internal_api.player_spawns[player:get_player_name()] = pos
 		internal_api.storage:set_string("player_spawns",
 		                                core.serialize(internal_api.player_spawns))
@@ -121,21 +105,48 @@ function internal_api.new_player_spawn(player)
 	return false
 end
 
+--- True when the player has a spawn point they set on purpose, which must not
+--- be re-rolled. Places them at it if nothing else will.
+local function fixed_respawn(player)
+	-- Every on_respawnplayer callback runs -- the list does not stop at the
+	-- first one to return true -- so builtin's static_spawnpoint handler and
+	-- beds' handler have already moved the player by the time we get here. For
+	-- those two all we have to do is stand down and leave them where they are.
+	if core.settings:get_pos("static_spawnpoint") then return true end
+
+	local name = player:get_player_name()
+	if internal_api.bed_respawn and beds and beds.spawn and beds.spawn[name] then
+		return true
+	end
+
+	-- A house from alone_home_alone has no callback of its own, so we place it.
+	local home = core.string_to_pos(player:get_meta():get_string("alone:home"))
+	if home then
+		player:set_pos(home)
+		return true
+	end
+
+	return false
+end
+
 function internal_api.respawn(player)
-	if player and player:is_player() then
+	if not (player and player:is_player()) then return false end
 
-		if internal_api.game_respawn ~= nil then
-			if internal_api.game_respawn(player) then return true end
-		end
+	if internal_api.game_respawn ~= nil then
+		if internal_api.game_respawn(player) then return true end
+	end
 
-		local attr = player:get_meta():get_string("alone:spawn")
-		if attr and attr ~= "" then
-			local pos = core.string_to_pos(attr)
-			if pos then
-				player:set_pos(pos)
-				return true
-			end
-		end
+	-- true here means someone placed them -- us, or a callback that ran before
+	-- us and returned true of its own accord, which the engine ORs with ours.
+	if fixed_respawn(player) then return true end
+
+	-- No spawn of their own: the world hands them a new one every death rather
+	-- than the single point they drew when they registered. Sleep in a bed to
+	-- stop wandering; break the bed and the wandering starts again.
+	local pos = internal_api.find_spawn_pos(player, internal_api.respawn_attempts)
+	if pos then
+		player:set_pos(pos)
+		return true
 	end
 
 	return false

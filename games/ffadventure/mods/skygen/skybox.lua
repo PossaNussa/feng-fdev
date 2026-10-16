@@ -44,7 +44,15 @@ skygen.set_skybox = function(player, skybox)
             sunrise_visible = false,
         })
     else
-        player:set_sun()
+        -- Reset only the fields skygen itself sets. A bare set_sun() resets the
+        -- texture as well, and that belongs to astral -- it would blank a solar
+        -- eclipse or a blood moon the moment a skybox loaded.
+        player:set_sun({
+            visible = true,
+            sunrise = "sunrisebg.png",
+            sunrise_visible = true,
+            scale = 1,
+        })
     end
     -- moon/stars owned by astral mod
     player:set_clouds({density = 0})

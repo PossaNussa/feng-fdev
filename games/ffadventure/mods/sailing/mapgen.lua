@@ -7,7 +7,7 @@ minetest.register_decoration({
   schematic = palm_tree_schematic,
   rotation = 'random',
 	biomes = {"islands", "islands_hot", "naturalbiomes:palmbeach"},
-  flags = {place_center_z = true, place_center_x = true},
+  flags = "place_center_x, place_center_z",
 })
 
 minetest.register_decoration({
@@ -17,5 +17,5 @@ minetest.register_decoration({
   fill_ratio = 0.01,
 	biomes = {"islands", "islands_hot", "naturalbiomes:palmbeach"},
   decoration = "sailing:kukui_bush_full",
-  flags = {place_center_z = true, place_center_x = true},
+  flags = "place_center_x, place_center_z",
 })

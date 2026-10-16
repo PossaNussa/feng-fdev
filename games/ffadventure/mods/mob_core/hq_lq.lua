@@ -293,15 +293,20 @@ function mob_core.lq_dumb_punch(self, target, anim)
         local tyaw = minetest.dir_to_yaw(vector.direction(pos, tpos))
         if abs(tyaw - yaw) > 0.1 then mobkit.turn2yaw(self, tyaw, 4) end
         mobkit.animate(self, anim or "punch")
-        target:punch(self.object, 1.0, {
-            full_punch_interval = 0.1,
-            damage_groups = {fleshy = self.damage}
-        }, nil)
-        mob_core.punch_timer(self, self.punch_cooldown)
-        mob_core.knockback(self, target)
-        self.custom_punch_target = target
-        if self.custom_punch and self.custom_punch_target then
-            self.custom_punch(self)
+        -- Only land a hit when the cooldown has elapsed. This func runs every
+        -- server step for the whole animation length, so without this guard the
+        -- mob punches every tick and one "attack" deals dozens of hits.
+        if self.punch_timer <= 0 then
+            target:punch(self.object, 1.0, {
+                full_punch_interval = 0.1,
+                damage_groups = {fleshy = self.damage}
+            }, nil)
+            mob_core.punch_timer(self, self.punch_cooldown or 1)
+            mob_core.knockback(self, target)
+            self.custom_punch_target = target
+            if self.custom_punch and self.custom_punch_target then
+                self.custom_punch(self)
+            end
         end
         length = length - self.dtime
         if length <= 0 then return true end

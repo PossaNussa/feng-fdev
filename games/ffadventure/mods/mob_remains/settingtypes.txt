@@ -1,0 +1,3 @@
+# When enabled, humanoid mobs leave a named skeleton (a bones node) holding
+# whatever they would have dropped, instead of scattering the drops loose.
+mob_remains_enable (Humanoid mobs leave skeletons) bool true

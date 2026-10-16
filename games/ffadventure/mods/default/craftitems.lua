@@ -231,7 +231,7 @@ minetest.register_craftitem("default:blueberries", {
 	description = S("Blueberries"),
 	inventory_image = "default_blueberries.png",
 	groups = {food_blueberries = 1, food_berry = 1},
-	on_use = minetest.item_eat(2),
+	on_use = minetest.item_eat(1),  -- half a heart (2 HP = 1 heart)
 })
 
 minetest.register_craftitem("default:book", {

@@ -45,12 +45,22 @@ function internal_api.default_spawn_house(player, pos)
 	return 1, true
 end
 
+-- Generators are cached and reused, never rebuilt per call. Spawn points are
+-- re-rolled on every death now, and a fresh PcgRandom(os.time()) hands out the
+-- same sequence to two deaths in the same second; with predictable spawns it
+-- hands out the same sequence forever. Kept generators walk on instead.
+local generators = {}
+
 function internal_api.get_rand(player)
+	local key = "shared"
 	local seed = os.time()
 
 	if core.settings:get_bool("alone_predictable_spawns") then
-		seed = tonumber(core.sha1(player:get_player_name()), 16) + core.get_mapgen_setting("seed")
+		key = player:get_player_name()
+		seed = tonumber(core.sha1(key), 16) + core.get_mapgen_setting("seed")
 	end
 
-	return PcgRandom(seed)
+	if not generators[key] then generators[key] = PcgRandom(seed) end
+
+	return generators[key]
 end

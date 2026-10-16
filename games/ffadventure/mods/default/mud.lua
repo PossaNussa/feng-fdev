@@ -149,6 +149,15 @@ minetest.register_globalstep(function(dtime)
 		local player_name = player:get_player_name()
 		local control = player:get_player_control()
 
+		-- Physics speed is read once and written once per frame.  The sprint, bhop and
+		-- smooth-transition blocks below each used to call set_physics_override on their
+		-- own, so a later block could silently overwrite an earlier one.  `applied_speed`
+		-- threads the intended speed through every branch (each block reads and updates
+		-- this local instead of the live override, exactly as it used to read the live
+		-- value it had just written) and a single commit at the end applies it.
+		local applied_speed = (player:get_physics_override().speed) or 1
+		local base_speed = applied_speed
+
 		-- Initialize if needed
 		idle_times[player_name] = idle_times[player_name] or 0
 		sprint_times[player_name] = sprint_times[player_name] or sprint_time_max
@@ -191,10 +200,15 @@ minetest.register_globalstep(function(dtime)
 			if sprint_awaiting_second_press[player_name] then
 				-- Second press detected — START SPRINT
 				if not original_speeds[player_name] and cooldown_times[player_name] <= 0 then
-					original_speeds[player_name] = player:get_physics_override().speed or 1
+					original_speeds[player_name] = applied_speed
 					speed_intervals[player_name] = speed_step
+					-- Store the real FOV override (0 = "no override, use the
+					-- client's own FOV"). Never substitute a non-zero default:
+					-- restoring to a non-zero override permanently disables the
+					-- engine zoom (binoculars/spyglass) because checkZoomEnabled
+					-- treats any fov > 0 as "zoom disabled by game or mod".
 					local cur = player:get_fov()
-					pre_sprint_fov[player_name] = (cur ~= 0) and cur or default_fov
+					pre_sprint_fov[player_name] = cur
 					player:set_fov(sprint_fov, false, 0.5)
 					sprint_times[player_name] = sprint_time_max
 				end
@@ -212,10 +226,10 @@ minetest.register_globalstep(function(dtime)
 			end
 
 			if original_speeds[player_name] then
-				player:set_physics_override({speed = original_speeds[player_name]})
+				applied_speed = original_speeds[player_name]
 				original_speeds[player_name] = nil
 				speed_intervals[player_name] = -speed_step
-				player:set_fov(pre_sprint_fov[player_name] or default_fov, false, 0.5)
+				player:set_fov(pre_sprint_fov[player_name] or 0, false, 0.5)
 				pre_sprint_fov[player_name] = nil
 			end
 
@@ -234,10 +248,10 @@ minetest.register_globalstep(function(dtime)
 		-- Apply bhop speed on top of current speed
 		if bhop_speeds[player_name] > 0 and control.up then
 			local base = original_speeds[player_name] or 1
-			local current = player:get_physics_override().speed or 1
+			local current = applied_speed
 			local target_with_bhop = math.max(current, base + bhop_speeds[player_name])
 			if current < target_with_bhop then
-				player:set_physics_override({speed = target_with_bhop})
+				applied_speed = target_with_bhop
 			end
 		end
 
@@ -281,7 +295,7 @@ minetest.register_globalstep(function(dtime)
 
 		-- Smooth transition of speed
 		if speed_intervals[player_name] then
-			local current_speed = player:get_physics_override().speed or 1
+			local current_speed = applied_speed
 			local target_speed = original_speeds[player_name] and original_speeds[player_name] * speed_multiplier or max_speed
 			local new_speed = current_speed + speed_intervals[player_name]
 
@@ -290,17 +304,17 @@ minetest.register_globalstep(function(dtime)
 				speed_intervals[player_name] = nil
 				new_speed = target_speed
 			end
-			player:set_physics_override({speed = new_speed})
+			applied_speed = new_speed
 		end
 
 		-- Decrement sprint time if player is sprinting
 		if sprint_times[player_name] and original_speeds[player_name] then
 			sprint_times[player_name] = math.max(0, sprint_times[player_name] - dtime)
 			if sprint_times[player_name] <= 0 then
-				player:set_physics_override({speed = original_speeds[player_name]})
+				applied_speed = original_speeds[player_name]
 				original_speeds[player_name] = nil
 				speed_intervals[player_name] = -speed_step
-				player:set_fov(pre_sprint_fov[player_name] or default_fov, false, 0.5)
+				player:set_fov(pre_sprint_fov[player_name] or 0, false, 0.5)
 				pre_sprint_fov[player_name] = nil
 				cooldown_times[player_name] = cooldown_time_max
 			end
@@ -309,6 +323,11 @@ minetest.register_globalstep(function(dtime)
 		-- Decrement cooldown time
 		if cooldown_times[player_name] then
 			cooldown_times[player_name] = math.max(0, cooldown_times[player_name] - dtime)
+		end
+
+		-- Commit the frame's speed once, only if something changed it.
+		if applied_speed ~= base_speed then
+			player:set_physics_override({speed = applied_speed})
 		end
 	end
 end)
@@ -2213,50 +2232,80 @@ minetest.register_craft({
 
 
 	-- Register hammers for different materials
+	-- {name, uses, fleshy damage}
+	-- Hammers swing slowly (see full_punch_interval below) but land heavily,
+	-- which puts their damage per second next to the matching sword.
 local hammer_materials = {
-	{"flint", 10},
-	{"wood", 20},
-	{"bone", 28},
-	{"stone", 40},
-	{"copper", 60},
-	{"bronze", 80},
-	{"iron", 120},
-	{"steel", 160},
-	{"gold", 40},
-	{"diamond", 320},
+	{"flint", 10, 4},
+	{"wood", 20, 3},
+	{"bone", 28, 5},
+	{"stone", 40, 6},
+	{"copper", 60, 7},
+	{"bronze", 80, 8},
+	{"iron", 120, 9},
+	{"steel", 160, 10},
+	{"gold", 40, 6},
+	{"diamond", 320, 12},
 }
 
 
-local function has_wood_neighbor(pos)
-    for x = -1, 1 do
-        for y = -1, 1 do
-            for z = -1, 1 do
-                local neighbor_pos = {x = pos.x + x, y = pos.y + y, z = pos.z + z}
-                local neighbor_node = minetest.get_node_or_nil(neighbor_pos)
-                if neighbor_node then
-                    local neighbor_def = minetest.registered_nodes[neighbor_node.name]
-                    if neighbor_def and neighbor_def.groups and neighbor_def.groups.wood then
-                        return true
-                    end
-                end
-            end
+local anchor_offsets = {
+    {x =  1, y =  0, z =  0},
+    {x = -1, y =  0, z =  0},
+    {x =  0, y =  1, z =  0},
+    {x =  0, y = -1, z =  0},
+    {x =  0, y =  0, z =  1},
+    {x =  0, y =  0, z = -1},
+}
+
+-- Something to fasten a nail into: any walkable node sharing a face. The node
+-- being hammered is deliberately not counted, and neither are diagonals -- a
+-- plank alone in mid-air, or one touching its neighbour only at a corner, has
+-- nothing to nail to.
+local function has_anchor(pos)
+    for _, offset in ipairs(anchor_offsets) do
+        local neighbor_node = minetest.get_node_or_nil(vector.add(pos, offset))
+        local neighbor_def = neighbor_node and minetest.registered_nodes[neighbor_node.name]
+        if neighbor_def and neighbor_def.walkable then
+            return true
         end
     end
     return false
 end
 
 for _, material in pairs(hammer_materials) do
-    local name, uses = unpack(material)
+    local name, uses, damage = unpack(material)
     minetest.register_tool("default:hammer_"..name, {
         description = name:gsub("^%l", string.upper).." Hammer",
         inventory_image = "default_hammer_"..name..".png",
+        groups = {hammer = 1},
+        sound = {breaks = "default_tool_breaks"},
         tool_capabilities = {
-            full_punch_interval = 1.0,
+            full_punch_interval = 1.4,
+            punch_attack_uses = uses,
             groupcaps={
                 cracky = {times={[1]=2.4, [2]=1.2, [3]=0.6}},
             },
+            damage_groups = {fleshy = damage},
         },
         on_use = function(itemstack, user, pointed_thing)
+            -- Swung at a creature: behave as a weapon. Defining on_use
+            -- otherwise suppresses the engine's default punch, so we forward
+            -- the hit ourselves and charge the punch_attack_uses wear.
+            if pointed_thing and pointed_thing.type == "object" then
+                local target = pointed_thing.ref
+                if target then
+                    local caps = itemstack:get_tool_capabilities()
+                    local dir = user and vector.direction(
+                        user:get_pos(), target:get_pos()) or nil
+                    target:punch(user, nil, caps, dir)
+                    if caps.punch_attack_uses and caps.punch_attack_uses > 0 then
+                        itemstack:add_wear(math.floor(65535 / caps.punch_attack_uses))
+                    end
+                end
+                return itemstack
+            end
+
             local pos = pointed_thing.under
             if not pos then
                 return itemstack
@@ -2306,12 +2355,15 @@ for _, material in pairs(hammer_materials) do
 
             -- Handle wood and other drops
             if node_def.groups.wood or node_def.groups.tree then
-                if has_wood_neighbor(pos) then
-                    local meta = minetest.get_meta(pos)
-                    meta:set_int("hammer_hit", 1)
-                    itemstack:add_wear(65535 / uses)
+                if has_anchor(pos) then
+                    -- Spends one Wood Nails item and swaps in the nailed
+                    -- variant; see wood_nails.lua.
+                    if default.nail_wood(pos, node, user) then
+                        itemstack:add_wear(65535 / uses)
+                    end
                 else
-                    minetest.chat_send_player(user:get_player_name(), "Y!")
+                    minetest.chat_send_player(user:get_player_name(),
+                        "There is nothing here to nail this to.")
                 end
             elseif drops[node.name] then
                 minetest.remove_node(pos)
@@ -2334,7 +2386,8 @@ minetest.register_on_placenode(function(pos, newnode, placer, oldnode, itemstack
 
         if placer and placer:is_player() then
             meta:set_string("placed_by_player", "true")
-            meta:set_int("hammer_hit", 0)
+            -- An already-nailed node keeps its nails when re-placed
+            meta:set_int("hammer_hit", (node_def.groups.nailed_wood or 0) > 0 and 1 or 0)
         meta:set_int("just_placed", 1)
         minetest.after(5, function()
             meta:set_int("just_placed", 0)
@@ -2354,6 +2407,10 @@ minetest.register_abm({
     interval = 2,
     chance = 1,
     action = function(pos, node)
+        -- Nailed wood is braced and never falls, whatever its metadata says
+        if minetest.get_item_group(node.name, "nailed_wood") > 0 then
+            return
+        end
         local meta = minetest.get_meta(pos)
         -- Quick exit for non-player-placed wood first (most wood is natural)
         if meta:get_string("placed_by_player") ~= "true" then
@@ -2366,7 +2423,15 @@ minetest.register_abm({
             return
         end
         local below_node = minetest.get_node_or_nil({x = pos.x, y = pos.y - 1, z = pos.z})
-        if below_node and below_node.name == "air" then
+        -- nil or "ignore" means the block below has not loaded yet; leave the
+        -- wood alone rather than dropping it into terrain we cannot see
+        if not below_node or below_node.name == "ignore" then
+            return
+        end
+        -- Water, lava, grass and torches hold nothing up either, so support is
+        -- "walkable" rather than "not air". Unknown nodes count as support.
+        local below_def = minetest.registered_nodes[below_node.name]
+        if below_def and not below_def.walkable then
             minetest.remove_node(pos)
             local falling_wood = minetest.add_entity(pos, "default:falling_wood_entity")
             if falling_wood then
@@ -2393,39 +2458,48 @@ minetest.register_entity("default:falling_wood_entity", {
             return
         end
         
-        local rounded_pos_below = {x = math.floor(pos.x + 0.5), y = math.floor(pos.y - 1.5), z = math.floor(pos.z + 0.5)}
-        local node_below = minetest.get_node(rounded_pos_below)
-
-        if node_below == nil or node_below.name == nil then
-            return
-        end
-        
         if self.original_node == nil then
             return
         end
-        
-        if node_below.name ~= "air" and minetest.get_item_group(node_below.name, "water") == 0 then
-            -- If the node below is not air and not water, place the original node on top of the solid node it hits
-            minetest.set_node({x = rounded_pos_below.x, y = rounded_pos_below.y + 1, z = rounded_pos_below.z}, {name = self.original_node})
 
-            -- Check if there's a water node above the solid node the wood just landed on
-            local above_solid_node = {x = rounded_pos_below.x, y = rounded_pos_below.y + 1, z = rounded_pos_below.z}
-            local node_above_solid = minetest.get_node(above_solid_node)
-            
-            if node_above_solid == nil or node_above_solid.name == nil then
-                return
-            end
-            
-            if minetest.get_item_group(node_above_solid.name, "water") > 0 then
-                -- Replace the water node with the original node
-                minetest.set_node(above_solid_node, {name = self.original_node})
-            end
+        local rounded_pos_below = {x = math.floor(pos.x + 0.5), y = math.floor(pos.y - 1.5), z = math.floor(pos.z + 0.5)}
+        local node_below = minetest.get_node_or_nil(rounded_pos_below)
 
-            self.object:remove()
+        -- Ground not loaded yet: hang here instead of falling through it
+        if not node_below or node_below.name == "ignore" then
+            self.object:set_velocity({x = 0, y = 0, z = 0})
             return
         end
 
-        self.object:set_velocity({x = 0, y = -9.81, z = 0})
+        -- Must agree with the ABM's support test above, or wood would land on
+        -- water or grass only for the ABM to drop it again, forever.
+        local below_def = minetest.registered_nodes[node_below.name]
+        if below_def and not below_def.walkable then
+            self.object:set_velocity({x = 0, y = -9.81, z = 0})
+            return
+        end
+
+        -- Come to rest in the cell above whatever stopped us, displacing any
+        -- water or plants sitting in it.
+        local rest_pos = {x = rounded_pos_below.x, y = rounded_pos_below.y + 1, z = rounded_pos_below.z}
+        local rest_node = minetest.get_node_or_nil(rest_pos)
+        local rest_def = rest_node and minetest.registered_nodes[rest_node.name]
+
+        if rest_def and rest_def.walkable then
+            -- Something solid moved in while we were falling; drop the wood
+            -- rather than overwriting it
+            minetest.add_item(rest_pos, self.original_node)
+        else
+            minetest.set_node(rest_pos, {name = self.original_node})
+            -- set_node runs no on_placenode callbacks, so restore the flags the
+            -- falling check reads: wood that has come to rest must be able to
+            -- fall again if its support is dug out later.
+            local meta = minetest.get_meta(rest_pos)
+            meta:set_string("placed_by_player", "true")
+            meta:set_int("hammer_hit", 0)
+        end
+
+        self.object:remove()
     end,
 })
 
@@ -2729,6 +2803,43 @@ local campfire_recipes = {
 function default.register_campfire_recipe(item, result, time)
     campfire_recipes[item] = {result = result, time = time or 20}
 end
+
+-- An item is "consumable" if it can be eaten: item_eat installs an on_use, and a
+-- real food never carries tool_capabilities. This is the reliable signal for food
+-- across mods — many raw meats (e.g. lottmobs:meat_raw) carry no food group at all
+-- and are only recognisable as food by what they cook into.
+local function campfire_is_consumable(name)
+    local def = minetest.registered_items[name]
+    return def ~= nil and def.on_use ~= nil and def.tool_capabilities == nil
+end
+
+-- Auto-populate campfire recipes from every furnace "cooking" recipe whose output
+-- is edible. This picks up raw meats/foods from any installed mob or farming mod
+-- (mobs redo, lottmobs, pixel_animals, hardcore_farming rats, ...) without
+-- hand-listing each one. Gating on the OUTPUT (not the raw input) is what catches
+-- meats that aren't eatable raw. Non-food smelting (ore→ingot, sand→glass) is
+-- excluded because those outputs have no eat on_use. Manual entries above always
+-- take precedence — an item already in campfire_recipes is never overwritten.
+minetest.register_on_mods_loaded(function()
+    local added = 0
+    for name, def in pairs(minetest.registered_items) do
+        if name ~= "" and campfire_recipes[name] == nil and def.tool_capabilities == nil then
+            local res = minetest.get_craft_result({
+                method = "cooking", width = 1, items = {ItemStack(name)},
+            })
+            local out = res and res.item
+            if out and not out:is_empty() and campfire_is_consumable(out:get_name()) then
+                campfire_recipes[name] = {
+                    result = out:get_name(),
+                    -- campfire is slower than a furnace: scale the cooktime up, floor at 15s
+                    time   = math.max(15, math.floor((res.time or 3) * 4 + 0.5)),
+                }
+                added = added + 1
+            end
+        end
+    end
+    minetest.log("action", "[default] campfire: auto-registered " .. added .. " food cooking recipes")
+end)
 
 -- Get campfire infotext
 local function campfire_infotext(fuel, cooking_item, cooking_progress, cooking_time)
@@ -3151,26 +3262,29 @@ local function find_next_gas_position(pos)
 end
 
 -- Function to move gas
-local function move_gas(pos)
+local function move_gas(pos, start_time)
     local current_node = minetest.get_node(pos)
-    elapsed_time = elapsed_time or 0  -- initialize if nil
     if current_node.name ~= "default:gas" then
         return
     end
 
-    if elapsed_time >= 300 then  -- 300 seconds = 5 minutes
+    -- Age the gas from when this chain started (µs), same as the steam functions.
+    -- The old code compared a global `elapsed_time` that was never incremented, so gas
+    -- never expired and rescheduled itself forever.
+    start_time = start_time or minetest.get_us_time()
+    if (minetest.get_us_time() - start_time) >= 300000000 then  -- 300 s = 5 minutes
         minetest.remove_node(pos)
         return
     end
 
     local next_pos = find_next_gas_position(pos)
-    
+
     if next_pos then
         minetest.remove_node(pos)
         minetest.set_node(next_pos, {name = "default:gas"})
-        minetest.after(3.0, function() move_gas(next_pos) end)
+        minetest.after(3.0, function() move_gas(next_pos, start_time) end)
     else
-        minetest.after(3.0, function() move_gas(pos) end)
+        minetest.after(3.0, function() move_gas(pos, start_time) end)
     end
 end
 
@@ -3576,7 +3690,8 @@ local function replace_with_falling_dirt(center, radius)
         for _ = 1, batch do
             if i > #dirt_nodes then return end
             local p = dirt_nodes[i]
-            if minetest.get_item_group(minetest.get_node(p).name, "soil") > 0 then
+            local pname = minetest.get_node(p).name
+            if pname ~= "default:tilding" and minetest.get_item_group(pname, "soil") > 0 then
                 minetest.spawn_falling_node(p)
             end
             i = i + 1
@@ -3598,8 +3713,8 @@ minetest.register_on_dignode(function(pos, oldnode, digger)
         end
         return
     end
-    if minetest.get_item_group(oldnode.name, "soil") > 0 then
-        if math.random() < 0.15 then
+    if oldnode.name ~= "default:tilding" and minetest.get_item_group(oldnode.name, "soil") > 0 then
+        if math.random() < 0.075 then
             local offset = face_offsets[math.random(#face_offsets)]
             local center = vector.add(pos, offset)
             minetest.after(0.3, replace_with_falling_dirt, center, 2)

@@ -1,0 +1,54 @@
+[Core]
+
+#    Master switch. When false the mod loads but every seasonal effect is
+#    neutral, as if it were permanently mid-spring.
+seasons_enabled (Enable seasons) bool true
+
+#    Length of a full year in in-game days. The default of 360 matches the
+#    calendar mod (12 months x 30 days), so December really is winter.
+#    One in-game day is about 20 real minutes at the default time_speed of 72,
+#    so 360 days is roughly 120 real hours per year.
+seasons_year_length (Year length in days) int 360 4 36000
+
+[Temperature]
+
+#    Peak seasonal swing applied to the engine heat value, in heat units.
+#    This drives snowfall, snow melt, river ice and the rain-vs-snow split,
+#    because regional_weather gates all of them on heat.
+#    Lowering this below about 20 stops temperate biomes reaching the
+#    max_heat = 35 snow threshold in winter, i.e. it stops snowing.
+seasons_heat_amplitude (Seasonal heat swing) float 22.0 0.0 50.0
+
+#    How strongly the seasonal heat swing feeds player body temperature in
+#    tempsurvive. tempsurvive's own heat-to-degrees conversion is 0.5; lower
+#    values make winter less punishing without affecting snow at all.
+seasons_tempsurvive_scale (Temperature survival impact) float 0.35 0.0 1.0
+
+#    Apply the seasonal offset to tempsurvive player temperature.
+seasons_temperature (Affect player temperature) bool true
+
+[Appearance]
+
+#    Tint grass seasonally through the always_greener colour palette.
+seasons_grass_color (Seasonal grass colour) bool true
+
+#    How far the grass palette shifts towards dry/brown at peak autumn,
+#    in palette humidity steps (the palette has 16).
+seasons_grass_dry_amount (Autumn grass browning) float 38.0 0.0 60.0
+
+#    Tint deciduous tree canopies gold and brown in autumn.
+seasons_leaves (Seasonal foliage) bool true
+
+[Gameplay]
+
+#    Register a season influence and gate weather presets on it, so pollen is
+#    limited to spring and snow can never fall in high summer.
+seasons_weather (Season-aware weather) bool true
+
+#    Slow crop growth in winter and speed it up in summer.
+seasons_farming (Seasonal crop growth) bool true
+
+[Interface]
+
+#    Announce season changes in chat.
+seasons_announce (Announce season changes) bool true

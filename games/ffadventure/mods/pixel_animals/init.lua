@@ -23,6 +23,9 @@ dofile(path.."/pxa_mobs/Marmot.lua")
 dofile(path.."/pxa_mobs/Seagull.lua")
 dofile(path.."/pxa_mobs/Hummingbird.lua")
 
+--- /petcall : bring your pets back to you
+dofile(path.."/petcall.lua")
+
 ---- Sups: ===========================================
 if not minetest.get_modpath("mobs_mc") and not minetest.get_modpath("animalia") then
 dofile(path.."/pxa_mobs/bat.lua")

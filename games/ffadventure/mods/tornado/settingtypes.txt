@@ -1,0 +1,78 @@
+[Safety]
+
+# Master switch. With this off the mod registers nothing at all.
+tornado_enabled (Enable severe storms and tornadoes) bool true
+
+# If false, funnels are purely visual: they push players and entities around,
+# make noise and darken the sky, but never lift a node.
+# TURN THIS OFF ON CREATIVE OR SHOWCASE WORLDS.
+tornado_griefing (Tornadoes move nodes) bool true
+
+# Funnels and flying debris injure players and mobs.
+tornado_damage (Tornadoes cause damage) bool true
+
+# Skip nodes inside protected areas, and drop debris as items rather than
+# placing it when it lands in one.
+tornado_respect_protection (Respect area protection) bool true
+
+# While a storm is running, override the global wind so the sky, the sails, the
+# rain slant and the funnel all agree on the storm's heading.
+tornado_force_wind (Storms drive the global wind) bool true
+
+[Frequency]
+
+# Chance per 15-second scan that a supercell begins, when the weather where
+# somebody is standing is warm, damp and already windy. One roll per scan for
+# the whole server, so player count does not change how often storms happen.
+tornado_storm_chance (Supercell chance per scan) float 0.02 0.0 1.0
+
+# Of the supercells that do form, the fraction that put a funnel on the ground.
+# The rest give you the whole light show and then blow over.
+tornado_funnel_chance (Chance a supercell drops a funnel) float 0.15 0.0 1.0
+
+# Seconds of quiet after an event before another can begin. A storm that never
+# produced a funnel uses about a third of this.
+tornado_cooldown (Quiet period after a storm) int 5400 0 1000000
+
+[Warning]
+
+# Seconds of build-up before a funnel can touch down: the wind dies, the sky
+# goes green, and loose litter starts streaming towards the storm. Nothing is
+# ever said in chat, so this is the whole warning. Longer is kinder.
+tornado_watch_time (Length of the build-up) int 300 30 3600
+
+# How far upwind of the storm the funnel drops in, in nodes. Divided by
+# tornado_speed, this is how long you can see and hear it coming.
+tornado_approach_distance (Touchdown distance upwind) int 150 0 500
+
+# Players within this distance of the storm get the sky, the litter and the
+# forced wind.
+tornado_alert_radius (Alert radius) int 400 50 2000
+
+[Funnel]
+
+# Base lifetime in seconds. Each funnel varies by about a third either way.
+tornado_lifetime (Funnel lifetime) int 210 10 3600
+
+# Base radius of the destructive core in nodes.
+tornado_radius (Funnel radius) float 7 1 40
+
+# How tall the visible column stands.
+tornado_height (Funnel height) float 34 4 200
+
+# Travel speed in nodes per second.
+tornado_speed (Funnel travel speed) float 3.2 0 20
+
+# Nodes lifted per second at full strength. The single biggest lever on how
+# much damage a tornado does.
+tornado_node_rate (Nodes lifted per second) float 9 0 100
+
+# Hard cap on debris entities in the air at once, across all funnels.
+tornado_max_debris (Maximum debris entities) int 140 0 2000
+
+# Multiplier on funnel particle count. 0 disables the visuals entirely.
+tornado_particles (Particle density) float 1 0 4
+
+# Funnels dissipate outside this height band.
+tornado_min_y (Lowest funnel height) int -20 -31000 31000
+tornado_max_y (Highest funnel height) int 250 -31000 31000

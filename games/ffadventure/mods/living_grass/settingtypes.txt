@@ -1,0 +1,18 @@
+[Grass seeding]
+
+#    Bare grassy ground sprouts new grass during the growing season. Without
+#    this, nothing in the game creates a grass node after worldgen, so grass
+#    lost to winter snow or to the drying cycle above never comes back.
+living_grass_seeding (Grass seeds itself) bool true
+
+#    How often the seeding check runs, in seconds.
+living_grass_seed_interval (Seeding interval) int 20 1 600
+
+#    One in this many eligible ground nodes seeds per interval. Higher is
+#    slower.
+living_grass_seed_chance (Seeding chance) int 250 1 10000
+
+#    Nodes kept clear around each new sprout. Seeds are deliberately sparse:
+#    the flower spread ABM fills each patch in from there. Raise this for a
+#    thinner, patchier world.
+living_grass_seed_spacing (Spacing between seeds) int 3 0 8

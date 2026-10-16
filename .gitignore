@@ -30,3 +30,10 @@ compile_commands.json
 debug.txt
 debug.txt.*
 games/ffadventure.zip
+
+# local saves, caches and backups (never version these)
+/reeee/
+/origworld/
+/backups/
+/cache/
+/.claude/

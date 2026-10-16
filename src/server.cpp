@@ -355,6 +355,9 @@ Server::~Server()
 	//       still interact with map loading.
 	if (m_emerge)
 		m_emerge->stopThreads();
+	// Dimension emerge threads must stop here too, for the same reason.
+	if (m_dim_mgr)
+		m_dim_mgr->stopThreads();
 
 	if (m_env) {
 		EnvAutoLock envlock(this);
@@ -415,6 +418,12 @@ Server::~Server()
 
 	// emerge may depend on definition managers, so destroy first
 	m_emerge.reset();
+
+	// Same for the dimensions: each holds a ServerMap whose destructor saves
+	// blocks (which needs m_nodedef) and an EmergeManager that points at the
+	// definition managers. As a unique_ptr member it would otherwise be
+	// destroyed after this function returns, i.e. after the deletes below.
+	m_dim_mgr.reset();
 
 	// Delete the rest in the reverse order of creation
 	delete m_game_settings;
@@ -3967,8 +3976,11 @@ std::string Server::getBuiltinLuaPath()
 
 void Server::setAsyncFatalError(const std::string &error)
 {
-	// print error right here in the thread that set it, for clearer logging
-	infostream << "setAsyncFatalError: " << error << std::endl;
+	// print error right here in the thread that set it, for clearer logging.
+	// errorstream, not infostream: this always terminates the server, and at
+	// the default log level an infostream message is dropped, leaving a
+	// shutdown with no recorded cause in debug.txt.
+	errorstream << "setAsyncFatalError: " << error << std::endl;
 
 	m_async_fatal_error.set(error);
 

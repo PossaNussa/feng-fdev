@@ -1,0 +1,35 @@
+# If enabled (and the standalone Climate Zones mapgen is disabled), biomes
+# are painted in distinct Voronoi climate zones with a north-south heat
+# gradient on top of the engine mapgen terrain.
+climate_v7_enabled (Zone-based climate on engine mapgen) bool true
+
+# Approximate diameter of one climate zone in nodes. Every zone resolves to
+# a single biome, so this is also the typical biome size.
+climate_v7_zone_size (Climate zone size) int 384 64 4096
+
+# Width in nodes of the ragged dither band at zone borders.
+climate_v7_border_blend (Zone border blend) int 12 0 64
+
+# Z coordinate where latitude heat reaches 100 (tropics). Should be south
+# (smaller Z) of the pole.
+#
+# Heat is clamped to 0..100, so everything south of this is uniformly tropical
+# and everything north of the pole is uniformly polar, with no gradient at all.
+# The default spans the whole 62000-node map for that reason: at the old
+# -8000/8000 only the middle 16000 nodes had any climate gradient and the
+# remaining 46000 sat pinned flat. Bringing the two closer together makes
+# climate change faster as you travel, at the cost of flat caps at both ends.
+climate_v7_equator_z (Equator Z coordinate) int -31000
+
+# Z coordinate where latitude heat reaches 0 (polar). North of the equator.
+climate_v7_pole_z (Pole Z coordinate) int 31000
+
+# Maximum heat deviation of a single zone from its latitude heat.
+climate_v7_heat_jitter (Per-zone heat jitter) int 14 0 50
+
+# Heat lost per node of altitude above sea level. 0.08 means roughly -8
+# heat on a 100 node mountain.
+climate_v7_altitude_chill (Altitude chill per node) float 0.08 0 1
+
+# Mapchunks whose lower edge is above this Y skip biome painting entirely.
+climate_v7_paint_y_max (Skip painting above Y) int 2000

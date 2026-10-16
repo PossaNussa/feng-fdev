@@ -56,6 +56,9 @@ write_setting('margin')
 write_setting('margin_width')
 write_setting('margin_elev')
 
+write_setting('base_from_mapgen')
+write_setting('base_detail')
+
 write_setting('river_erosion_coef')
 write_setting('river_erosion_power')
 write_setting('diffusive_erosion')

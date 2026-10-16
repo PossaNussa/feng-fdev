@@ -177,7 +177,7 @@ minetest.register_on_mods_loaded(function()
 							local maxlevel = tp.groupcaps and tp.groupcaps.choppy
 									and tp.groupcaps.choppy.maxlevel or 0
 							if uses > 0 then
-								local wear = math.ceil(65535 / (uses * math.pow(3, maxlevel - choppy)))
+								local wear = math.ceil(65535 / (uses * math.pow(3, math.max(0, maxlevel - choppy))))
 								tool:add_wear(wear)
 								digger:set_wielded_item(tool)
 							end

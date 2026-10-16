@@ -1,5 +1,84 @@
 local S = mg_villages.intllib
 
+-- ---------------------------------------------------------------------------
+-- Coin payment helpers.
+-- Coins (simplecoins:coins) may be loose in the player's main inventory, or
+-- stored inside a money bag (moneybag:bolsa_dinero_1) as metadata. The plain
+-- inv:contains_item()/remove_item() calls only see loose coins, so a player
+-- who keeps their fortune in money bags could never pay. These helpers count
+-- and spend coins from both sources.
+-- ---------------------------------------------------------------------------
+local COIN      = "simplecoins:coins"
+local BAG_FULL  = "moneybag:bolsa_dinero_1"
+local BAG_EMPTY = "moneybag:bolsa_dinero_2"
+
+local function bag_coins( stack )
+	return stack:get_meta():get_int("coins")
+end
+
+-- keep a bag stack's name/description in sync with its coin count
+-- (mirrors the moneybag mod so bags stay consistent when opened later)
+local function set_bag_coins( stack, total )
+	stack:set_name( total > 0 and BAG_FULL or BAG_EMPTY )
+	local meta = stack:get_meta()
+	meta:set_int("coins", total)
+	meta:set_string("description",
+		total > 0 and ("Money Bag (" .. total .. " coins)") or "Empty Money Bag")
+	return stack
+end
+
+-- total coins the player can spend (loose coins + all money bags)
+local function count_coins( inv )
+	local total = 0
+	for i = 1, inv:get_size('main') do
+		local s = inv:get_stack('main', i)
+		local n = s:get_name()
+		if n == COIN then
+			total = total + s:get_count()
+		elseif n == BAG_FULL then
+			total = total + bag_coins( s )
+		end
+	end
+	return total
+end
+
+-- remove `amount` coins, spending loose coins first then draining money bags.
+-- returns true on success; callers should verify count_coins() first.
+local function take_coins( inv, amount )
+	local removed = inv:remove_item('main', ItemStack( COIN.." "..amount ))
+	amount = amount - removed:get_count()
+	for i = 1, inv:get_size('main') do
+		if amount <= 0 then break end
+		local s = inv:get_stack('main', i)
+		if s:get_name() == BAG_FULL then
+			local have = bag_coins( s )
+			local take = math.min( have, amount )
+			set_bag_coins( s, have - take )
+			inv:set_stack('main', i, s)
+			amount = amount - take
+		end
+	end
+	return amount <= 0
+end
+
+-- can the player afford price_stack? (coin-aware for simplecoins:coins)
+local function can_pay( inv, price_stack )
+	if not inv then return false end
+	if price_stack:get_name() == COIN then
+		return count_coins( inv ) >= price_stack:get_count()
+	end
+	return inv:contains_item('main', price_stack)
+end
+
+-- deduct price_stack from the player (coin-aware for simplecoins:coins)
+local function pay_price( inv, price_stack )
+	if price_stack:get_name() == COIN then
+		take_coins( inv, price_stack:get_count() )
+	else
+		inv:remove_item('main', price_stack)
+	end
+end
+
 -- used for buying plots, restoring buildings, getting information about mobs etc.
 mg_villages.plotmarker_formspec = function( pos, formname, fields, player )
 
@@ -263,8 +342,8 @@ mg_villages.plotmarker_formspec = function( pos, formname, fields, player )
 			if mg_villages.all_villages[village_id].ownerlist[pname] then
 				formspec = formspec.."label[1,1.9;"..S("Sorry. You already have a plot in this village.").."]";
 
-			-- Check if the price can be paid
-			elseif( inv and inv:contains_item( 'main', price_stack )) then
+			-- Check if the price can be paid (loose coins or coins in money bags)
+			elseif( can_pay( inv, price_stack )) then
 				formspec = original_formspec..
 					"label[1,1;"..S("Congratulations! You have bought this plot.").."]"..
 					"button_exit[5.75,2.5;1.5,0.5;abort;"..S("Exit").."]";
@@ -278,7 +357,7 @@ mg_villages.plotmarker_formspec = function( pos, formname, fields, player )
 				-- save the data so that it survives server restart
 				mg_villages.save_data();
 				-- substract the price from the players inventory
-				inv:remove_item( 'main', price_stack );
+				pay_price( inv, price_stack );
 			else
 				formspec = formspec.."label[1,1.9;"..S("Sorry. You are not able to pay the price.").."]";
 			end

@@ -1,0 +1,9 @@
+[Natural handholds]
+
+#    Carve handholds into exposed cliff faces and cavern walls during
+#    world generation.
+handholds_worldgen (Generate natural handholds) bool true
+
+#    Percent of exposed rock that ends up carved. Every air node with climbable
+#    rock beside it rolls on its own, so holds land scattered across the rock.
+handholds_worldgen_chance (Coverage of exposed rock, percent) int 30 1 100

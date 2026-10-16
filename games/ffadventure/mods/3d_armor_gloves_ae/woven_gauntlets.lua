@@ -12,8 +12,8 @@ if minetest.get_modpath("farming") then
     minetest.register_craft({
         type = "shaped",
         recipe = {
-            {"group:grass", "farming:string", "group:grass"},
-            {"group:grass", "farming:string", "group:grass"},
+            {"group:grass", "", "group:grass"},
+            {"", "", ""},
             {"", "", ""}
         },
         output = "3d_armor_gloves_ae:gloves_woven",

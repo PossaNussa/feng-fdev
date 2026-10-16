@@ -33,9 +33,27 @@ mapgen_rivers_margin_width (Margin width) float 2000.0 0.0 15000.0
 #    Elevation toward which to converge at map borders
 mapgen_rivers_margin_elev (Margin elevation) float -200.0 -31000.0 31000.0
 
-#    Minimal catchment area for a river to be drawn, in square nodes
-#    Lower value means bigger river density
-mapgen_rivers_min_catchment (Minimal catchment area) float 3600.0 100.0 1000000.0
+#    Minimal catchment area for a river to be drawn, in square nodes.
+#    Lower value means bigger river density.
+#
+#    This is the single knob for how watered the world feels. Divided by
+#    blocksize squared it gives the drainage in grid cells needed to call
+#    something a river, so at 3600 with a 30-node grid it is FOUR CELLS -- every
+#    valley bottom on the map, and no land anywhere further than 90 nodes from
+#    running water. Measured against a real 2066x2066 grid:
+#
+#      3600   ->  42% of the grid carries a river,   0% of land is >90n from one
+#      25000  ->  15%,                              43% of land >90n
+#      60000  ->  10%,                              68% of land >90n, 4% >300n
+#      150000 ->   7%,                              84% of land >90n, 29% >300n
+#
+#    River WIDTH is barely affected -- the largest rivers stay at the full
+#    2*blocksize cap and the 90th percentile actually rises, because what gets
+#    removed is the sub-node trickles, not real rivers.
+#
+#    Read when terrain is generated, not during pregeneration, so changing it
+#    takes effect on newly generated land without rebuilding river_data.
+mapgen_rivers_min_catchment (Minimal catchment area) float 60000.0 100.0 1000000.0
 
 #    Coefficient describing how rivers widen when merging.
 #    Riwer width is a power law W = a*D^p. D is river flow and p is this parameter.
@@ -78,16 +96,43 @@ mapgen_rivers_load_all (Load all data in memory) bool false
 [Landscape evolution parameters]
 
 #    Modelled landscape evolution time, in arbitrary units
-mapgen_rivers_evol_time (Landscape evolution time) float 10.0 0.0 100.0
+mapgen_rivers_evol_time (Landscape evolution time) float 3.0 0.0 100.0
 
 #    Model time steps in arbitrary units
 #    Smaller values will result in more time steps to be necessary to
 #    complete the simulation, taking more time.
 mapgen_rivers_evol_time_step (Landscape evolution time step) float 1.0 0.0 50.0
 
+#    Start the erosion simulation from the engine mapgen's own base terrain
+#    instead of from np_base.
+#    The simulated landscape is normally unrelated to the one the player walks
+#    on, so its river elevations mean nothing next to the real terrain and rivers
+#    can only be drawn where the two happen to agree. Seeding the simulation with
+#    the engine's own land makes the drainage network belong to that land: rivers
+#    then run at every altitude, in valleys erosion actually cut.
+#    Requires a mapgen whose base terrain can be reproduced (currently v7, via
+#    the v7_rivers mod). Falls back to np_base if it cannot be.
+mapgen_rivers_base_from_mapgen (Base heightmap from engine mapgen) bool true
+
+#    Extra noise added on top of that base terrain, in nodes, to give erosion
+#    finer texture to bite into. The engine's own octaves usually supply enough,
+#    so this defaults to off.
+#    Keep it small if you use it at all: v7's base terrain only spans about 45
+#    nodes, so even 25 nodes of extra noise swamps its shape (measured: terrain
+#    fidelity drops from 0.96 to 0.73) and the rivers stop belonging to the land.
+#    Has no effect unless 'base_from_mapgen' is enabled.
+mapgen_rivers_base_detail (Base heightmap extra detail) float 0.0 0.0 200.0
+
+#    NOTE: the erosion defaults below (river_erosion_coef, diffusive_erosion,
+#    evol_time) are tuned for the engine mapgen's relief, which is far gentler
+#    than np_base's -- v7's base terrain spans roughly 45 nodes where np_base
+#    spans 330. The old defaults (0.5 / 0.5 / 10) planed that landscape flat and
+#    pushed every river down to the lowlands. If you turn 'base_from_mapgen' off,
+#    raise them back towards those values or you will get almost no valleys.
+
 #    To adjust river erosion proportionnally.
 #    This type of erosion acts by deepening the valleys.
-mapgen_rivers_river_erosion_coef (River erosion coefficient) float 0.5 0.0 10.0
+mapgen_rivers_river_erosion_coef (River erosion coefficient) float 0.3 0.0 10.0
 
 #    Represents how much river erosion depends on river flow (catchment area).
 #    Catchment area is elevated to this power.
@@ -101,7 +146,7 @@ mapgen_rivers_river_erosion_power (River erosion power) float 0.4 0.0 1.0
 
 #    Intensity of diffusive erosion.
 #    Smoothes peaks and valleys, and tends to prevent sharp cliffs from forming.
-mapgen_rivers_diffusive_erosion (Diffusive erosion) float 0.5 0.0 10.0
+mapgen_rivers_diffusive_erosion (Diffusive erosion) float 0.02 0.0 10.0
 
 #    Radius of compensation for isostatic/tectonic processes
 #    Tectonic uplift forces will have a diffuse effect over this radius

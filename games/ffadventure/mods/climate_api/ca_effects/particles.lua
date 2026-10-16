@@ -132,7 +132,7 @@ local function parse_config(player, particles)
 		config.minvel = { x = 0, y = -particles.minvel, z = 0 }
 	end
 
-	if type(particles.maxvel) ~= nil then
+	if type(particles.maxvel) == "number" then
 		config.maxvel = { x = 0, y = -particles.maxvel, z = 0 }
 	end
 

@@ -1,10 +1,18 @@
 -- dynamic_trees/dt_crafting.lua
+-- Replace the default game's tree saplings with the Dynamic Trees equivalents.
+-- register_alias_force (NOT register_alias) is essential: plain register_alias
+-- does nothing when a real node of that name already exists, and `default`
+-- registers default:sapling etc. as live nodes. _force unregisters the default
+-- node and installs the alias in its place, so the default saplings vanish from
+-- the game entirely and every reference (drops, recipes, decorations, existing
+-- map nodes) resolves to the Dynamic Trees sapling.
 minetest.register_on_mods_loaded(function()
-minetest.register_alias("default:acacia_sapling", "dynamic_trees:acacia_tree_sapling")
-minetest.register_alias("default:sapling", "dynamic_trees:apple_tree_sapling")
-minetest.register_alias("default:aspen_sapling", "dynamic_trees:aspen_tree_sapling")
-minetest.register_alias("default:junglesapling", "dynamic_trees:jungle_tree_sapling")
-minetest.register_alias("default:pine_sapling", "dynamic_trees:pine_tree_sapling")
+minetest.register_alias_force("default:acacia_sapling", "dynamic_trees:acacia_tree_sapling")
+minetest.register_alias_force("default:sapling", "dynamic_trees:apple_tree_sapling")
+minetest.register_alias_force("default:aspen_sapling", "dynamic_trees:aspen_tree_sapling")
+minetest.register_alias_force("default:junglesapling", "dynamic_trees:jungle_tree_sapling")
+minetest.register_alias_force("default:emergent_jungle_sapling", "dynamic_trees:jungle_tree_sapling")
+minetest.register_alias_force("default:pine_sapling", "dynamic_trees:pine_tree_sapling")
 end)
 -- Crafting Recipe For The DT Acacia Sapling
 minetest.register_craft({

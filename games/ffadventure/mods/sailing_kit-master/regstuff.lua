@@ -34,12 +34,14 @@ minetest.register_craftitem("sailing_kit:cloth", {
 
 })
 
+-- A full 3x3 of string is already default:fishing_net's recipe.  Two recipes
+-- with the same grid collide, so the sail cloth is woven from string over a
+-- wool backing instead -- canvas rather than netting.
 minetest.register_craft({
 	output = "sailing_kit:cloth",
 	recipe = {
-		{"farming:string","farming:string","farming:string"},
-		{"farming:string","farming:string","farming:string"},
-		{"farming:string","farming:string","farming:string"},
+		{"farming:string", "group:wool", "farming:string"},
+		{"farming:string", "group:wool", "farming:string"},
 	},
 })
 

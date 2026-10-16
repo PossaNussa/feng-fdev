@@ -46,6 +46,12 @@ tempsurvive={
 		["igniter"]={add=6,rad=5},
 		["default:furnace_active"]={add=5,rad=10},
 		["moretorches:clantern"]={add=2,rad=4},
+		-- Volcano "hot obsidian" and lava-cooked stone: radiate heat nearby, and
+		-- `burn` HP/sec to anything standing on them (see functions.lua). Only
+		-- present when magma_conduits' glowing_rock is enabled; the override loop
+		-- below skips names it can't find, so this is safe otherwise.
+		["magma_conduits:glow_obsidian"]={add=8,rad=6,burn=2},
+		["magma_conduits:hot_cobble"]={add=6,rad=5,burn=2},
 	}
 }
 
@@ -74,7 +80,11 @@ minetest.register_on_mods_loaded(function()
 		end
 	end
 
+	-- tempsurvive.nodes is keyed either by node name ("default:furnace_active") or
+	-- by bare group name ("torch"). Split the two, apply the named ones, then
+	-- expand each group across every node that carries it.
 	local groups_to_change={}
+	local named={}
 	for i,v in pairs(tempsurvive.nodes) do
 		if string.find(i,":")==nil then
 			groups_to_change[i]=v
@@ -83,18 +93,38 @@ minetest.register_on_mods_loaded(function()
 			group.tempsurvive=1
 			group.tempsurvive_add=v.add
 			group.tempsurvive_rad=v.rad
+			if v.burn then group.tempsurvive_burn=v.burn end
 			minetest.override_item(i, {groups=group})
+			-- Remember it: the group pass below runs afterwards and would otherwise
+			-- overwrite it. moretorches:clantern is listed here at add=2/rad=4 *and*
+			-- carries torch=1, so the generic torch entry (add=3/rad=5) was landing
+			-- on top of it and its deliberately cooler, shorter-reach tuning never
+			-- took effect. A name is more specific than a group and wins.
+			named[i]=true
 		end
 	end
+	-- Sorted, not pairs(): a node can carry two listed groups at once (water is
+	-- also puts_out_fire), and iterating the hash would let whichever key came up
+	-- last decide, differently from one run to the next. Alphabetical is arbitrary
+	-- but it is at least the same every time.
+	local group_names={}
+	for ii in pairs(groups_to_change) do group_names[#group_names+1]=ii end
+	table.sort(group_names)
+
 	for i,v in pairs(minetest.registered_nodes) do
-		for ii,vv in pairs(groups_to_change) do
-			if v.groups[ii] then
-				local group=table.copy(v.groups or {})
-				group.tempsurvive=1
-				group.tempsurvive_add=vv.add
-				group.tempsurvive_rad=vv.rad
-				minetest.override_item(i, {groups=group})
-				tempsurvive.nodes[i]={add=vv.add,rad=vv.rad}
+		if not named[i] then
+			for _,ii in ipairs(group_names) do
+				if v.groups and v.groups[ii] then
+					local vv=groups_to_change[ii]
+					local group=table.copy(v.groups or {})
+					group.tempsurvive=1
+					group.tempsurvive_add=vv.add
+					group.tempsurvive_rad=vv.rad
+					if vv.burn then group.tempsurvive_burn=vv.burn end
+					minetest.override_item(i, {groups=group})
+					tempsurvive.nodes[i]={add=vv.add,rad=vv.rad}
+					break
+				end
 			end
 		end
 	end

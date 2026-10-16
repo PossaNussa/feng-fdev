@@ -103,10 +103,43 @@ climate_api.register_abm({
 	conditions	= {
 		min_height		= regional_weather.settings.min_height,
 		max_height		= regional_weather.settings.max_height,
-		min_heat		= 35
+		-- 36, not 35: river water freezes to thin ice at max_heat 35, so melting
+		-- at exactly 35 too meant a tile at heat 35 froze and thawed on alternating
+		-- ticks forever. 36 leaves a one-degree hysteresis band so thin ice settles.
+		min_heat		= 36
 	},
 
 	action = function (pos, node, env)
 		minetest.set_node(pos, { name = "default:river_water_source" })
+	end
+})
+
+-- Thaw thick ice back to thin ice as it warms. Without this the freeze pipeline
+-- was one-way: river water -> thin ice (max_heat 35) -> thick ice (max_heat 30),
+-- but thick ice had no seasonal melt, so a river that froze solid in deep winter
+-- stayed frozen forever. This is the reverse of "thicken thin ice"; the existing
+-- "unfreeze river water" ABM above then finishes thin ice -> river water.
+--
+-- The heat window (>=33) sits between "thicken" (<=30) and "unfreeze" (>=35) so
+-- the two ice tiers can't oscillate. Surface-only (air neighbour) and
+-- height-gated like the other ice ABMs, so buried glacier ice and deep/polar
+-- ocean ice -- which never reaches this heat anyway -- are left alone.
+climate_api.register_abm({
+	label			= "thaw thick ice to thin ice",
+	nodenames = { "default:ice" },
+	neighbors	= { "air" },
+	interval	= 30,
+	chance		= 5,
+	catch_up	= true,
+
+	conditions	= {
+		min_height		= regional_weather.settings.min_height,
+		max_height		= regional_weather.settings.max_height,
+		min_heat		= 33,
+		indoors			= false
+	},
+
+	action = function (pos, node, env)
+		minetest.set_node(pos, { name = BLOCK_NAME })
 	end
 })

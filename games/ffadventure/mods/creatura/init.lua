@@ -1,24 +1,10 @@
-creatura = {}
+-- creatura -- content mod
+--
+-- The API this mod used to carry now lives in `creaturemob`, which serves both
+-- the `creatura.*` and `mobs.*` namespaces from one runtime. This mod stays in
+-- place purely so that every `depends = creatura` in the game still resolves
+-- and the mod's sounds and textures keep shipping.
+--
+-- See mods/creaturemob/README.md and doc.txt for the API itself.
 
-local path = minetest.get_modpath("creatura")
-
-dofile(path.."/api.lua")
-dofile(path.."/pathfinder.lua")
-dofile(path.."/methods.lua")
-
--- Optional Files --
-
--- Optional files can be safely removed
--- by game developers who don't need the
--- extra features
-
-local function load_file(filepath, filename)
-    if io.open(filepath .. "/" .. filename, "r") then
-        dofile(filepath .. "/" .. filename)
-    else
-        minetest.log("action", "[Creatura] The file " .. filename .. " could not be loaded.")
-    end
-end
-
-load_file(path, "boids.lua")
-load_file(path, "spawning.lua")
+assert(creatura, "[creatura] creaturemob did not load first -- check mod.conf depends")

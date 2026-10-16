@@ -134,6 +134,7 @@ minetest.register_entity("paleotest:smilodon", {
     view_range = 16,
     reach = 3,
     damage = 6,
+    punch_cooldown = 1,
     knockback = 2,
     lung_capacity = 40,
     -- Movement & Physics

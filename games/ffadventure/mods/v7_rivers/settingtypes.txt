@@ -1,0 +1,25 @@
+[Lakes]
+
+#    Flood small closed hollows found within a single mapchunk: ponds, tarns,
+#    and water backed up behind whatever a river channel ran into.
+v7_rivers_lakes (Pond and tarn flooding) bool true
+
+#    Fill the large basins the pregenerated river heightmap found and filled to
+#    their own spill points during erosion. These are the lakes big enough to
+#    span many mapchunks, which the per-chunk flood above structurally cannot
+#    find. Where v7 built ground above the water line it stays, as an island or
+#    a shore. Requires terrain reconciliation below, and turns itself off
+#    without it.
+v7_rivers_basin_lakes (Basin lakes) bool true
+
+#    Reshape the ground in and around a basin lake to the shape erosion cut it
+#    into, so the lake sits in a real hollow with a real rim.
+#
+#    A basin in the river heightmap has no rim to speak of - it was filled to
+#    its own spill point, so its edge is exactly at its water line - while v7
+#    builds the land erosion started from, several nodes higher and in a
+#    different place. Without this the water cannot be contained at all and has
+#    to be walled in, which is what this replaced. Only ground within about 16
+#    nodes of a basin is touched, roughly 3% of the world, and v7's own
+#    mountains and relief are carried through it unchanged.
+v7_rivers_reconcile (Reconcile terrain around basin lakes) bool true

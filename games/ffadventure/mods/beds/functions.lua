@@ -7,10 +7,11 @@
 
 local pi = math.pi
 local is_sp = minetest.is_singleplayer()
-local enable_respawn = minetest.settings:get_bool("enable_bed_respawn")
-if enable_respawn == nil then
-	enable_respawn = true
-end
+-- Beds no longer set respawn points in this game. The respawn-at-bed callback
+-- is intentionally never registered and beds.set_spawns() is never called, so
+-- beds.spawn stays empty and every death re-rolls a fresh spawn. The alone and
+-- spawn mods already stand down when beds.spawn has no entry for the player.
+local enable_respawn = false
 
 -- support for MT game translation.
 local S = beds.get_translator
@@ -230,11 +231,7 @@ function beds.on_rightclick(pos, player)
 	-- move to bed
 	if not beds.player[name] then
 		lay_down(player, ppos, pos)
-		-- only set spawn for beds that aren't no_spawn (sleeping bags, hammocks)
-		local node = minetest.get_node(pos)
-		if minetest.get_item_group(node.name, "bed_no_spawn") == 0 then
-			beds.set_spawns()
-		end
+		-- beds no longer set respawn points, so no spawn is recorded here
 	else
 		lay_down(player, nil, nil, false)
 	end

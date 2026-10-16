@@ -1,0 +1,14 @@
+# Number of tool levels
+toolranks_levels (Levels) int 10
+# Number of nodes that need to be dug to reach the next tool level
+toolranks_level_digs (Digs per level) int 500
+# Dig speed multiplier at maximum tool level (1.0 to disable)
+toolranks_speed_multiplier (Dig speed multiplier) float 2.0 1.0 10.0
+# Durability multiplier at maximum tool level (1.0 to disable)
+toolranks_use_multiplier (Durability multiplier) float 2.0 1.0 10.0
+# Turns off the wearing out tools warn feature
+toolranks_warn (Warn User of Breaking Tool) bool true
+# Play a warning sound when tool is about to break
+toolranks_warn_sound (Play Warn Sound) bool true
+# Announce who has the most used tool
+toolranks_announce (Announce Most Used Tool) bool true

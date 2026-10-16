@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <functional>
+
 #include "irrlichttypes.h"
 #include "irr_ptr.h"
 #include "IMesh.h"
@@ -62,6 +64,8 @@ struct MeshMakeData
 	 * rendering code should treat this as read‑only.
 	 */
 	bool m_far_away = false;
+	// LOD: draw only +Y faces of far blocks (lod_mode = top)
+	bool m_lod_top_only = false;
 
 	const NodeDefManager *m_nodedef;
 
@@ -317,6 +321,23 @@ private:
  * from 0 to LIGHT_SUN.
  */
 video::SColor encode_light(u16 light, u8 emissive_light);
+
+// FlashEng coloured light: per-position tint from nearby light sources that
+// declare `light_colour`. Light falls off one level per node (Manhattan
+// distance), like Luanti's own light, so colours fade naturally.
+struct ColoredLightEmitter {
+	v3f pos;               // node position
+	f32 level;             // light_source (0..14)
+	video::SColorf col;    // linear RGB
+};
+// Collects emitters in [minp, maxp]. Returns true if any is non-white.
+bool gather_colored_emitters(const std::function<MapNode(v3s16)> &get_node,
+		const NodeDefManager *ndef, v3s16 minp, v3s16 maxp,
+		std::vector<ColoredLightEmitter> &out);
+// Tint (max channel normalised to 1) at a world position in nodes.
+// saturation: 1 = as computed; >1 pushes the tint further from white (colored_lighting_saturation)
+video::SColorf colored_light_tint(const std::vector<ColoredLightEmitter> &em, const v3f &p,
+		f32 saturation = 1.f);
 
 // Compute light at node
 u16 getInteriorLight(MapNode n, s32 increment, const NodeDefManager *ndef);

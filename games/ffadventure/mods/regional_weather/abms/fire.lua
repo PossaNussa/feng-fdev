@@ -9,13 +9,16 @@ climate_api.register_abm({
 	chance		= 2,
 	catch_up	= false,
 
+	 -- No daylight condition. It used to require daylight == 15, which meant rain
+	 -- only ever put a fire out in broad daylight -- a fire lit outdoors at night
+	 -- in a downpour burned on regardless. `indoors = false` is what actually
+	 -- wants checking here, and it already covers being under a roof.
 	 conditions	= {
 		 min_height		= regional_weather.settings.min_height,
 		 max_height		= regional_weather.settings.max_height,
 		 min_humidity	= 50,
 		 min_biome_humidity = 26,
 		 max_heat			= 85,
-		 daylight			= 15,
 		 indoors			= false
 	 },
 

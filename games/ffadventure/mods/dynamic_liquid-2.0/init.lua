@@ -3,7 +3,7 @@ dynamic_liquid = {} -- global table to expose liquid_abm for other mods' usage
 dynamic_liquid.config = {}
 
 dynamic_liquid.config.water = minetest.settings:get_bool("dynamic_liquid_water", true)
-dynamic_liquid.config.river_water = minetest.settings:get_bool("dynamic_liquid_river_water", false)
+dynamic_liquid.config.river_water = minetest.settings:get_bool("dynamic_liquid_river_water", true)
 dynamic_liquid.config.lava = minetest.settings:get_bool("dynamic_liquid_lava", true)
 
 dynamic_liquid.config.water_probability = tonumber(minetest.settings:get("dynamic_liquid_water_flow_propability")) or 1
@@ -18,8 +18,11 @@ dynamic_liquid.config.displace_liquid = minetest.settings:get_bool("dynamic_liqu
 dynamic_liquid.config.new_lava_cooling = minetest.settings:get_bool("dynamic_liquid_new_lava_cooling", true)
 dynamic_liquid.config.falling_obsidian = minetest.settings:get_bool("dynamic_liquid_falling_obsidian", false)
 
+dynamic_liquid.config.shallow_water = minetest.settings:get_bool("dynamic_liquid_shallow_water", true)
+
 dynamic_liquid.registered_liquids = {} -- used by the flow-through node abm
 dynamic_liquid.registered_liquid_neighbors = {}
+dynamic_liquid.shallow_variants = {} -- source node name -> its shallow companion
 
 dynamic_liquid.mapgen_data = {} -- shared by various mapgens
 
@@ -49,6 +52,7 @@ dofile(modpath.."/flow_through.lua")
 dofile(modpath.."/flow_push.lua")
 dofile(modpath.."/springs.lua")
 dofile(modpath.."/mapgen_prefill.lua")
+dofile(modpath.."/restore_water.lua")
 
 if minetest.get_modpath("default") then
 	dofile(modpath.."/default.lua")
@@ -56,4 +60,10 @@ end
 
 if minetest.get_modpath("mcl_core") then
 	dofile(modpath.."/mineclone.lua")
+end
+
+-- Loaded last, so it can see which liquids already got a full movement ABM above
+-- and give the rest the puddle behaviour on its own.
+if dynamic_liquid.config.shallow_water then
+	dofile(modpath.."/shallow.lua")
 end

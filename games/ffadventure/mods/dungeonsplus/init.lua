@@ -390,6 +390,13 @@ core.register_on_generated(mgdungeons and function(minp, maxp, blockseed)
           -- Log successful generation
           core.log("action","[dungeonsplus] generated " .. feature.name .. " at " .. core.pos_to_string(dungeon))
 
+          -- Tell village_life where this landmark stands, so its wandering
+          -- adventurers can point a player towards a real dungeon rather than a
+          -- rumour. Guarded: dungeonsplus does not depend on village_life.
+          if minetest.global_exists("village_life") and village_life.poi then
+            village_life.poi.record(feature.name, dungeon)
+          end
+
           -- Break retry loop
           break
         else

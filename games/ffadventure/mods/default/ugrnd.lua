@@ -3927,11 +3927,11 @@ local giant_vein_ores = {
      y_max = -500, y_min = -6000, scarcity = 120, size = 6, num = 10},
 
     -- Deep basalt giant veins (very rare, very valuable)
-    {ore = "default:basalt_with_titanium", wherein = "default:basalt",
+    {ore = "default:basalt_with_titanium", wherein = "default:stone",
      y_max = -200, y_min = -1024, scarcity = 110, size = 7, num = 12},
-    {ore = "default:basalt_with_platinum", wherein = "default:basalt",
+    {ore = "default:basalt_with_platinum", wherein = "default:stone",
      y_max = -400, y_min = -1024, scarcity = 130, size = 6, num = 10},
-    {ore = "default:basalt_with_mithril", wherein = "default:basalt",
+    {ore = "default:basalt_with_mithril", wherein = "default:stone",
      y_max = -600, y_min = -1024, scarcity = 140, size = 5, num = 8},
 
     -- Gneiss giant veins
@@ -3943,13 +3943,13 @@ local giant_vein_ores = {
      y_max = -400, y_min = -900, scarcity = 110, size = 6, num = 10},
 
     -- Mantle rock giant veins (deepest, rarest, most valuable)
-    {ore = "default:mantle_rock_with_platinum", wherein = "default:mantle_rock",
+    {ore = "default:mantle_rock_with_platinum", wherein = "default:mantle",
      y_max = -800, y_min = -31000, scarcity = 120, size = 7, num = 12},
-    {ore = "default:mantle_rock_with_mithril", wherein = "default:mantle_rock",
+    {ore = "default:mantle_rock_with_mithril", wherein = "default:mantle",
      y_max = -900, y_min = -31000, scarcity = 130, size = 6, num = 10},
-    {ore = "default:mantle_rock_with_adamant", wherein = "default:mantle_rock",
+    {ore = "default:mantle_rock_with_adamant", wherein = "default:mantle",
      y_max = -1000, y_min = -31000, scarcity = 150, size = 5, num = 8},
-    {ore = "default:mantle_rock_with_diamond", wherein = "default:mantle_rock",
+    {ore = "default:mantle_rock_with_diamond", wherein = "default:mantle",
      y_max = -1000, y_min = -31000, scarcity = 160, size = 5, num = 7},
 }
 

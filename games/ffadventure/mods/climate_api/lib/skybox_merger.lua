@@ -25,16 +25,31 @@ local default_sky = {
 		thickness = 16,
 		speed = {x=0, z=-2}
 	},
+	-- Textures are deliberately absent here. The astral mod owns the sun, moon and
+	-- star textures -- blood moon, blue moon, super moon, solar eclipse -- and
+	-- restating "sun.png" and "sun_tonemap.png" as a default erased whichever
+	-- event was running the moment any weather layer changed. set_sun, set_moon
+	-- and set_stars leave omitted fields at their current values
+	-- (l_object.cpp:2332 reads getSunParams() before applying the table), so
+	-- naming no texture means never touching astral's.
+	--
+	-- Visibility does have to be restated, though. deep_cave and nether hide the
+	-- sun, moon and stars, and with no default to fall back to, removing those
+	-- layers left them hidden: walking out of a deep cave used to leave you with
+	-- no moon and no stars until astral's next day rollover happened to
+	-- re-assert them. These cover exactly the fields those layers set, plus the
+	-- sun scale that skygen varies.
 	sun_data = {
 		visible = true,
-		texture = "sun.png",
-		tonemap = "sun_tonemap.png",
-		sunrise = "sunrisebg.png",
 		sunrise_visible = true,
 		scale = 1
 	},
-	-- moon_data and star_data omitted: astral mod owns moon/stars
-	-- weather effects (e.g. deep_cave) can still override via their own layers
+	moon_data = {
+		visible = true
+	},
+	star_data = {
+		visible = true
+	},
 }
 
 local skybox = {}
@@ -61,8 +76,11 @@ local function set_skybox(playername, sky)
 	sky.cloud_data.density = 0
 	player:set_clouds(sky.cloud_data)
 	player:set_sun(sky.sun_data)
-	if sky.moon_data then player:set_moon(sky.moon_data) end
-	if sky.star_data then player:set_stars(sky.star_data) end
+	-- Unconditional now that default_sky supplies visibility defaults: guarding
+	-- these is what left the moon and stars stuck invisible after a deep_cave or
+	-- nether layer was removed.
+	player:set_moon(sky.moon_data)
+	player:set_stars(sky.star_data)
 end
 
 function skybox.update(playername)

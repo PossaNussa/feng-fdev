@@ -22,5 +22,20 @@ alone_player_dist (Distance players spawn from each other) int 500
 # The maximum number of times to try and place a player
 alone_spawn_attempts (Number of spawn attempts) int 5000
 
+# The maximum number of times to try and place a player who is respawning.
+# Lower than the above because this search runs on every death.
+alone_respawn_attempts (Number of respawn attempts) int 400 1 5000
+
+# The share of spawn points allowed to land in a climate that will kill an
+# unequipped player. The rest are steered towards survivable ground. Spawns are
+# still drawn from the whole world either way, so a harsh one is a genuinely
+# far-flung one.
+alone_harsh_share (Share of spawns in a harsh climate) float 0.25 0.0 1.0
+
+# How hostile a spot has to be to count as harsh. Roughly: 0.3 is heat 24
+# (about -13 degrees), heat 85, or humidity 12. Raise it to make the harsh
+# quarter harsher, lower it to widen what counts as brutal.
+alone_harsh_score (Harshness score counted as harsh) float 0.3 0.0 2.0
+
 # If enabled then player spawn positions will be predictable
 alone_predictable_spawns (Predictable spawn positions) bool false

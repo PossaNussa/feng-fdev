@@ -45,5 +45,18 @@ dofile(path .. "bushland.lua") --
 --dofile(path .. "leafdecay.lua") --
 dofile(path .. "hunger.lua") --
 
+-- Tag all naturalbiomes tall grasses / beach grasses with group:grass so they
+-- count as tall grass in game-wide recipes (e.g. green wool from 2x2 grass,
+-- string from a diagonal grass pair). Without this they register only as
+-- generic flora and those recipes silently reject them.
+for name, def in pairs(minetest.registered_nodes) do
+	if name:sub(1, 14) == "naturalbiomes:" and name:find("grass")
+			and def.groups and def.groups.flora and not def.groups.grass then
+		local new_groups = table.copy(def.groups)
+		new_groups.grass = 1
+		minetest.override_item(name, {groups = new_groups})
+	end
+end
+
 
 

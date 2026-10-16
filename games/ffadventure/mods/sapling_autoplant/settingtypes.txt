@@ -1,0 +1,35 @@
+[Sapling autoplanting]
+
+#    Saplings plant themselves instead of dropping as items.
+sapling_autoplant_enable (Enable sapling autoplanting) bool true
+
+#    How far sideways to look for free ground when the spot is already taken.
+#    Must be larger than the spacing below, or a blocked sapling has nowhere
+#    to shift to.
+sapling_autoplant_radius (Search radius) int 5 0 16
+
+#    Gap kept clear around each sapling. 0 still stops saplings replacing one
+#    another; raise it if dynamic_trees forests come out too crowded.
+sapling_autoplant_spacing (Spacing between saplings) int 2 0 8
+
+#    How far down to look for ground. Needs to cover the height of a canopy,
+#    since leaf decay drops saplings from up in the tree.
+sapling_autoplant_max_fall (Downward search distance) int 24 0 64
+
+#    How far above the drop to start looking, so saplings can root uphill on
+#    a slope.
+sapling_autoplant_rise (Upward search distance) int 2 0 8
+
+#    Most saplings arrive one at a time. This caps how many of a larger stack
+#    get planted; the rest drops as an item.
+sapling_autoplant_stack_limit (Saplings planted per drop) int 4 1 99
+
+#    Plant saplings that a player or mob throws too, once they have landed.
+sapling_autoplant_plant_thrown_items (Plant thrown saplings) bool true
+
+#    A sapling a player breaks goes to that player instead of rooting itself
+#    again. This is the one case where a sapling does not plant.
+sapling_autoplant_keep_dug_saplings (Broken saplings go to the player) bool true
+
+#    Play the sapling's place sound when it roots itself.
+sapling_autoplant_place_sound (Planting sound) bool true

@@ -1,0 +1,114 @@
+# Colony Ship Down - mods shared with ffadventure
+#
+# Every name here is a folder in games/ffadventure/mods/ that gets copied into
+# games/colony_ship_down/mods/ffa_shared/ by tools/sync_shared_mods.py.
+# ffadventure is the source of truth: edit a shared mod there, then run
+#     python3 games/colony_ship_down/tools/sync_shared_mods.py pull
+# (or edit it here and `push` it back). See README.md.
+#
+# One name per line; text after '#' is ignored. "modpack/mod" takes a single
+# mod out of a modpack.
+
+# --- base libraries / Minetest Game API (what makes ffadventure mods drop in)
+default
+player_api
+xcompat
+basic_materials
+fakelib
+formspec_ast
+flow
+modlib
+tt
+tt_base
+controls
+player_monoids
+playereffects
+
+# --- inventory & UI (creative inventory is for admins/builders)
+sfinv
+creative
+i3
+awards
+show_wielded_item
+adaptive_crosshair
+
+# --- chat: only nearby players hear you; /global is the ship intercom
+proxchat
+
+# --- players (ffadventure's skinsdb uses 3d_armor's player model)
+3d_armor/3d_armor
+skinsdb
+emote
+character_anim
+visible_sneak
+invisible
+
+# --- ship building palette (admins)
+scifi_nodes
+stairs
+walls
+xpanes
+doors
+glass
+unifieddyes
+dye
+wool
+carpets
+signs_lib
+steel
+vessels
+screwdriver
+wrench
+
+# --- crew quarters, mess hall, rec room
+beds
+lrfurn
+pixelfurniture
+cups
+dice2
+instruments
+jukebox
+laptop
+analogue_clock
+trash_can
+Itemframes
+
+# --- galley & hydroponics (watering cans fill at the hydroponics taps)
+wateringcan
+farming
+pizza
+pie
+sandwiches
+waffles
+
+# --- machinery & electronics (csd_create builds on steamified)
+steamified
+mesecons
+digilines
+digistuff
+ham_radio
+
+# --- weapons for fun (pvp is off by default; explosions respect ship protection)
+rangedweapons
+tnt
+fire
+
+# --- water physics (pipe-burst malfunction floods rooms with finite water)
+dynamic_liquid-2.0
+
+# --- sanity: darkness wears on you (lamps only aboard - see minetest.conf)
+bewarethedark
+
+# --- medbay, EVA, atmosphere
+bandages
+airtanks
+goodtorch
+DynamicSounds
+volumetric_lighting
+
+# --- admin tools
+usermgr
+game_commands
+playtimes
+heal
+warps

@@ -321,7 +321,7 @@ minetest.register_decoration({
   rotation = rotx,
   y_min = -20,
   y_max = 31000,
-  flags = {place_center_z = true, place_center_x = true},
+  flags = "place_center_x, place_center_z",
 })
 
 minetest.register_decoration({
@@ -337,7 +337,7 @@ minetest.register_decoration({
   rotation = rotx,
   y_min = -20,
   y_max = 31000,
-  flags = {place_center_z = true, place_center_x = true},
+  flags = "place_center_x, place_center_z",
 })
 
 minetest.register_decoration({
@@ -353,5 +353,5 @@ minetest.register_decoration({
   rotation = rotx,
   y_min = -20,
   y_max = 31000,
-  flags = {place_center_z = true, place_center_x = true},
+  flags = "place_center_x, place_center_z",
 })

@@ -629,6 +629,11 @@ void initializePaths()
 		if (detectMSVCBuildDir(execpath)) {
 			path_share += DIR_DELIM "..";
 			path_user  += DIR_DELIM "..";
+		} else if (fs::IsDir(execpath + DIR_DELIM "builtin")) {
+			// Flat portable layout (exe next to builtin/, e.g. the Colony Ship
+			// Down launcher zip): the exe's own folder is the root.
+			path_share = execpath;
+			path_user  = execpath;
 		}
 	} else {
 		errorstream << "Failed to get paths by executable location, "

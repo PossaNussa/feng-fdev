@@ -8,7 +8,15 @@
 	API
   ]]
 
--- Display entity for items on top of craft tables
+-- Display entity for items on top of craft tables.
+--
+-- These are deliberately NOT static-saved. Persisting wielditem entities is
+-- what left orphaned "unknown item" entities floating in the world: an entity
+-- sitting just above the table can be written into a neighbouring mapblock, and
+-- if that block unloads/reloads out of step with the table (or the table is dug
+-- while it is unloaded) the entity survives with no node to belong to. Instead
+-- the entities live only in memory and are rebuilt from the node inventory on
+-- every block load by the LBM below, so nothing can ever orphan.
 minetest.register_entity("craft_table:display_item", {
 	initial_properties = {
 		physical = false,
@@ -17,41 +25,19 @@ minetest.register_entity("craft_table:display_item", {
 		visual = "wielditem",
 		visual_size = {x = 0.15, y = 0.15},
 		wield_item = "",
-		static_save = true,
+		static_save = false,
 		glow = 5,
 	},
 	on_activate = function(self, staticdata)
-		-- Fresh spawn from add_entity(): no staticdata yet, calling code will configure us
-		if not staticdata or staticdata == "" then
-			return
-		end
-		-- Loaded from disk — validate that the table and item still exist
-		local data = minetest.deserialize(staticdata)
-		if not data or not data.pos or not data.slot then
+		-- Any entity that activates carrying staticdata was persisted by an
+		-- older version of this mod (static_save = true). It is a legacy orphan
+		-- — drop it. Live displays are re-created from the node inventory by the
+		-- LBM, so nothing is lost by removing it here.
+		if staticdata and staticdata ~= "" then
 			self.object:remove()
 			return
 		end
-		self._node_pos = data.pos
-		self._slot = data.slot
-		local node = minetest.get_node(data.pos)
-		if minetest.get_item_group(node.name, "craft_table") == 0 then
-			self.object:remove()
-			return
-		end
-		local meta = minetest.get_meta(data.pos)
-		local inv = meta:get_inventory()
-		local stack = inv:get_stack("craft_store", data.slot)
-		if stack:is_empty() then
-			self.object:remove()
-			return
-		end
-		self.object:set_properties({wield_item = stack:get_name()})
-	end,
-	get_staticdata = function(self)
-		if self._node_pos and self._slot then
-			return minetest.serialize({pos = self._node_pos, slot = self._slot})
-		end
-		return ""
+		-- Fresh spawn from add_entity(): the calling code configures us.
 	end,
 })
 
@@ -93,6 +79,21 @@ local function update_display(pos)
 		end
 	end
 end
+
+-- Rebuild the floating item displays every time a craft table's mapblock loads.
+-- Because the entities are not static-saved, this is the single source of truth
+-- for what floats above a table. It also sweeps up any legacy orphaned entities:
+-- update_display() removes stale displays near pos before re-spawning from the
+-- current craft_store inventory.
+minetest.register_lbm({
+	label = "craft_table: restore item displays",
+	name = "craft_table:restore_displays",
+	nodenames = {"group:craft_table"},
+	run_at_every_load = true,
+	action = function(pos)
+		update_display(pos)
+	end,
+})
 
 -- Return any items currently in the player's craft grid to their main inventory
 local function return_craft_to_inv(player)
@@ -316,6 +317,7 @@ minetest.register_on_dieplayer(function(player)
 	close_table(player)
 end)
 
-minetest.register_craft_predict(function(itemstack, player, old_craft_grid, craft_inv)
-	return itemstack
-end)
+-- NOTE: do not register a pass-through craft_predict here. Craft predict
+-- callbacks resolve to the last non-nil return, so a handler that simply hands
+-- back the unmodified itemstack silently undoes the substitution made by
+-- recipe_cycle.lua, and the cycle arrows stop changing anything.

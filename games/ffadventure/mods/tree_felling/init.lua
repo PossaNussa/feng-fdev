@@ -208,7 +208,7 @@ local function apply_tool_wear(digger, tree_name)
 	local maxlevel = tp.groupcaps and tp.groupcaps.choppy
 			and tp.groupcaps.choppy.maxlevel or 0
 	if uses > 0 then
-		local wear = math.ceil(65535 / (uses * math.pow(3, maxlevel - choppy)))
+		local wear = math.ceil(65535 / (uses * math.pow(3, math.max(0, maxlevel - choppy))))
 		tool:add_wear(wear)
 		digger:set_wielded_item(tool)
 	end
@@ -256,9 +256,28 @@ local function scan_leaves(trunk_list, min_y)
 	return leaves
 end
 
-local function fell_tree(base_pos, tree_name, digger, dt_group)
-	local fall_dir = get_fall_direction(base_pos, digger)
+-- Ballistics: a rigid trunk tipping over carries the piece that started h
+-- nodes above the pivot to roughly h nodes out from it.  Free fall from
+-- height h takes t = sqrt(2h/g), so the launch speed is h/t = sqrt(g*h/2).
+-- FRICTION_COMP offsets the horizontal drag falling_item applies to every
+-- falling entity (x0.95 per 0.1 s tick), which would otherwise make the
+-- upper pieces land short and pile up on the lower ones.
+local GRAVITY = tonumber(minetest.settings:get("movement_gravity")) or 9.81
+local FRICTION_COMP = 1.35
+
+local function launch_speed(h)
+	if h <= 0 then return 0 end
+	return math.sqrt(GRAVITY * h / 2) * FRICTION_COMP
+end
+
+local function fell_tree(base_pos, tree_name, digger, dt_group, forced_dir)
+	local fall_dir = forced_dir or get_fall_direction(base_pos, digger)
 	local side_param2 = get_side_param2(fall_dir)
+
+	-- Shared per-felling domino table: every piece of this tree writes into
+	-- the same table, so each standing neighbour gets exactly ONE domino
+	-- roll per felled tree instead of one per flying piece.
+	local domino_hits = {}
 
 	-- Scan tree above base
 	local trunks = scan_tree(base_pos, tree_name, dt_group)
@@ -289,22 +308,26 @@ local function fell_tree(base_pos, tree_name, digger, dt_group)
 			node.param2 = side_param2
 		end
 
-		-- Spawn falling_node entity (trunks fall fast)
+		-- Spawn falling_node entity on a tipping arc
 		local entity = minetest.add_entity(trunk.pos, "__builtin:falling_node")
 		if entity then
 			local luaent = entity:get_luaentity()
 			if luaent then
 				luaent:set_node(node)
+				luaent._domino_hit = domino_hits
 			end
+			local speed = launch_speed(h)
 			entity:set_velocity({
-				x = fall_dir.x * h * 1.5,
-				y = -3,
-				z = fall_dir.z * h * 1.5,
+				x = fall_dir.x * speed,
+				y = 0,
+				z = fall_dir.z * speed,
 			})
 		end
 	end
 
-	-- Spawn falling entities for leaves (slower — land on top of trunks)
+	-- Spawn falling entities for leaves — same tipping arc as the trunks so
+	-- the canopy travels with the tree, with a little jitter so it spreads
+	-- naturally instead of landing in a perfect line.
 	for i, leaf in ipairs(leaves) do
 		local h = leaf.pos.y - base_pos.y
 
@@ -317,10 +340,11 @@ local function fell_tree(base_pos, tree_name, digger, dt_group)
 			if luaent then
 				luaent:set_node(leaf.node)
 			end
+			local speed = launch_speed(h) * (0.85 + math.random() * 0.3)
 			entity:set_velocity({
-				x = fall_dir.x * h * 1.0,
-				y = -1,
-				z = fall_dir.z * h * 1.0,
+				x = fall_dir.x * speed,
+				y = 0,
+				z = fall_dir.z * speed,
 			})
 		end
 	end
@@ -347,12 +371,21 @@ local function fell_tree(base_pos, tree_name, digger, dt_group)
 	}, true)
 end
 
--- Domino: a falling trunk that passes through a standing tree's cell has a 50%
--- chance to knock that tree over too.  Deferred via minetest.after(0) so that
--- chains through dense forests don't blow the call stack in a single tick.
-local function try_domino(self, pos)
-	if not self._domino_hit then self._domino_hit = {} end
-	local rpos = vector.round(pos)
+-- Domino: a falling trunk crashing into a standing tree has a 30% chance to
+-- knock that tree over too, in the direction the trunk was travelling.
+--
+-- The falling entity is physical, so it collides with a standing trunk and
+-- never actually enters its cell — checking our own cell (the old approach)
+-- always saw air and the domino never fired.  Instead we look 1 and 2 cells
+-- AHEAD along the direction of travel each tick; by the time the engine
+-- zeroes our velocity on impact, one of those probes has already covered the
+-- trunk cell.  The per-felling _domino_hit table (shared by every piece of
+-- one felled tree) guarantees a single 30% roll per standing tree.
+-- Felling is deferred via minetest.after(0) so chains through dense forests
+-- don't blow the call stack in a single tick.
+local DOMINO_CHANCE = 0.3
+
+local function try_domino_at(self, rpos, vel)
 	local key = rpos.x .. "," .. rpos.y .. "," .. rpos.z
 	if self._domino_hit[key] then return end
 	self._domino_hit[key] = true
@@ -369,8 +402,7 @@ local function try_domino(self, pos)
 	local andef = minetest.registered_nodes[above.name]
 	if not andef or not andef.groups or (andef.groups.tree or 0) == 0 then return end
 
-	-- 50/50
-	if math.random(2) ~= 1 then return end
+	if math.random() > DOMINO_CHANCE then return end
 
 	-- Determine dt_group for dynamic tree trunks
 	local dt_group
@@ -381,13 +413,64 @@ local function try_domino(self, pos)
 		end
 	end
 
+	-- Fell it away from the impact: dominant axis of our travel direction
+	local fall_dir
+	if math.abs(vel.x) >= math.abs(vel.z) then
+		fall_dir = {x = vel.x >= 0 and 1 or -1, y = 0, z = 0}
+	else
+		fall_dir = {x = 0, y = 0, z = vel.z >= 0 and 1 or -1}
+	end
+
 	local rpos_snap = {x = rpos.x, y = rpos.y, z = rpos.z}
 	local node_name  = node.name
 	minetest.after(0, function()
 		-- Re-verify the tree is still standing (another entity may have already felled it)
 		if minetest.get_node(rpos_snap).name ~= node_name then return end
-		fell_tree(rpos_snap, node_name, nil, dt_group)
+
+		local function is_trunk(p)
+			local n = minetest.get_node(p)
+			if dt_group then
+				local d = minetest.registered_nodes[n.name]
+				return d and d.groups and (d.groups[dt_group] or 0) > 0
+			end
+			return n.name == node_name
+		end
+
+		-- The impact may be partway up the trunk; walk down to the lowest
+		-- trunk node so the whole tree topples from its stump instead of
+		-- snapping off above the impact and leaving a bare pole standing.
+		local base = {x = rpos_snap.x, y = rpos_snap.y, z = rpos_snap.z}
+		local steps = 0
+		while steps < 30 and is_trunk({x = base.x, y = base.y - 1, z = base.z}) do
+			base.y = base.y - 1
+			steps = steps + 1
+		end
+		-- Break one above the lowest trunk: that node is guaranteed trunk
+		-- (base <= rpos and rpos has trunk above), and the stump survives
+		-- just like a player-felled tree.
+		fell_tree({x = base.x, y = base.y + 1, z = base.z},
+			node_name, nil, dt_group, fall_dir)
 	end)
+end
+
+local function try_domino(self, pos)
+	local obj = self.object
+	local vel = obj and obj:get_velocity()
+	if not vel then return end
+	local speed = math.sqrt(vel.x * vel.x + vel.z * vel.z)
+	-- Only trunks still carrying real sideways momentum knock trees over
+	if speed < 2 then return end
+
+	if not self._domino_hit then self._domino_hit = {} end
+
+	local dir_x, dir_z = vel.x / speed, vel.z / speed
+	for dist = 1, 2 do
+		try_domino_at(self, vector.round({
+			x = pos.x + dir_x * dist,
+			y = pos.y,
+			z = pos.z + dir_z * dist,
+		}), vel)
+	end
 end
 
 -- Section C: Register chopped variants for standard trees (at init time)
@@ -588,6 +671,23 @@ local function dt_has_trunk_above(pos, group)
 	return ndef and ndef.groups and ndef.groups[group] and ndef.groups[group] > 0
 end
 
+-- True when this trunk node has a same-group trunk beside it at the same
+-- height, i.e. it belongs to a thick (2x2 or larger) trunk cross-section.
+-- A lone column has no horizontal neighbour and topples on the cut; a thick
+-- trunk must be whittled down to its last standing column before it falls, so
+-- chopping just one of a 2x2's four blocks no longer brings the whole tree down.
+local function dt_trunk_is_thick(pos, group)
+	for _, h in ipairs({{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) do
+		local p = {x = pos.x + h[1], y = pos.y, z = pos.z + h[2]}
+		local ndef = minetest.registered_nodes[minetest.get_node(p).name]
+		if ndef and ndef.groups and ndef.groups[group]
+				and ndef.groups[group] > 0 then
+			return true
+		end
+	end
+	return false
+end
+
 -- Override on_dig for all dynamic tree base nodes
 for base_name, info in pairs(dt_bases) do
 	local orig_groups = table.copy(minetest.registered_nodes[base_name].groups or {})
@@ -638,8 +738,17 @@ minetest.register_on_mods_loaded(function()
 							try_domino(self, pos)
 						end,
 						on_dig = function(pos, node, digger)
-							-- Has same-group trunk above: fell everything above
+							-- Has same-group trunk above: candidate to fell
 							if dt_has_trunk_above(pos, dt_group) then
+								-- Thick trunk: this cut just lops off one column;
+								-- the tree only topples once its cross-section is
+								-- down to the last standing block.
+								if dt_trunk_is_thick(pos, dt_group) then
+									if old_on_dig then
+										return old_on_dig(pos, node, digger)
+									end
+									return minetest.node_dig(pos, node, digger)
+								end
 								apply_tool_wear(digger, name)
 								fell_tree(pos, name, digger, dt_group)
 								return

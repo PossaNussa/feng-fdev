@@ -17,8 +17,12 @@ awg: load_script 'grass'
 awg: load_script 'mud'
 awg: load_script 'water'
 minetest.register_mapgen_script(awg.path .. '/scripts/mapreplacements.lua')
-minetest.register_mapgen_script(awg.path .. '/scripts/mapcolors.lua')
 minetest.register_mapgen_script(awg.path .. '/scripts/maprotations.lua')
+
+-- mapcolors is deliberately NOT a mapgen script. Under climate_zones_v7's
+-- `nobiomes` there is no default:dirt_with_grass to colour during emerge -- the
+-- biome painter creates it later, from the main env. See the file header.
+awg: load_script 'mapcolors'
 
 awg: load_script 'plant_tweaks'
 awg: load_script 'tree_tweaks'

@@ -117,11 +117,13 @@ local function get_node_boxes(pos, type)
 		end
 		return boxes
 	end
-	if box_type == "fixed" and paramtype2 == "facedir" or paramtype2 == "colorfacedir" then
+	if box_type == "fixed" and (paramtype2 == "facedir" or paramtype2 == "colorfacedir") then
 		local param2 = paramtype2 == "colorfacedir" and node.param2 % 32 or node.param2 or 0
-		if param2 ~= 0 then
+		-- Facedir only defines rotations 0..23; the engine renders anything else
+		-- (e.g. colorfacedir nodes whose facedir bits are 24..31) as facedir 0.
+		local axis = param2 ~= 0 and ({5, 6, 3, 4, 1, 2})[math.floor(param2 / 4) + 1]
+		if axis then
 			boxes = table.copy(boxes)
-			local axis = ({5, 6, 3, 4, 1, 2})[math.floor(param2 / 4) + 1]
 			local other_axis_1, other_axis_2 = (axis % 3) + 1, ((axis + 1) % 3) + 1
 			local rotation = (param2 % 4) / 2 * math.pi
 			local flip = axis > 3

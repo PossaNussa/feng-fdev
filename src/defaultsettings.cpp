@@ -320,6 +320,11 @@ void set_default_settings()
     // Reduce inventory update interval to improve responsiveness (with slightly higher network traffic)
 	settings->setDefault("inventory_update_interval", "0.25");
 settings->setDefault("enable_colored_lighting_tint", "true");
+	settings->setDefault("colored_lighting_strength", "1.0");
+	settings->setDefault("colored_lighting_saturation", "1.8");
+	settings->setDefault("lod_mode", "solid");
+	// FlashEng: secondary key bindings (empty = none)
+	settings->setDefault("keymap_sneak_alt", "KEY_LCONTROL");
 settings->setDefault("colored_lighting_samples", "8");
 settings->setDefault("colored_lighting_max_distance", "2");
 settings->setDefault("max_particles", "20000");

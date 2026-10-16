@@ -12,6 +12,37 @@ default = {}
 default.LIGHT_MAX = 14
 default.get_translator = S
 
+-- Food heal registry ---------------------------------------------------------
+-- minetest.item_eat(hp_change) hides hp_change inside the on_use closure it
+-- returns, so there is no supported way to read back "how much does this food
+-- heal?" from a registered item. Several mods want that (e.g. drying_rack, which
+-- derives dried-food HP from the raw ingredient). We capture it here, at the
+-- point the closure is built, keyed weakly by the returned function. This must
+-- run before any food is registered, hence its home at the top of `default`
+-- (every food-providing mod depends on default and so loads after it). `core`
+-- and `minetest` are the same table, so wrapping one wraps both.
+do
+	local orig_item_eat = minetest.item_eat
+	local heal_by_fn = setmetatable({}, {__mode = "k"})
+
+	function minetest.item_eat(hp_change, replace_with_item)
+		local fn = orig_item_eat(hp_change, replace_with_item)
+		if type(fn) == "function" then
+			heal_by_fn[fn] = hp_change
+		end
+		return fn
+	end
+
+	-- Returns the HP a food item restores when eaten, or nil if unknown
+	-- (item registered without minetest.item_eat, or via a custom on_use).
+	function default.get_food_heal(itemname)
+		local def = itemname and minetest.registered_items[itemname]
+		local on_use = def and def.on_use
+		if on_use then return heal_by_fn[on_use] end
+		return nil
+	end
+end
+
 -- Check for engine features required by MTG
 -- This provides clear error behaviour when MTG is newer than the installed engine
 -- and avoids obscure, hard to debug runtime errors.
@@ -70,6 +101,7 @@ dofile(default_path.."/nodes.lua")
 dofile(default_path.."/chests.lua")
 dofile(default_path.."/furnace.lua")
 dofile(default_path.."/torch.lua")
+dofile(default_path.."/wood_nails.lua")
 dofile(default_path.."/mud.lua")
 dofile(default_path.."/ai_module.lua")
 dofile(default_path.."/decotest.lua")

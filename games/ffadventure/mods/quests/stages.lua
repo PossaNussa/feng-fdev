@@ -33,7 +33,8 @@ quests.stages = {
 				desc = "Craft a flint weapon (sword or spear)",
 				icon = "default_tool_stonesword.png",
 				trigger = "craft",
-				items = {"default:sword_stone", "spears:spear_flint"},
+				-- spears registers both a throwable javelin and a melee spear
+				items = {"default:sword_stone", "spears:spear_flint", "spears:real_spear_flint"},
 			},
 			{
 				id = "obtain_wood",
@@ -47,7 +48,11 @@ quests.stages = {
 				desc = "Craft a simple crafting table",
 				icon = "craft_table_front.png",
 				trigger = "craft",
-				items = {"craft_table:simple"},
+				-- craft_table registers craft_table:simple_<colour> for fifteen
+				-- colours; "craft_table:simple" is only a legacy alias and is
+				-- never what a craft actually produces.
+				groups = {"craft_table"},
+				display_item = "craft_table:simple_dark_green",
 			},
 			{
 				id = "craft_bed",
@@ -73,7 +78,7 @@ quests.stages = {
 			{
 				id = "craft_fishing_net",
 				desc = "Craft a fishing net",
-				icon = "default:fishing_net",
+				icon = "your_fishing_net_bottom_texture.png",
 				trigger = "craft",
 				items = {"default:fishing_net"},
 			},

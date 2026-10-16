@@ -743,6 +743,7 @@ farming.lettuce = 0.001
 farming.artichoke = 0.001
 farming.sunflower = 0.001
 farming.ginger = 0.002
+farming.parsley = 0.001
 
 -- Load new global settings if found inside mod folder
 local input = io.open(farming.path .. "/farming.conf", "r")
@@ -819,6 +820,7 @@ ddoo("chili.lua", farming.chili)
 ddoo("eggplant.lua", farming.eggplant)
 ddoo("spinach.lua", farming.eggplant)
 ddoo("ginger.lua", farming.ginger)
+ddoo("parsley.lua", farming.parsley)
 
 dofile(farming.path .. "/food.lua")
 

@@ -6729,10 +6729,14 @@ Environment access
       active config.
 * `core.get_noiseparams(name)`
     * Returns a table of the noiseparams for name.
-* `core.generate_ores(vm[, pos1, pos2])`
+* `core.generate_ores(vm[, pos1, pos2, biomemap])`
     * Generate all registered ores within the VoxelManip `vm` and in the area
       from `pos1` to `pos2`.
     * `pos1` and `pos2` are optional and default to mapchunk minp and maxp.
+    * `biomemap` (fork extension): optional flat array of biome ids, one per
+      column, index `(z - pos1.z) * width + (x - pos1.x) + 1`. When given,
+      ores with biome restrictions honour it; without it their biome
+      restrictions are ignored because no engine biomemap exists here.
 * `core.generate_decorations(vm[, pos1, pos2])`
     * Generate all registered decorations within the VoxelManip `vm` and in the
       area from `pos1` to `pos2`.

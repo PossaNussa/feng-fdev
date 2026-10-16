@@ -1,0 +1,19 @@
+# If enabled, stickbugs can be assembled into larger bugs for hilarity.
+wc_bugs.toofar (Take the joke too far) bool true
+
+# If enabled, dangerous lodewurms based on kimapr's 'nc_snakes' can be found
+# underground. They tunnel through stone and bite.
+wc_bugs.tremors (Lodewurms) bool true
+
+# If enabled, wood-eating termites will appear in your worlds. Infested wood
+# decays through four stages and then collapses into a nest, which spreads to
+# whatever trees or planks it touches -- including buildings.
+wc_bugs.termites (Termites) bool true
+
+# If enabled, certain bugs will be catchable in jars.
+wc_bugs.bugjars (Bug Jars) bool true
+
+# If enabled, lit torches standing in soil occasionally turn out to have been
+# torchbugs all along. Faithful to the NodeCore original, but it consumes
+# torches the player placed, so it is off by default.
+wc_bugs.torch_hatching (Torches hatch torchbugs) bool false

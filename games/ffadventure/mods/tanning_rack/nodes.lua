@@ -2,25 +2,33 @@ local PUNCHES_NEEDED = 8
 local VIS_SIZE       = 0.3
 
 -- ======================================================================
--- WORKED LEATHER
+-- TANNED LEATHER
+--
+-- The tanning rack's finished product. It takes *cured* leather (produced by
+-- the drying rack) and works it by hand into tanned leather, the material the
+-- rewritten crafting recipes require. Formerly "worked leather" — the old id is
+-- aliased below so existing saves keep their stacks.
 -- ======================================================================
-minetest.register_craftitem("tanning_rack:worked_leather", {
-    description = "Worked Leather",
-    inventory_image = "tanning_rack_worked_leather.png",
+minetest.register_craftitem("tanning_rack:tanned_leather", {
+    description = "Tanned Leather",
+    inventory_image = "tanning_rack_tanned_leather.png",
     groups = {leather = 1, flammable = 1},
 })
+
+minetest.register_alias("tanning_rack:worked_leather", "tanning_rack:tanned_leather")
 
 -- ======================================================================
 -- UTILITY FUNCTIONS
 -- ======================================================================
 
--- Returns true if an item can be tanned (has leather or pelt group).
+-- Returns true if an item can be tanned. Only cured leather (from the drying
+-- rack) qualifies: raw hides must be cured first, tanned leather is finished.
 local function is_tannable(itemname)
     if not itemname or itemname == "" then return false end
     local def = minetest.registered_items[itemname]
     if not def then return false end
     local g = def.groups or {}
-    return (g.leather or 0) > 0 or (g.pelt or 0) > 0
+    return (g.cured_leather or 0) > 0
 end
 
 function tanning_rack.remove_item_entity(pos)
@@ -85,8 +93,8 @@ minetest.register_node("tanning_rack:tanning_rack", {
     is_ground_content = false,
     mesh            = "drying_rack.obj",
     tiles           = {"tanning_rack.png"},
-    selection_box   = {type = "fixed", fixed = { 0.5, 0.43, -0.25, -0.5, 0.37, -0.5}},
-    collision_box   = {type = "fixed", fixed = { 0.5, 0.43, -0.25, -0.5, 0.37, -0.5}},
+    selection_box   = {type = "fixed", fixed = {-0.5, -0.4375, 0.125, 0.5, -0.3125, 0.5}},
+    collision_box   = {type = "fixed", fixed = {-0.5, -0.4375, 0.125, 0.5, -0.3125, 0.5}},
     use_texture_alpha = "opaque",
     paramtype       = "light",
     paramtype2      = "facedir",
@@ -176,9 +184,9 @@ minetest.register_node("tanning_rack:tanning_rack", {
         local punches = meta:get_int("punches") + 1
 
         if punches >= PUNCHES_NEEDED then
-            inv:set_stack("main", 1, ItemStack("tanning_rack:worked_leather"))
+            inv:set_stack("main", 1, ItemStack("tanning_rack:tanned_leather"))
             meta:set_int("punches", 0)
-            meta:set_string("infotext", "Worked Leather — right-click to collect")
+            meta:set_string("infotext", "Tanned Leather — right-click to collect")
             tanning_rack.update_item_entity(pos, node)
             minetest.sound_play("default_dig_choppy", {pos = pos, gain = 1.0})
         else

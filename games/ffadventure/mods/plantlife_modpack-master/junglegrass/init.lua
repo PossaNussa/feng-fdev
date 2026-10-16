@@ -93,8 +93,29 @@ minetest.register_decoration({
     biomes = {"rainforest"},
     y_max = 31000,
     y_min = 1,
-    decoration = "junglegrass:shortest",
+    -- Seed as the tall/default form; the on_generated pass below rerolls every
+    -- default:junglegrass into a random stage, so this feeds the same randomiser
+    -- as the default mapgen's own junglegrass decoration.
+    decoration = "default:junglegrass",
 })
+
+-- Weighted starting stages, so newly generated / converted junglegrass has a
+-- natural spread of heights instead of every plant being pinned to the smallest
+-- form. Tuned toward the taller end so a rainforest reads as mature. The grow
+-- ABM still nudges the shorter forms upward in blocks near the player.
+local stage_names = {
+  "junglegrass:shortest",  -- 15%
+  "junglegrass:short",     -- 25%
+  "junglegrass:medium",    -- 30%
+  "default:junglegrass",   -- 30% (tall / final)
+}
+local function pick_stage_name()
+  local r = math.random(100)
+  if r <= 15 then return stage_names[1]
+  elseif r <= 40 then return stage_names[2]
+  elseif r <= 70 then return stage_names[3]
+  else return stage_names[4] end
+end
 
 
 -- Hide default:junglegrass from creative inventory (players collect junglegrass:shortest instead)
@@ -108,18 +129,29 @@ minetest.after(0, function()
   })
 end)
 
--- 2) New terrain: replace any default mapgen junglegrass as chunks generate
+-- 2) New terrain: reroll any default mapgen junglegrass into a random stage as
+--    chunks generate, giving a natural spread of heights.
+local c_stage = {}
 minetest.register_on_generated(function(minp, maxp)
   local vm, emin, emax = minetest.get_mapgen_object("voxelmanip")
   local area = VoxelArea:new{MinEdge = emin, MaxEdge = emax}
   local data = vm:get_data()
-  local c_def  = minetest.get_content_id("default:junglegrass")
-  local c_new  = minetest.get_content_id("junglegrass:shortest") -- start at your shortest
+  local c_def = minetest.get_content_id("default:junglegrass")
+  -- Cache the content ids for each weighted stage on first run.
+  if not c_stage[1] then
+    for idx, name in ipairs(stage_names) do
+      c_stage[idx] = minetest.get_content_id(name)
+    end
+  end
   local changed = false
 
   for i in area:iter(minp.x, minp.y, minp.z, maxp.x, maxp.y, maxp.z) do
     if data[i] == c_def then
-      data[i] = c_new
+      local r = math.random(100)
+      if r <= 15 then data[i] = c_stage[1]
+      elseif r <= 40 then data[i] = c_stage[2]
+      elseif r <= 70 then data[i] = c_stage[3]
+      else data[i] = c_stage[4] end
       changed = true
     end
   end
@@ -132,11 +164,15 @@ end)
 
 -- 3) Existing worlds: one-time conversion of any old/default junglegrass
 minetest.register_lbm({
-  name = "junglegrass:replace_default_in_old_mapblocks",
+  name = "junglegrass:reroll_stages_in_old_mapblocks",
   nodenames = {"default:junglegrass"},
-  run_at_every_load = false,  -- convert once; then allow your ABM to grow to default:junglegrass if desired
+  run_at_every_load = false,  -- reroll once; the ABM then grows shorter forms over time
   action = function(pos, node)
-    minetest.swap_node(pos, {name = "junglegrass:shortest"})
+    local name = pick_stage_name()
+    -- Only touch the map if the roll actually changes the node.
+    if name ~= node.name then
+      minetest.swap_node(pos, {name = name})
+    end
   end,
 })
 

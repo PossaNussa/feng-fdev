@@ -1,9 +1,306 @@
 -- dynamic_trees/dt_world_generation.lua
 
+--------------------------------------------------------------------------------
+-- ffadventure: climate-graded biome bindings
+--------------------------------------------------------------------------------
+--
+-- Every decoration below names its biomes explicitly, but only with stock
+-- Minetest Game names -- pine is bound to {"taiga", "coniferous_forest"} and
+-- nothing else. This game registers roughly a hundred biomes, so a species is
+-- absent from every equivalent climate a biome mod contributes: taiga sits at
+-- heat 25, which left awuuwa_biomes_shield (8, a biome literally described as
+-- boreal shield), arctic (10), alpine (15) and balsa_woods (20) with no
+-- conifers at all, and livingfloatlands' coldgiantforest -- a giant conifer
+-- forest -- with no conifers either.
+--
+-- The first attempt at fixing that widened each decoration's biome list by a
+-- flat heat margin and bolted every matched biome's node_top onto place_on.
+-- That was wrong twice over. Heat alone ignores humidity, so a rainforest
+-- species reached every equally hot biome no matter how dry, and folding the
+-- node_tops into place_on destroyed the surface-node check that was supposed
+-- to be doing the discriminating. Worst of all the density came along
+-- unchanged: jungle and redwood are fill_ratio 0.1, tuned to carpet their home
+-- biome, so every grassland and meadow inside the heat window became closed
+-- forest, and the bamboo shoot -- place_on group:soil, peak density 0.29 --
+-- coated half the world.
+--
+-- So instead of one widened list, each queued decoration is resolved into
+-- graded tiers by distance in heat x humidity space from the climates it
+-- actually names:
+--
+--   home    the biomes written below. Registered untouched, at the density the
+--           species was tuned for.
+--   kin     d <= KIN_RADIUS. Another mod's name for the same climate. Same
+--           noise shape, density scaled down (and capped) so it reads as a
+--           thinner version of the home forest, not a second one.
+--   stray   d <= a band radius. Not this species' climate, but near enough
+--           that the odd stand survives there. Density is replaced with a
+--           sparse clustering noise: nothing across most of the biome, an
+--           occasional grove where the noise peaks. Further band, rarer.
+--
+-- Beyond the last band the species simply does not occur, which is what keeps
+-- a sakura or a redwood meaningful outside the biome named after it.
+
+-- Distance in heat x humidity units. Both axes are 0..100, so these read as
+-- percentage points of climate.
+local KIN_RADIUS = 14
+
+-- Stray bands, nearest first. `density` is a fraction of the species' home
+-- peak density; it only sets how thick a cluster is, not how much ground the
+-- clusters cover.
+local STRAY_BANDS = {
+	{radius = 24, density = 0.15},
+	{radius = 32, density = 0.06},
+	{radius = 40, density = 0.02},
+}
+
+-- Kin density as a fraction of home, and the absolute ceiling it may reach.
+-- The cap is what stops the fill_ratio 0.1 species (jungle, redwood, sakura)
+-- from turning a neighbouring climate into a second home biome.
+local KIN_DENSITY  = 0.35
+local KIN_PEAK_MAX = 0.02
+
+-- Stray clustering. CLUSTER_SPREAD is the size of a grove in nodes; the offset
+-- and scale factors below put roughly the top tenth of the noise field above
+-- zero, so a stray species is absent from most of a biome and clumped where it
+-- is present.
+local CLUSTER_SPREAD    = 320
+local CLUSTER_OFFSET_K  = -3.0
+local CLUSTER_SCALE_K   = 4.0
+local STRAY_PEAK_MAX    = 0.006
+local STRAY_PEAK_MIN    = 0.0002
+
+local queued_decos = {}
+
+local function queue_decoration(def)
+	queued_decos[#queued_decos + 1] = def
+end
+
+-- Peak density a decoration reaches in its home biomes. For noise decorations
+-- the noise value *is* the fill ratio, so the peak is the top of the noise
+-- range: sum of the octave amplitudes is 1 + p + p^2 for three octaves.
+local function home_peak(def)
+	if def.fill_ratio then return def.fill_ratio end
+
+	local np = def.noise_params
+	if not np then return 0 end
+
+	local p, amp = np.persist or 0.5, 0
+	for i = 0, (np.octaves or 3) - 1 do amp = amp + p ^ i end
+
+	return math.max(0, (np.offset or 0) + math.abs(np.scale or 0) * amp)
+end
+
+-- Scaling both offset and scale by the same positive factor leaves the noise's
+-- zero crossings exactly where they were -- the species keeps its footprint
+-- and only thins out inside it.
+local function scale_density(def, k)
+	if def.fill_ratio then
+		def.fill_ratio = def.fill_ratio * k
+	elseif def.noise_params then
+		def.noise_params.offset = (def.noise_params.offset or 0) * k
+		def.noise_params.scale  = (def.noise_params.scale  or 0) * k
+	end
+end
+
+local function climate_points(names)
+	local pts = {}
+
+	for _, name in ipairs(names) do
+		local b = minetest.registered_biomes[name]
+		if b and b.heat_point then
+			pts[#pts + 1] = {h = b.heat_point, u = b.humidity_point or 50}
+		end
+	end
+
+	return pts
+end
+
+local function climate_distance(pts, b)
+	local h, u = b.heat_point, b.humidity_point or 50
+	local best
+
+	for _, p in ipairs(pts) do
+		local dh, du = h - p.h, u - p.u
+		local d = math.sqrt(dh * dh + du * du)
+		if not best or d < best then best = d end
+	end
+
+	return best
+end
+
+local function y_overlaps(def, b)
+	local dmin, dmax = def.y_min or -31000, def.y_max or 31000
+	local bmin, bmax = b.y_min  or -31000, b.y_max  or 31000
+	return dmin <= bmax and bmin <= dmax
+end
+
+local function place_on_list(def)
+	local po = def.place_on
+	if type(po) == "string" then po = {po} end
+	return po or {}
+end
+
+-- Whether this species was written to stand on sand. Only those may follow a
+-- climate match onto a sand-topped biome; without this a conifer graded into a
+-- cold beach would sprout out of the shore.
+local function accepts_sand(def)
+	for _, n in ipairs(place_on_list(def)) do
+		local nd = minetest.registered_nodes[n]
+		if n == "group:sand" or (nd and (nd.groups.sand or 0) > 0) then
+			return true
+		end
+	end
+	return false
+end
+
+-- Adding each biome's node_top to place_on is what lets a species reach ground
+-- another mod invented, but it also retires the surface check that used to be
+-- the only constraint -- so the top node has to be something the species could
+-- plausibly root in. Snowblock, ice and permafrost tops fail here, which is
+-- what keeps pine out of the icesheet it is otherwise climatically near.
+local function plantable_top(top, sand_ok, original)
+	if not top then return false end
+	if original[top] then return true end
+
+	local nd = minetest.registered_nodes[top]
+	if not nd then return false end
+
+	if (nd.groups.soil or 0) > 0 then return true end
+	if (nd.groups.sand or 0) > 0 then return sand_ok end
+
+	return false
+end
+
+-- place_on for a tier: whatever the decoration already stood on, plus the top
+-- node of each biome in that tier. Safe here in a way the old blanket version
+-- was not, because the biome list this accompanies is climate-matched and the
+-- tops were filtered by plantable_top.
+local function ground_for(def, biome_names)
+	local seen, list = {}, {}
+
+	for _, n in ipairs(place_on_list(def)) do
+		if not seen[n] then seen[n] = true; list[#list + 1] = n end
+	end
+
+	for _, name in ipairs(biome_names) do
+		local top = minetest.registered_biomes[name].node_top
+		if top and minetest.registered_nodes[top] and not seen[top] then
+			seen[top] = true
+			list[#list + 1] = top
+		end
+	end
+
+	return list
+end
+
+-- Stable per-species noise seed so two species do not clump in the same spots.
+local function name_seed(s)
+	local h = 0
+	for i = 1, #s do h = (h * 31 + s:byte(i)) % 1000003 end
+	return h
+end
+
+minetest.register_on_mods_loaded(function()
+
+	for index, deco in ipairs(queued_decos) do
+
+		-- Home tier: exactly as written below.
+		minetest.register_decoration(deco)
+
+		local pts  = type(deco.biomes) == "table" and climate_points(deco.biomes) or {}
+		local peak = home_peak(deco)
+
+		-- If none of the stated biomes exist in this game there is no climate
+		-- to measure from, so the decoration stays home-only rather than being
+		-- spread on a guess. A decoration whose noise never crosses zero does
+		-- not place at home either, and has nothing to spread.
+		if #pts > 0 and peak > 0 then
+
+			local home, tiers = {}, {}
+			for _, name in ipairs(deco.biomes) do home[name] = true end
+
+			local original = {}
+			for _, n in ipairs(place_on_list(deco)) do original[n] = true end
+			local sand_ok = accepts_sand(deco)
+
+			for name, b in pairs(minetest.registered_biomes) do
+				if not home[name] and b.heat_point and y_overlaps(deco, b)
+				and plantable_top(b.node_top, sand_ok, original) then
+
+					local d = climate_distance(pts, b)
+					local tier
+
+					if d <= KIN_RADIUS then
+						tier = 0
+					else
+						for i, band in ipairs(STRAY_BANDS) do
+							if d <= band.radius then
+								tier = i
+								break
+							end
+						end
+					end
+
+					if tier then
+						tiers[tier] = tiers[tier] or {}
+						table.insert(tiers[tier], name)
+					end
+				end
+			end
+
+			-- Two decorations below share a name (apple and dry tree each have
+			-- a second, sparser registration), so derived names carry the queue
+			-- index to stay distinguishable in mapgen logs.
+			local label = (deco.name or "dtrees") .. " #" .. index
+			local seed  = name_seed(label)
+
+			for tier, names in pairs(tiers) do
+				local c = table.copy(deco)
+				c.biomes   = names
+				c.place_on = ground_for(deco, names)
+
+				if tier == 0 then
+					local k = math.min(KIN_DENSITY, KIN_PEAK_MAX / peak)
+
+					c.name = label .. " (kin)"
+					scale_density(c, k)
+					minetest.register_decoration(c)
+				else
+					local p = math.min(peak * STRAY_BANDS[tier].density, STRAY_PEAK_MAX)
+
+					-- A species already too rare at home has nothing to spare
+					-- for the strays.
+					if p >= STRAY_PEAK_MIN then
+						c.name = label .. " (stray " .. tier .. ")"
+						c.fill_ratio = nil
+						-- The engine takes one noise sample per sidelen block
+						-- and scatters that many decorations inside it, so the
+						-- species carrying sidelen 80 (jungle, redwood) would
+						-- get clusters with 80-node square edges. 16 traces the
+						-- cluster outline properly.
+						c.sidelen = 16
+						c.noise_params = {
+							offset  = CLUSTER_OFFSET_K * p,
+							scale   = CLUSTER_SCALE_K * p,
+							spread  = {x = CLUSTER_SPREAD, y = CLUSTER_SPREAD, z = CLUSTER_SPREAD},
+							seed    = 9000 + seed % 4000 + tier * 97,
+							octaves = 3,
+							persist = 0.6,
+						}
+						minetest.register_decoration(c)
+					end
+				end
+			end
+		end
+	end
+end)
+
+
 
 	-- Acacia tree and log
 
-	minetest.register_decoration({
+	queue_decoration({
 		name = "default:acacia_tree",
 		deco_type = "simple",
 		place_on = {"default:dry_dirt_with_dry_grass"},
@@ -21,10 +318,16 @@
 		y_min = 1,
 		decoration = "dynamic_trees:acacia_tree_sapling",
 	})
-	minetest.register_decoration({
+	-- The islands are already carpeted with palms by three decorations in
+	-- biomes_island, so this one exists to give palms a climate rather than an
+	-- island. Bound to islands it also had one, but the wrong one: the temperate
+	-- "islands" biome sits at heat 72 humidity 72, close enough to deciduous
+	-- forest that grading from it put palm trees in oak woodland. Hot wet shore
+	-- is the climate palms actually state.
+	queue_decoration({
 		name = "default:palm_tree",
 		deco_type = "simple",
-		place_on = {"biomes_island:dirt_with_island_litter"},
+		place_on = {"biomes_island:dirt_with_island_litter", "group:sand"},
 		sidelen = 16,
 		noise_params = {
 			offset = 0,
@@ -34,12 +337,12 @@
 			octaves = 3,
 			persist = 0.66
 		},
-		biomes = {"islands", "islands_hot"},
+		biomes = {"naturalbiomes:palmbeach", "islands_hot"},
 		y_max = 31000,
 		y_min = 1,
 		decoration = "dynamic_trees:palm_tree_sapling",
 	})
-	minetest.register_decoration({
+	queue_decoration({
 		name = "default:apple_tree",
 		deco_type = "simple",
 		place_on = {"default:dirt_with_grass", "variety:meadow_dirt_with_grass"},
@@ -58,7 +361,7 @@
 	decoration = "dynamic_trees:apple_tree_sapling",
 	})
 
-	minetest.register_decoration({
+	queue_decoration({
 		name = "default:apple_tree",
 		deco_type = "simple",
 		place_on = {"default:dirt_with_grass", "variety:meadow_dirt_with_grass"},
@@ -78,7 +381,7 @@
 	})
 	-- Aspen tree and log
 
-	minetest.register_decoration({
+	queue_decoration({
 		name = "default:aspen_tree",
 		deco_type = "simple",
 		place_on = {"default:dirt_with_grass"},
@@ -96,7 +399,7 @@
 		y_min = 1,
 	decoration = "dynamic_trees:aspen_tree_sapling",
 	})
-	minetest.register_decoration({
+	queue_decoration({
 		name = "default:aspen_tree",
 		deco_type = "simple",
 		place_on = {"default:dirt_with_grass"},
@@ -116,7 +419,7 @@
 	})
 	-- Cactus
 
-	minetest.register_decoration({
+	queue_decoration({
 		name = "default:cactus",
 		deco_type = "simple",
 		place_on = {"default:desert_sand"},
@@ -141,7 +444,7 @@
 
 	local chunksize = tonumber(minetest.get_mapgen_setting("chunksize"))
 	if chunksize >= 5 then
-		minetest.register_decoration({
+		queue_decoration({
 			name = "default:emergent_jungle_tree",
 			deco_type = "simple",
 			place_on = {"default:dirt_with_rainforest_litter"},
@@ -169,7 +472,7 @@
 
 	-- Jungle tree and log
 
-	minetest.register_decoration({
+	queue_decoration({
 		name = "default:jungle_tree",
 		deco_type = "simple",
 		place_on = {"default:dirt_with_rainforest_litter"},
@@ -183,7 +486,7 @@
 		rotation = "random",
 	})
 	
-	minetest.register_decoration({
+	queue_decoration({
 		name = "default:redwood_tree",
 		deco_type = "simple",
 		place_on = {"redw:dirt_with_grass"},
@@ -199,7 +502,7 @@
 
 	-- Swamp jungle trees
 
-	minetest.register_decoration({
+	queue_decoration({
 		name = "default:jungle_tree(swamp)",
 		deco_type = "simple",
 		place_on = {"default:dirt"},
@@ -223,7 +526,7 @@
 
 	-- Taiga and temperate coniferous forest pine tree, small pine tree and log
 
-	minetest.register_decoration({
+	queue_decoration({
 		name = "default:pine_tree",
 		deco_type = "simple",
 		place_on = {"default:dirt_with_snow", "default:dirt_with_coniferous_litter"},
@@ -243,7 +546,7 @@
 		flags = "place_center_x, place_center_z",
 	})
 
-	minetest.register_decoration({
+	queue_decoration({
 		name = "default:small_pine_tree",
 		deco_type = "simple",
 		place_on = {"default:dirt_with_snow", "default:dirt_with_coniferous_litter"},
@@ -263,39 +566,46 @@
 		flags = "place_center_x, place_center_z",
 	})
 
--- Adds The Bamboo Shoot To The Rainforest And Deciduous Forest
-minetest.register_decoration({
+-- Bamboo belongs to the two bamboo biomes. It used to be bound to rainforest
+-- and deciduous_forest at peak density 0.29 on group:soil, which meant a
+-- quarter of every temperate and tropical surface node was a bamboo shoot.
+-- Bound to its own biomes instead, the grading above hands it to rainforest as
+-- kin and lets it stray into the wet temperate forests in clumps.
+queue_decoration({
 	name = "Dynamic Trees Bamboo Shoot",
 	deco_type = "simple",
-	place_on = {"group:soil","group:sand"},
+	place_on = {"group:soil"},
 	sidelen = 16,
 	noise_params = {
-		offset = -0.1,
-		scale = 0.2,
-		spread = {x = 500, y = 500, z = 500},
+		offset = -0.03,
+		scale = 0.06,
+		spread = {x = 240, y = 240, z = 240},
 		seed = 6566,
 		octaves = 3,
-		persist = 0.7
+		persist = 0.6
 	},
-	biomes = {"rainforest", "deciduous_forest"},
+	biomes = {"bamboo_forest", "bambooforest"},
 	y_max = 31000,
 	y_min = 1,
 	decoration = "dynamic_trees:bamboo_shoot",
 })
 
--- Adds The Dry Sapling To The Deserts
-minetest.register_decoration({
+-- Adds The Dry Sapling To The Deserts.
+-- The original noise put dead trees across roughly a quarter of every desert at
+-- one per twenty nodes, which is a forest, not a desert. Thinned to scattered
+-- stands; the deserts keep the species, they just stop being wooded.
+queue_decoration({
 	name = "Dynamic Trees Dry Tree Sapling",
 	deco_type = "simple",
 	place_on = {"group:soil","group:sand"},
 	sidelen = 16,
 	noise_params = {
-		offset = -0.1,
-		scale = 0.15,
-		spread = {x = 500, y = 500, z = 500},
+		offset = -0.05,
+		scale = 0.06,
+		spread = {x = 400, y = 400, z = 400},
 		seed = 3628,
 		octaves = 3,
-		persist = 0.7
+		persist = 0.6
 	},
 	biomes = {"desert", "sandstone_desert", "cold_desert"},
 	y_max = 31000,
@@ -303,7 +613,7 @@ minetest.register_decoration({
 	decoration = "dynamic_trees:dry_tree_sapling",
 })
 
-minetest.register_decoration({
+queue_decoration({
 	name = "Dynamic Trees Dry Tree Sapling",
 	deco_type = "simple",
 	place_on = {"default:dirt_with_grass"},
@@ -418,113 +728,11 @@ minetest.register_chatcommand("replace_trees", {
     end
 })
 
--- sapling_replacer.lua
--- Replaces all default saplings with Dynamic Trees equivalents.
--- Layers:
---   1) Override placement & hide from creative
---   2) Convert existing mapblocks (LBM, one-time)
---   3) Defensive replacement during mapgen (in case any decoration/mod places default saplings)
-
-local map = {
-  ["default:sapling"]        = "dynamic_trees:apple_tree_sapling",
-  ["default:junglesapling"]  = "dynamic_trees:jungle_tree_sapling",
-  ["default:pine_sapling"]   = "dynamic_trees:pine_tree_sapling",
-  ["default:acacia_sapling"] = "dynamic_trees:acacia_tree_sapling",
-  ["default:aspen_sapling"]  = "dynamic_trees:aspen_tree_sapling",
-}
-
--- Utility: safe table copy (older MT may not have table.copy)
-local function tcopy(t)
-  if table.copy then return table.copy(t) end
-  local r = {}
-  for k,v in pairs(t or {}) do r[k] = v end
-  return r
-end
-
--- 1) Override placement of default saplings; hide in creative; adjust drops
-minetest.after(0, function()
-  for src, dst in pairs(map) do
-    if minetest.registered_nodes[src] and minetest.registered_nodes[dst] then
-      local g = tcopy(minetest.registered_nodes[src].groups or {})
-      g.not_in_creative_inventory = 1
-
-      minetest.override_item(src, {
-        groups = g,
-        drop   = dst,
-
-        -- Redirect placement to the DT sapling while preserving stack handling
-        on_place = function(stack, placer, pt)
-          -- Respect right-click handlers on pointed nodes (mimic engine behavior)
-          if pt and pt.type == "node" then
-            local under = minetest.get_node(pt.under)
-            local def = under and minetest.registered_nodes[under.name]
-            if def and def.on_rightclick and not (placer and placer:is_player() and placer:get_player_control().sneak) then
-              return def.on_rightclick(pt.under, under, placer, stack, pt) or stack
-            end
-          end
-          local dst_stack = ItemStack(dst)
-          dst_stack:set_count(stack:get_count())
-          local leftover = minetest.item_place(dst_stack, placer, pt)
-          -- Sync counts back to the original stack
-          stack:set_count(leftover:get_count())
-          return stack
-        end,
-      })
-    end
-  end
-end)
-
--- 2) One-time conversion of any existing default saplings in old chunks
-minetest.register_lbm({
-  name = "dynamic_trees:convert_default_saplings_once",
-  nodenames = (function()
-    local names = {}
-    for src,_ in pairs(map) do names[#names+1] = src end
-    return names
-  end)(),
-  run_at_every_load = false,
-  action = function(pos, node)
-    local dst = map[node.name]
-    if dst and minetest.registered_nodes[dst] then
-      minetest.swap_node(pos, {name = dst})
-    end
-  end,
-})
-
--- 3) Defensive replacement during mapgen (rare for saplings, but safe)
-minetest.register_on_generated(function(minp, maxp, seed)
-  local vm, emin, emax = minetest.get_mapgen_object("voxelmanip")
-  if not vm then return end
-  local area = VoxelArea:new{MinEdge = emin, MaxEdge = emax}
-  local data = vm:get_data()
-
-  -- Build ID map once per on_generated
-  local id_src, id_dst = {}, {}
-  for src, dst in pairs(map) do
-    id_src[src] = minetest.get_content_id(src)
-    id_dst[src] = minetest.get_content_id(dst)
-  end
-
-  local changed = false
-  for vi in area:iter(minp.x, minp.y, minp.z, maxp.x, maxp.y, maxp.z) do
-    local cid = data[vi]
-    -- Straight equality checks are fastest; unroll the small set
-    if cid == id_src["default:sapling"] then
-      data[vi] = id_dst["default:sapling"]; changed = true
-    elseif cid == id_src["default:junglesapling"] then
-      data[vi] = id_dst["default:junglesapling"]; changed = true
-    elseif cid == id_src["default:pine_sapling"] then
-      data[vi] = id_dst["default:pine_sapling"]; changed = true
-    elseif cid == id_src["default:acacia_sapling"] then
-      data[vi] = id_dst["default:acacia_sapling"]; changed = true
-    elseif cid == id_src["default:aspen_sapling"] then
-      data[vi] = id_dst["default:aspen_sapling"]; changed = true
-    end
-  end
-
-  if changed then
-    vm:set_data(data)
-    vm:write_to_map(false)
-  end
-end)
-
+-- NOTE: The old "sapling_replacer" here (override_item + one-time LBM +
+-- on_generated swap) is no longer needed. dt_crafting.lua now uses
+-- register_alias_force to unregister the default saplings outright and alias
+-- default:sapling / junglesapling / pine_sapling / acacia_sapling /
+-- aspen_sapling / emergent_jungle_sapling to their Dynamic Trees equivalents.
+-- The engine resolves those aliases for freshly placed nodes, existing map
+-- nodes, drops, recipes and decorations, so no runtime replacement pass is
+-- required.

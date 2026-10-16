@@ -1,0 +1,125 @@
+name: Colony Ship Down launcher
+
+# Builds the Colony Ship Down download-and-play launcher (Windows + Linux
+# zips) from this repo's engine, with games/colony_ship_down/launcher.
+# Push a tag like v1.0.0 to make a GitHub release with both zips attached,
+# or run it by hand from the Actions tab.
+
+on:
+  push:
+    tags: ["csd-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Windows x86_64
+    runs-on: windows-latest
+    env:
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: engine, fetch-depth: 1 }
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            zip
+            mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-SDL2 mingw-w64-x86_64-openal mingw-w64-x86_64-libpng
+            mingw-w64-x86_64-libjpeg-turbo mingw-w64-x86_64-zlib mingw-w64-x86_64-zstd
+            mingw-w64-x86_64-bzip2 mingw-w64-x86_64-sqlite3 mingw-w64-x86_64-jsoncpp
+            mingw-w64-x86_64-luajit mingw-w64-x86_64-gmp mingw-w64-x86_64-libogg
+            mingw-w64-x86_64-libvorbis mingw-w64-x86_64-curl
+      - name: Build engine
+        shell: msys2 {0}
+        run: |
+          cmake -S engine -B build -G Ninja -DRUN_IN_PLACE=TRUE -DCMAKE_BUILD_TYPE=Release -DBUILD_SERVER=FALSE
+          cmake --build build -j"$(nproc)"
+          strip build/bin/luanti.exe || true
+      # Optional: sign the exe so Windows SmartScreen trusts it. Only runs when
+      # the Azure Trusted Signing secrets are configured for this repo.
+      - name: Sign (optional)
+        if: ${{ env.AZURE_TENANT_ID != '' }}
+        uses: azure/trusted-signing-action@v0.5.1
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE }}
+          files-folder: ${{ github.workspace }}\build\bin
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+      - name: Package
+        shell: msys2 {0}
+        run: |
+          DLLS=""
+          for dll in SDL2 OpenAL32 libwinpthread-1 libstdc++-6 libgcc_s_seh-1 libjsoncpp liblua51 \
+                     zlib1 libbz2-1 libzstd libpng16-16 libjpeg-8 libogg-0 libvorbis-0 libvorbisfile-3 \
+                     libcurl-4 libgmp-10 libsqlite3-0 libbrotlidec libbrotlicommon libidn2-0 libnghttp2-14 \
+                     libnghttp3-9 libngtcp2-16 libngtcp2_crypto_ossl-0 libpsl-5 libssh2-1 libssl-3-x64 \
+                     libcrypto-3-x64 libunistring-5 libiconv-2 libintl-8 libssp-0; do
+            [ -f "/mingw64/bin/$dll.dll" ] && DLLS="$DLLS /mingw64/bin/$dll.dll"
+          done
+          # catch anything else the exe links against from mingw64
+          for d in $(ldd build/bin/luanti.exe | awk '/mingw64/ {print $3}'); do DLLS="$DLLS $d"; done
+          bash engine/games/colony_ship_down/launcher/package.sh engine build/bin/luanti.exe dist $(echo $DLLS | tr ' ' '\n' | sort -u)
+          mv dist/ColonyShipDown.zip dist/ColonyShipDown-windows.zip
+      - uses: actions/upload-artifact@v4
+        with: { name: windows, path: dist/ColonyShipDown-windows.zip, if-no-files-found: error }
+
+  linux:
+    name: Linux x86_64
+    runs-on: ubuntu-22.04   # older glibc = runs on more distros
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: engine, fetch-depth: 1 }
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build zip \
+            libsdl2-dev libopenal-dev libgl1-mesa-dev libxrandr-dev libxi-dev \
+            libjpeg-dev libpng-dev zlib1g-dev libzstd-dev libbz2-dev \
+            libsqlite3-dev libjsoncpp-dev libluajit-5.1-dev \
+            libogg-dev libvorbis-dev libcurl4-openssl-dev libgmp-dev gettext
+      - name: Build engine
+        run: |
+          cmake -S engine -B build -G Ninja -DRUN_IN_PLACE=TRUE -DCMAKE_BUILD_TYPE=Release -DBUILD_SERVER=FALSE
+          cmake --build build -j"$(nproc)"
+          strip build/bin/luanti || true
+      - name: Package
+        run: |
+          bash engine/games/colony_ship_down/launcher/package.sh engine build/bin/luanti dist
+          mv dist/ColonyShipDown.zip dist/ColonyShipDown-linux.zip
+      - uses: actions/upload-artifact@v4
+        with: { name: linux, path: dist/ColonyShipDown-linux.zip, if-no-files-found: error }
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/csd-v')
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: out }
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            out/windows/ColonyShipDown-windows.zip
+            out/linux/ColonyShipDown-linux.zip
+          body: |
+            **Colony Ship Down** - download, unzip, play.
+
+            * Windows: unzip, double-click `ColonyShipDown.exe`.
+              If SmartScreen says "Windows protected your PC", click **More info -> Run anyway**
+              (new, unsigned program).
+            * Linux: unzip, run `./ColonyShipDown`.
+
+            The official server (45.143.196.182) is already filled in.

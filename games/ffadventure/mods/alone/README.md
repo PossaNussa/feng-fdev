@@ -20,6 +20,27 @@ unless they have registered another spawn point.
 If you enable this feature on an existing world the existing registered player's
 will not be affected. New players will be affected.
 
+### Friday Force changes
+
+Two departures from upstream, both in `lua/climate_filter.lua`:
+
+**Spawn points are re-rolled on every death, not drawn once.** A player with no
+spawn point of their own wakes up somewhere new each time. Setting a spawn point
+on purpose — sleeping in a bed, a `static_spawnpoint`, or an
+`alone_home_alone` house — stops the wandering; breaking the bed starts it
+again. `alone` stands down whenever one of those is in force rather than
+mirroring it into player meta, so a bed broken while its owner is offline no
+longer strands them at a bed that isn't there.
+
+**Spawn sites are scored for how survivable they are.** This world's climate
+runs on a north-south latitude gradient, so a uniformly random Z is a uniformly
+random slice of heat from scorched to frozen, and roughly 44% of it will kill an
+unequipped player. Candidate sites are now scored through `core.get_heat` and
+`core.get_humidity` — whatever mod is driving climate — and `alone_harsh_share`
+(default 0.25) sets how many spawns are allowed to land in a lethal one. The
+rolls themselves are still uniform over the whole world, so a harsh spawn is
+still a genuinely far-flung one; only how often you draw one changes.
+
 If you disable this feature on an existing world then spawning will revert to
 the games normal spawn behavior.
 

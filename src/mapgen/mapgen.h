@@ -12,8 +12,8 @@
 #include "util/container.h"
 #include <utility>
 
-#define MAPGEN_DEFAULT MAPGEN_V8
-#define MAPGEN_DEFAULT_NAME "v8"
+#define MAPGEN_DEFAULT MAPGEN_V7
+#define MAPGEN_DEFAULT_NAME "v7"
 
 /////////////////// Mapgen flags
 #define MG_CAVES       0x02

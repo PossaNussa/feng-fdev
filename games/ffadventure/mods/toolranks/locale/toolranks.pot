@@ -1,0 +1,81 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-01 09:22-0500\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: init.lua:17
+msgid "axe"
+msgstr ""
+
+#: init.lua:18
+msgid "hammer"
+msgstr ""
+
+#: init.lua:19
+msgid "hoe"
+msgstr ""
+
+#: init.lua:20 init.lua:21
+msgid "pickaxe"
+msgstr ""
+
+#: init.lua:22
+msgid "shears"
+msgstr ""
+
+#: init.lua:23
+msgid "shovel"
+msgstr ""
+
+#: init.lua:24
+msgid "spear"
+msgstr ""
+
+#: init.lua:25
+msgid "sword"
+msgstr ""
+
+#: init.lua:26
+msgid "trident"
+msgstr ""
+
+#: init.lua:27
+msgid "mace"
+msgstr ""
+
+#: init.lua:53
+msgid "tool"
+msgstr ""
+
+#: init.lua:69
+msgid ""
+"@1@2\n"
+"@3Level @4 @5\n"
+"@6@Node dug: @7"
+msgstr ""
+
+#: init.lua:100
+msgid "Most used tool is now a @1@2@3 owned by @4 with @5 uses."
+msgstr ""
+
+#: init.lua:114
+msgid "Your tool is about to break!"
+msgstr ""
+
+#: init.lua:124
+msgid "Your @1@2@3 just leveled up!"
+msgstr ""

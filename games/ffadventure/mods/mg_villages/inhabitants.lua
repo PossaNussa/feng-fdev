@@ -57,7 +57,27 @@ mg_villages.inhabitants.names_male = { "Yorath", "Zarek", "Caradoc", "Ulfgar", "
 	"Bristow", "Tuskald", "Grunwald", "Boarthan", "Hoggard", "Verrik",
 	"Truffen", "Swindar", "Tuskar", "Grondal", "Boarwulf", "Snortan",
 	"Hogwulf", "Verran", "Truffin", "Bristal", "Gruntald", "Boarthor",
-	"Hogarth", "Swinrik", "Bristogar", "Tuskrim", "Grondak", "Borvald" };
+	"Hogarth", "Swinrik", "Bristogar", "Tuskrim", "Grondak", "Borvald",
+	-- More ordinary names, so the plainer folk are not all called the same
+	-- half-dozen things.
+	"Aldric", "Bertwin", "Corvan", "Dain", "Edmar", "Falkin", "Garrick",
+	"Halvard", "Ingmar", "Joran", "Kelric", "Lothar", "Merek", "Norvel",
+	"Osric", "Perrin", "Quillan", "Radulf", "Sten", "Torvald", "Wendel",
+	"Alaric", "Brannoc", "Cedric", "Doran", "Emeric", "Ferrin", "Godwin",
+	"Hadric", "Selwyn", "Tobin", "Warrick", "Elric", "Marek", "Rowan",
+	"Gethyn", "Lorcan", "Aldous", "Brand", "Cormac",
+	-- More of the tusked-and-bristled sort, for the same reason.
+	"Snoutwald", "Tuskwin", "Boargrim", "Hogfast", "Snarlvor", "Bristmund",
+	"Swinthar", "Ruttgar", "Truffmund", "Snortwald", "Boarhelm", "Hograld",
+	"Grislan", "Wallowin", "Tuskren", "Bristgar", "Hoggmar", "Swinbald",
+	"Boarrik", "Gruntvar", "Snoutrim", "Verrold",
+	-- A further batch in the same two veins, to widen the pool again.
+	"Aldwin", "Bram", "Corwin", "Denric", "Emlyn", "Fenwick", "Gareth",
+	"Ivar", "Kendric", "Merrick", "Renfry", "Sedric", "Bevan", "Cadoc",
+	"Dunstan", "Leofric",
+	"Tusken", "Boarmund", "Hogvar", "Swingar", "Snortald", "Gruntwin",
+	"Bristan", "Truffgar", "Wallowmar", "Grislen", "Ruttwald", "Snarlgrim",
+	"Boarwin", "Hogralt", "Snoutgar", "Verrmund" };
 
 mg_villages.inhabitants.names_female = { "Freya", "Sigrid", "Astrid", "Brienne", "Cerys",
 	"Elara", "Isolde", "Kira", "Lyra", "Nessa", "Orla", "Seren", "Thalia",
@@ -66,7 +86,26 @@ mg_villages.inhabitants.names_female = { "Freya", "Sigrid", "Astrid", "Brienne",
 	"Wren", "Yara", "Tuskara", "Swinhild", "Hogrima", "Verrona", "Truffin",
 	"Bristova", "Gruntild", "Boarina", "Snorra", "Hogwynn", "Swindel",
 	"Bristal", "Grunna", "Boarwyn", "Snorrwyn", "Hoggelda", "Verrik",
-	"Truffa", "Swinna", "Tuskelda", "Grondel", "Boarvina", "Snorrida" }
+	"Truffa", "Swinna", "Tuskelda", "Grondel", "Boarvina", "Snorrida",
+	-- More ordinary names.
+	"Adela", "Brigit", "Carys", "Dahlia", "Edith", "Fenna", "Greta",
+	"Helsa", "Ilse", "Junia", "Lenora", "Maeve", "Nerys", "Ottilie",
+	"Petra", "Quenna", "Rhian", "Sabel", "Ursa", "Vesna", "Wanda",
+	"Alwen", "Beatrix", "Cordis", "Delwen", "Esme", "Ffion", "Gaenor",
+	"Hedda", "Imke", "Linnea", "Maren", "Nolwenn", "Sunniva", "Tamsin",
+	"Verena", "Ylva", "Katrin", "Marta", "Solveig",
+	-- More of the tusked-and-bristled sort.
+	"Tuskwyn", "Swinvra", "Hograna", "Bristella", "Grunhild", "Boarlyn",
+	"Snortha", "Truffelda", "Hogwenna", "Snouthild", "Wallowyn", "Grislyn",
+	"Tuskvina", "Bristwyn", "Hoggda", "Swinreld", "Boargra", "Snorwenna",
+	"Gruntha", "Verrelda",
+	-- A further batch in the same two veins, to widen the pool again.
+	"Aveline", "Bregan", "Carwen", "Enid", "Gerda", "Halla", "Isaura",
+	"Liesl", "Morna", "Rilla", "Senna", "Alys", "Brea", "Cwenn", "Doryn",
+	"Elin",
+	"Tusketta", "Boarwenna", "Hogrelda", "Swinlyn", "Snortwyn", "Gruntessa",
+	"Bristana", "Truffwyn", "Wallowa", "Grislenda", "Ruttila", "Snarlwyn",
+	"Boarhild", "Hogvina", "Snoutwyn", "Verrina" }
 
 -- get a middle name for the mob
 mg_villages.inhabitants.get_random_letter = function()
@@ -831,7 +870,8 @@ mg_villages.inhabitants.jobs_in_buildings[ 'forge'      ] = {'smith',
 		 'tinsmith', 'goldsmith'}};
 mg_villages.inhabitants.jobs_in_buildings[ 'shop'       ] = {'shopkeeper',
 		-- the shopkeeper is the most common; however, there can be more specialized sellers
-		{'shopkeeper', 'shopkeeper', 'shopkeeper', 'seed seller', 'flower seller', 'ore seller', 'fruit trader', 'wood trader'}};
+		-- (the tanner and saddler work hide -- see village_life economy P.tanner)
+		{'shopkeeper', 'shopkeeper', 'shopkeeper', 'seed seller', 'flower seller', 'ore seller', 'fruit trader', 'wood trader', 'tanner', 'tanner', 'saddler'}};
 mg_villages.inhabitants.jobs_in_buildings[ 'charachoal' ] = {'charachoal burner'};
 mg_villages.inhabitants.jobs_in_buildings[ 'trader'     ] = {'trader'}; -- TODO: currently only used for clay traders
 mg_villages.inhabitants.jobs_in_buildings[ 'chateau'    ] = {'landlord'};
@@ -981,7 +1021,7 @@ mg_villages.inhabitants.assign_jobs_to_houses = function( village_to_add_data_bp
 	local random_jobs = { 'stonemason', 'stoneminer', 'carpenter', 'toolmaker',
 			'doormaker', 'furnituremaker', 'stairmaker', 'cooper', 'wheelwright',
 			'saddler', 'roofer', 'iceman', 'potterer', 'bricklayer', 'dyemaker',
-			'glassmaker' };
+			'glassmaker', 'cheesemaker' };
 	for i,v in ipairs( found_house ) do
 		local job = random_jobs[ math.random(#random_jobs)];
 		village_to_add_data_bpos[ v ].worker = {};

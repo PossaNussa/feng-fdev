@@ -14,7 +14,10 @@ tph_wielditem = {
     -- use this to control lag
     -- controls whether or not to iterate through list of players on a timely basis
     -- e.g. 0.5 will check every 0.5 seconds
-    mincheck = 0,
+    -- 0 means "every server tick, per player" which is needlessly heavy under load;
+    -- 0.05s (20Hz) is imperceptible for wield mechanics and cuts the per-player CPU floor.
+    -- Wield-light responsiveness is preserved by leading the light along velocity (see modules/wieldlight.lua).
+    mincheck = 0.05,
     -- CANNOT BE MODIFIED
     -- features table
     features = {

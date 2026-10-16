@@ -1,0 +1,132 @@
+[Behaviour]
+
+#    Villagers follow a daily routine: work, sleep, shelter from weather,
+#    flee from monsters. With this off they revert to the mobs redo random walk.
+village_life_schedule (Villager daily schedule) bool true
+
+#    Guards and soldiers fight, and buff pigmen anchor to their village,
+#    patrol its roads and answer alarms.
+village_life_defence (Village defence) bool true
+
+#    Replace villagers that have died or been removed, so workstations do not
+#    end up permanently empty.
+village_life_census (Repopulate villages) bool true
+
+#    Villagers refuse to trade while asleep or while fleeing.
+village_life_shop_hours (Shop opening hours) bool true
+
+#    Villagers lie down in their own beds at night instead of standing beside
+#    them, and injuries close over with time -- slowly on their feet, three
+#    times as fast asleep. Nothing heals while it is still being hit.
+village_life_rest (Sleep and recovery) bool true
+
+#    Villages remember how each player has treated them, which moves prices,
+#    greetings, what the shops will show, and whether the guards turn on you.
+village_life_reputation (Reputation) bool true
+
+#    Right-clicking a villager opens a conversation. Trading becomes one thing
+#    you can ask for. With this off, right-click opens the shop counter direct.
+village_life_dialogue (Villager conversation) bool true
+
+#    Floating nameplates above villagers' heads. Off by default: a villager's
+#    name is something you learn by asking them, not read off a tag over a
+#    stranger's head.
+village_life_nametags (Villager nameplates) bool false
+
+#    An ordinary villager struck by a monster rouses and fights back for a
+#    while, instead of only fleeing. Children, the elderly and the timid still
+#    run. Guards and champions fight regardless.
+village_life_selfdefence (Villagers defend themselves) bool true
+
+#    Children are smaller than adults, sized by their age, and grow towards
+#    adult size over in-game time -- mg_villages otherwise sets a child's age
+#    once and never advances it.
+village_life_aging (Children grow up) bool true
+
+#    Villagers can be talked into coming with you. Persuasion weighs your
+#    standing, what they think of you personally, their character, who they
+#    would be leaving behind and what you have put on the table -- and some
+#    people will refuse whatever you offer, and say why. A companion keeps their
+#    name, family, memory and mood, expects paying by the day, and walks home
+#    when it stops being worth it. With this off nobody can be recruited and the
+#    proposition is never offered.
+village_life_hiring (Hiring companions) bool true
+
+#    Players can found their own settlement from a written book whose first line
+#    is "Town Deed" and which carries a "Name:" line. Punch the ground with the
+#    deed to plant the town, punch beds to say who lives in them, and talk
+#    villagers or adventurers into moving in -- either following you there on
+#    foot or making their own way and turning up in a day or three. The town is
+#    a real mg_villages village, so it sleeps, repopulates and trades like any
+#    other. With this off the deed is just a book.
+village_life_settlement (Found your own town) bool true
+
+#    Villagers only know what they saw or were told. News passes between them
+#    when they stand about together, losing detail with each retelling, and the
+#    worst of it eventually reaches other villages -- so your name can arrive
+#    somewhere before you do.
+village_life_gossip (Gossip and witnesses) bool true
+
+#    Taking things out of a container while a villager can see you is an
+#    offence, and costs standing with everyone who watched. An empty street
+#    costs nothing. Corpses are always exempt.
+village_life_crime (Theft is witnessed) bool true
+
+#    A killed villager stays dead. Their family mourns, their workstation
+#    stands empty and their trade leaves the village's market until a child of
+#    the house comes of age or, much later, an incomer takes it on. With this
+#    off, the census puts an identical person back as it always did.
+village_life_permadeath (Death is permanent) bool true
+
+#    Villagers leave a body holding what they were carrying. It belongs to
+#    nobody: anyone may open it and anyone may dig it, and doing so is never
+#    counted as theft.
+village_life_remains (Villagers leave remains) bool true
+
+#    Innkeepers rent a room for the night for a few coins. Sleeping in an inn's
+#    bed you have not paid for is an offence -- but only if a villager is awake
+#    to see you do it. Needs witnessed theft (above) to have any teeth.
+village_life_lodging (Rent a room at the inn) bool true
+
+#    People pass through. An inn's guest becomes an adventurer who rode in a
+#    night or two back, is bound somewhere else, and knows the country around
+#    here -- a bearing to a dungeon dungeonsplus really built, or a rumour when
+#    there is nothing known nearby. And after dark a bedless traveller now and
+#    then turns up near a village, or out on the road, and is gone again by day.
+#    With this off the guest reflavour and rumours stay, but no travellers spawn.
+village_life_adventurers (Travelling adventurers) bool true
+
+#    Redeeming monsters. Shout a calming word (louder is better -- caps and "!"
+#    help) near a sentient beastman (lionman, cheetahman, frog-folk, gnoll) for a
+#    chance to make it stand down and idle; right-click it then to talk it out of
+#    being a monster. A calmed beast wanders, gains standing, and can join a town
+#    like any recruit -- as a Hunter, Barbarian or Monster. Trolls recruit
+#    directly. With this off, the yell trigger and the calm menu are disabled.
+village_life_redeem (Redeem monsters) bool true
+
+[Economy]
+
+#    Per-villager stock, village specialities, seasonal goods and demand-driven
+#    prices. With this off the original lottmobs trade tables are used.
+village_life_economy (Village economy) bool true
+
+#    In-game days between shop restocks.
+village_life_restock_days (Days between restocks) int 1 1 30
+
+[Performance]
+
+#    How far from a player villages keep simulating, in nodes. Mobs only step
+#    inside the active block range, so raising this much above it does nothing
+#    except cost census and threat-scan time.
+village_life_active_range (Simulation range) int 64 16 256
+
+#    Pathfinding is budgeted by creaturemob, in microseconds per server step
+#    across every mob in the world. See creaturemob_path_budget_us.
+
+#    Seconds before a dead villager is replaced by the census.
+village_life_respawn_delay (Respawn delay) int 240 30 6000
+
+[Debug]
+
+#    Log schedule decisions, repopulation and threat learning.
+village_life_debug (Verbose logging) bool false

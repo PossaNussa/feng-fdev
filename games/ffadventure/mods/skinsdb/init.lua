@@ -35,7 +35,8 @@ dofile(skins.modpath.."/skins_updater.lua")
 skins.ie = nil
 skins.http = nil
 
--- 3d_armor compatibility
+-- 3d_armor compatibility (guarded so games without 3d_armor can share this mod)
+if minetest.global_exists("armor") then
 	skins.armor_loaded = true
 	armor.get_player_skin = function(self, name)
 		local skin = skins.get_player_skin(minetest.get_player_by_name(name))
@@ -47,6 +48,7 @@ skins.http = nil
 	end
 	-- Let 3d_armor's original update_player_visuals handle model/textures.
 	-- armor.get_player_skin (overridden above) feeds the correct skin texture.
+end
 
 if minetest.global_exists("clothing") and clothing.player_textures then
 	skins.clothing_loaded = true

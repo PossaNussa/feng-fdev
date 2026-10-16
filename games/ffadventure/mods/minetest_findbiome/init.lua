@@ -13,9 +13,17 @@ local playable_limit = math.max(mapgen_limit - (chunksize + 1) * 16, 0)
 -------------
 
 -- Resolution of search grid in nodes.
-local res = 64
+-- climate_zones_v7 paints one biome per Voronoi zone (climate_v7_zone_size,
+-- 384 by default), so anything up to about half a zone still lands in every
+-- zone it passes.
+local res = 192
 -- Number of points checked in the square search grid (edge * edge).
-local checks = 128 * 128
+-- The searched square is res * sqrt(checks) across.  Heat is a latitude
+-- gradient running from full heat at climate_v7_equator_z to full cold at
+-- climate_v7_pole_z (-8000 and +8000 by default), so a search that does not
+-- span at least that far can never reach the hot or cold biomes at all --
+-- the old 64 * 128 = +/-4096 fell well short of it.
+local checks = 176 * 176
 
 -- End of parameters
 --------------------
@@ -148,15 +156,19 @@ local function find_biome(pos, biomes)
 		local attempt = 1
 		while attempt < 3 do
 			for iter = 1, checks do
-				local biome_data = minetest.get_biome_data(pos)
-				-- Sometimes biome_data is nil
-				local biome = biome_data and biome_data.biome
 				for id_ind = 1, #biome_ids do
 					local biome_id = biome_ids[id_ind]
-					pos = adjust_pos_to_biome_limits(pos, biome_id)
-					local spos = table.copy(pos)
+					-- Clamp the probe into the biome's own limits, but never
+					-- write back into `pos`: that is the spiral cursor, and
+					-- overwriting it made every subsequent step start from the
+					-- clamped point, so the search folded back on itself and
+					-- rescanned the same ground instead of spiralling outwards.
+					local spos = adjust_pos_to_biome_limits(pos, biome_id)
+					local biome_data = minetest.get_biome_data(spos)
+					-- Sometimes biome_data is nil
+					local biome = biome_data and biome_data.biome
 					if biome == biome_id then
-						local good_spawn_height = pos.y <= water_level + 16 and pos.y >= water_level
+						local good_spawn_height = spos.y <= water_level + 16 and spos.y >= water_level
 						local spawn_y = minetest.get_spawn_level(spos.x, spos.z)
 						if spawn_y then
 							spawn_pos = {x = spos.x, y = spawn_y, z = spos.z}
@@ -166,10 +178,14 @@ local function find_biome(pos, biomes)
 							spawn_pos = {x = spos.x, y = spos.y, z = spos.z}
 						end
 						if spawn_pos then
-							local adjusted_pos, outside = adjust_pos_to_biome_limits(spawn_pos, biome_id)
+							local _, outside = adjust_pos_to_biome_limits(spawn_pos, biome_id)
 							if is_in_world(spawn_pos) and not outside then
 								return true
 							end
+							-- Rejected: drop it, or a later match would reuse
+							-- this stale position and teleport somewhere that
+							-- was never actually accepted.
+							spawn_pos = nil
 						end
 					end
 				end

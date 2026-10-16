@@ -56,9 +56,11 @@ function beds.set_spawns()
 		local p = player:get_pos()
 		-- but don't change spawn location if borrowing a bed
 		if not minetest.is_protected(p, name) then
+			-- beds.spawn is the only record of a bed spawn. The alone mod reads
+			-- it directly and stands down while there is an entry here, so
+			-- there is nothing to mirror into player meta -- and a mirror would
+			-- go stale anyway when a bed is broken while its owner is offline.
 			beds.spawn[name] = p
-			-- Keep alone mod in sync so its respawn callback uses the bed position
-			player:get_meta():set_string("alone:spawn", minetest.pos_to_string(p))
 		end
 	end
 	beds.save_spawns()
@@ -67,12 +69,9 @@ end
 function beds.remove_spawns_at(pos)
 	for name, p in pairs(beds.spawn) do
 		if vector.equals(vector.round(p), pos) then
+			-- Dropping the entry is all it takes: alone goes back to handing
+			-- out a fresh random spawn on every death.
 			beds.spawn[name] = nil
-			-- Clear alone:spawn so the player falls back to alone's own logic
-			local player = minetest.get_player_by_name(name)
-			if player then
-				player:get_meta():set_string("alone:spawn", "")
-			end
 		end
 	end
 	beds.save_spawns()

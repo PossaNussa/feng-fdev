@@ -1,0 +1,188 @@
+# creaturemob -- merged mob runtime
+#
+# Serves both the Mobs Redo (mobs.*) and creatura (creatura.*) APIs.
+# The mobs_* and creatura_* names below are unchanged from the two
+# original mods, so any existing minetest.conf keeps working.
+
+[creaturemob]
+
+# Replace Mobs Redo's actuation with the shared movement controller.
+# Off restores the original 1 Hz set_velocity and frame-counted turning
+# for every mob; individual mobs can opt out with legacy_motion = true.
+creaturemob_smooth_motion (Smooth mob motion) bool true
+
+# Stretch the brain interval for mobs no player is near. Bodies keep
+# updating every step either way, so distant mobs still arrive smoothly.
+creaturemob_lod (Distance level of detail) bool true
+
+# Mobs closer than this think at full rate.
+creaturemob_lod_near (LOD near distance) int 32 8 256
+
+# Mobs beyond this think at a quarter rate.
+creaturemob_lod_far (LOD far distance) int 80 16 512
+
+# Use the shared time-sliced A*/Theta* pathfinder for Mobs Redo mobs
+# instead of the engine's blocking core.find_path().
+mob_use_lvm_pathfinding (Time-sliced mob pathfinding) bool true
+
+# Microseconds of pathfinding per server step, shared by every mob in the
+# world. Searches are time-sliced and resume next step, so lowering this
+# makes mobs slower to work out a route, not worse at following one.
+creaturemob_path_budget_us (Pathfinding budget per step) int 3000 500 20000
+
+# Mobs scan for a way around walls and ledges instead of turning at random.
+# Individual mobs can still opt out with smart_path = false.
+mobs_smart_path (Obstacle avoidance) bool true
+
+# Mob name prefixes excluded from the above, space or comma separated.
+# The undead are meant to shamble into things.
+mobs_smart_path_exclude (Obstacle avoidance exclusions) string zombies:
+
+[*Mobs Redo]
+
+#    Enable setting so that Mobs Redo mobs can attack Creatura mobs
+mobs_attack_creatura (Attack Creatura Mobs) bool false
+
+#    How often mobs get nodes around them (default is 0.25, 1/4 second)
+mob_node_timer_interval (Mob Node Timer Interval) float 0.25
+
+#    How often mobs run main functions (default is 1.00, 1 second)
+mob_main_timer_interval (Mob Node Timer Interval) float 1.00
+
+#    If false then mobs no longer spawn in world without spawner or spawn egg
+mobs_spawn (Spawn Mobs) bool true
+
+#    If enabled then monsters no longer spawn in world
+only_peaceful_mobs (Only spawn peaceful Mobs) bool false
+
+#   If enabled then punching mobs no longer shows blood effects
+mobs_disable_blood (Disable Mob blood) bool false
+
+#   If enabled the mobs will be highlighted when hit
+mob_hit_effect (Highlight Mob when Hit) bool false
+
+#    If disabled then Mobs no longer destroy world blocks
+mobs_griefing (Griefing Mobs) bool true
+
+#    If false then Mobs no longer spawn inside player protected areas
+mobs_spawn_protected (Spawn Mobs in protected areas) bool true
+
+#    If false then Monsters no longer spawn inside player protected areas
+mobs_spawn_monster_protected (Spawn Monsters in protected areas) bool true
+
+#    If true Mobs will be removed once a map chunk is out of view
+remove_far_mobs (Remove far Mobs) bool true
+
+#    Sets Mob difficulty level by multiplying punch damage
+mob_difficulty (Mob difficulty) float 1.0
+
+#    Contains a value used to multiply Mob spawn values
+mob_chance_multiplier (Mob chance multiplier) float 1.0
+
+#    When false Mob no longer drop items when killed
+mobs_drop_items (Mob drops) bool true
+
+#    Sets minimum distance around player that mobs cannot spawn
+mob_nospawn_range (Mob no-spawn range) float 12.0
+
+#    Sets maximum number of active mobs in game (0 for unlimited)
+mob_active_limit (Mob Active Limit) float 0
+
+#    Enables area check when spawning mobs
+mob_area_spawn (Mob Area Spawn) bool false
+
+#    Enable peaceful player attack prevention
+enable_peaceful_player (Mobs do not attack peaceful player without reason) bool false
+
+#    Enable mobs smooth rotation
+mob_smooth_rotate (Smooth rotation for mobs) bool true
+
+#   Fix Mob Height if too low so they cannot escape through specific nodes
+mob_height_fix (Fix Mob Height) bool true
+
+mob_log_spawn (Log Mob Spawning) bool false
+
+#   Mob hearing, when enabled will override minetest.sound_play for mobs to hear
+mobs_can_hear (Enable Mob hearing) bool true
+
+#   Node hearing, when enabled will allow nodes to hear nearby sounds
+mobs_can_hear_node (Enable Node hearing) bool false
+
+#   By default mobs are dealt knockback from damage, this lets you disable it
+mobs_disable_damage_kb (Disable knockback from damage only) bool false
+
+[Pathfinding]
+#    Enable pathfinding (default Enabled)
+mob_pathfinding_enable (Enable pathfinding) bool true
+#    How long before stuck mobs starts searching (default 3.0)
+mob_pathfinding_stuck_timeout (How long before stuck mobs start searching) float 3.0
+#    How long will mob follow path before giving up (default 5.0)
+mob_pathfinding_stuck_path_timeout (How long will mob follow path before giving up) float 5.0
+#    Which pathfinding algorithm to use
+#      - Dijkstra
+#      - A*_noprefetch (AStar_noprefetch) Default
+#      - A* (AStar)
+#      (A* names differ cause Minetest doesn´t allow "*" in settings)
+mob_pathfinding_algorithm (pathfinding algorithm) enum Dijkstra Dijkstra,AStar_noprefetch,AStar
+# max search distance from search positions (default 16)
+mob_pathfinding_searchdistance (path search distance) int 16
+# max jump height for pathfinding (default 4)
+mob_pathfinding_max_jump (path max jump height) int 4
+# max drop height for pathfinding (default 6)
+mob_pathfinding_max_drop (path max drop height) int 6
+
+#   Enable mob infotext on hover
+mob_infotext (Enable mob infotext on hover) bool true
+
+# ffadventure: force EVERY mob persistent (never despawns, saved across chunk
+# unload). Pets, NPCs and named mobs are always persistent regardless of this;
+# this only decides whether anonymous wildlife also persists. Leave off:
+# forcing all wildlife persistent floods mapblocks past the engine object cap,
+# after which the engine silently drops saved entities -- pets included.
+mobs_all_persistent (Force all wildlife persistent) bool false
+
+[*Creatura]
+
+# How mobs step up nodes. 
+#
+# - Simple means mobs use Minetests builtin stepping.
+# - Fancy means mobs will step up nodes with a quick hop but can cause lag.
+creatura_step_type (Step Type) enum simple simple,fancy
+
+# How often (in seconds) the spawn ABM is called
+creatura_spawn_interval (Spawn ABM Interval) int 10
+
+# Allows Mobs to spawn during chunk generation (If dependent mods use spawn_on_gen)
+# Off by default in creaturemob: this subsystem was dead code upstream and has
+# never run in this game, so enabling it changes mob density substantially.
+creatura_mapgen_spawning (Mapgen Spawning) bool false
+
+# Restores the pre-2025 globalstep spawner behind creatura.register_mob_spawn
+# (draconis dragons and wyverns). Also off by default -- that spawner had a
+# counting bug that stopped it running at all, so these mobs have never spawned
+# naturally. Turning this on is new behaviour, not a restoration.
+creatura_legacy_globalstep_spawning (Legacy globalstep spawning) bool false
+
+# Seconds between spawn probes when the legacy globalstep spawner is enabled
+creatura_spawn_step (Legacy spawn probe interval) int 15
+
+# How many chunks are generated before a Mob can spawn
+creatura_mapgen_spawn_interval (Mapgen Spawning Interval) int 64
+
+# How many Mobs can be a in a Mapblock before ABM spawning is blocked
+creatura_mapblock_limit (Max Mobs per Mapblock) int 12
+
+# How many Mobs can be within Active Block Send Range of an attempted spawn before stopping attempt
+creatura_abr_limit (Max Mobs within ABR) int 24
+
+# Minimum distance to a player for ABM Spawning
+creatura_min_abm_dist (Minimum ABM Spawning Distance) int 32
+
+# Allows Mobs to spawn in protected areas
+creatura_protected_spawn (Protected Area Spawning) bool true
+
+# Allotted time (in μs) per step for A* pathfinding (lower means less lag but slower pathfinding)
+creatura_a_star_alloted_time (A* Pathfinding Alloted time per step) int 500
+
+# Allotted time (in μs) per step for Theta* pathfinding (lower means less lag but slower pathfinding)
+creatura_theta_star_alloted_time (Theta* Pathfinding Alloted time per step) int 700

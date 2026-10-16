@@ -32,6 +32,28 @@ local snow_conditions = {
 	indoors = false
 }
 
+-- Conditions for ABM 3 specifically, which is the only destructive one: it
+-- deletes flora permanently.
+--
+-- The other snow ABMs are correctly gated on heat alone -- snow should fall
+-- during a spring cold snap. Destroying plants must not, because nothing in the
+-- game puts them back until the growing season, and `living_grass`'s reseeding
+-- ABM is gated on `seasons.get_warmth() > -0.35`. Gated only on heat, this ABM
+-- runs in *every* season in any biome whose heat sits below 35 -- which is most
+-- temperate and all boreal ground -- so flora was being stripped year-round and
+-- replaced for only part of the year. A world can only lose ground that way.
+--
+-- -0.35 is exactly living_grass's GROWING_WARMTH, so the two are complementary:
+-- plants are destroyed only in the deep-winter window when nothing regrows, and
+-- never while grass is seeding.
+local snow_grief_conditions = table.copy(snow_conditions)
+
+if minetest.get_modpath("seasons") then
+	-- `season_warmth` is registered as a climate_api global influence by
+	-- seasons/weather.lua. max_ means "run only when the value is below this".
+	snow_grief_conditions.max_season_warmth = -0.35
+end
+
 -- ABM 1: Place initial snow cover on exposed ground
 climate_api.register_abm({
 	label			= "create snow covers",
@@ -100,7 +122,7 @@ if regional_weather.settings.snow_griefing then
 		chance		= 160,
 		catch_up	= false,
 
-		conditions	= snow_conditions,
+		conditions	= snow_grief_conditions,
 
 		action = function (pos, node, env)
 			-- do not override plants unless marked as buildable_to
@@ -116,19 +138,44 @@ if regional_weather.settings.snow_griefing then
 	})
 end
 
--- ABM 4: Melt snow covers when warm
+-- ABM 4: Melt snow covers when warm.
+--
+-- `default:snowblock` is included, not just `default:snow`: the stack ABM above
+-- (and default:snow's own on_place) convert a full 64-level snow pile into a
+-- snowblock, and until this was added nothing ever melted a snowblock -- so any
+-- patch deep enough to have stacked into blocks over winter was a permanent
+-- terminal state that no amount of summer heat could remove. A melting snowblock
+-- drops back to a nearly-full snow layer and then thaws away a step at a time.
+--
+-- `neighbors = {"air"}` keeps this to surface snow: weather snow is always
+-- air-exposed, but it also stops snowblock used as a buried building material
+-- from silently thawing from the inside.
+--
+-- Threshold is min_heat 36 (was 38): snow forms at max_heat 35, so 36 leaves a
+-- 1-degree hysteresis band (nothing both forms and melts at once) while still
+-- letting cold biomes that only just cross into summer actually shed their snow.
+-- interval/chance are tuned so melt in warm weather is a touch faster than the
+-- accumulation ABMs above -- otherwise snow builds faster than it can ever clear
+-- and, worse, melts too slowly to see.
 climate_api.register_abm({
 	label			= "melt snow covers",
-	nodenames	= { "default:snow" },
-	interval	= 25,
-	chance		= 120,
+	nodenames	= { "default:snow", "default:snowblock" },
+	neighbors	= { "air" },
+	interval	= 12,
+	chance		= 10,
 	catch_up	= true,
 
 	conditions	= {
-		min_heat = 38
+		min_heat = 36
 	},
 
 	action = function (pos, node, env)
+		if node.name == "default:snowblock" then
+			-- Step a full block back down to a nearly-full snow layer; the
+			-- default:snow branch below then thaws the rest away.
+			minetest.set_node(pos, { name = "default:snow", param2 = 64 - SNOW_STEP })
+			return
+		end
 		local level = minetest.get_node_level(pos)
 		if level > SNOW_STEP then
 			minetest.set_node_level(pos, level - SNOW_STEP)
