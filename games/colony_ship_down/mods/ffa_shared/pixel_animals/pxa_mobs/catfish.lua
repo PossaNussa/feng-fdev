@@ -93,11 +93,9 @@ mobs:register_mob("pixel_animals:catfish", {
 mobs:spawn({
 	name = "pixel_animals:catfish",
 	nodes = fly_w,
-	--neighbors = { "default:stone"},
 	max_light = 7, 
 	chance = 14000,
 	active_object_count = 3,
-	--max_height = -10,
 	max_height = 2,
 })
 

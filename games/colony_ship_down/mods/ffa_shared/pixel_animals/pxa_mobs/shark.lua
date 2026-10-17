@@ -5,6 +5,8 @@ local fly_w = {
 "mcl_core:water_source",
 }
 
+pixel_animals.enable_shark_spawn = core.settings:get_bool("enable_shark_spawn", true)
+
 core.register_craftitem("pixel_animals:shark_tooth", {
     description = "Shark Tooth",
     inventory_image = "shark_tooth.png"
@@ -91,15 +93,8 @@ mobs:register_mob("pixel_animals:shark", {
 	},
 })
 
-mobs:spawn({
-	name = "pixel_animals:shark",
-	nodes = {"default:water_source"},
-	min_light = 3,
-	max_light = 14,
-	chance = 75000,
-	min_height = -30,
-	max_height = 0,
-	active_object_count = 2,
-})
+if pixel_animals.enable_shark_spawn then
+mobs:register_spawn("pixel_animals:shark", {"default:water_flowing", "default:water_source"}, 14, 5, 6000, 5, 10,-5, true)
+end
 
 mobs:register_egg("pixel_animals:shark","Shark","shark_egg.png", 0)

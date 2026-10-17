@@ -1,3 +1,5 @@
+pixel_animals.leafcutter_anthill = core.settings:get_bool("leafcutter_anthill", true)
+
 core.register_node("pixel_animals:leafcutter_anthill", {
 	description = "Leafcutter Anthill",
 	tiles = {"Leafcutter_Anthill.png"},
@@ -7,7 +9,7 @@ core.register_node("pixel_animals:leafcutter_anthill", {
         after_dig_node = function(pos)
 	  for i = 1,3 do
 	     pos.y = pos.y + 0.5
-	     minetest.add_entity(pos, "pixel_animals:leafcutter_ant")
+	     core.add_entity(pos, "pixel_animals:leafcutter_ant")
 	  end
 	end,
 })
@@ -87,6 +89,8 @@ mobs:spawn({
 
 mobs:register_egg("pixel_animals:leafcutter_ant","Leafcutter_Ant","Leafcutter_Ant_egg.png", 0)
 
+
+if pixel_animals.leafcutter_anthill then 
 core.register_decoration({ 
     name = "pixel_animals:leafcutter_anthill_dec",
     deco_type = "schematic",
@@ -96,8 +100,9 @@ core.register_decoration({
     fill_ratio = 0.0005,
     y_max = 5,
     y_min = 1,
-    schematic = minetest.get_modpath("pixel_animals") .. "/schematics/spawn_ant.mts",
+    schematic = core.get_modpath("pixel_animals") .. "/schematics/spawn_ant.mts",
     place_offset_y = 1,
     flags = "place_center_x,place_center_z,all_floors",
     rotation = "random",
 })
+end

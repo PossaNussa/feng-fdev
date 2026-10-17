@@ -1,3 +1,19 @@
+pixel_animals.enable_ostrich_spawn = core.settings:get_bool("enable_ostrich_spawn", true)
+
+ostrich_drops = {}
+
+if core.get_modpath("mcl_mobitems")then
+      ostrich_drops = {
+		{name = "mcl_mobitems:feather", chance = 2, min = 1, max = 1},
+		{name = "mobs:chicken_raw", chance = 1, min = 0, max = 1}
+	}
+   else
+	  ostrich_drops = {
+		{name = "mobs:chicken_feather", chance = 2, min = 1, max = 1},
+		{name = "mobs:chicken_raw", chance = 1, min = 0, max = 1}
+	}
+end
+
 mobs:register_mob("pixel_animals:ostrich", {
 	--nametag = "Ostrich",
 	type = "animal",
@@ -6,7 +22,8 @@ mobs:register_mob("pixel_animals:ostrich", {
 	attack_npcs = false,
 	--group_attack = true,
 	reach = 2,
-        damage = 3, attack_chance = 98,
+    damage = 3, 
+	attack_chance = 50,
 	pathfinding = true,
 	hp_min = 25,
 	hp_max = 25,
@@ -29,8 +46,7 @@ mobs:register_mob("pixel_animals:ostrich", {
 	jump_height = 2,
 	stepheight = 1.1, 
 	fall_damage = 1,
-	drops = {{name = "mobs:meat_raw", chance = 1, min = 0, max = 1},
-	},
+	drops = ostrich_drops,
 	water_damage = 0,
 	lava_damage = 5,
 	fear_height = 3,
@@ -55,28 +71,27 @@ mobs:register_mob("pixel_animals:ostrich", {
 	runaway = true ,
 	
 	on_rightclick = function(self, clicker)
-		if mobs:feed_tame(self, clicker, 8, true, true) then return end
-		if mobs:protect(self, clicker) then return end
-		if mobs:capture_mob(self, clicker, 30, 50, 80, false, nil) then return end
-		
-		local item_hand  =  clicker:get_wielded_item():get_name()
-		
-		if self.tamed and self.owner == clicker:get_player_name() and item_hand ~= "" then
-		   if not clicker or not clicker:is_player() then return end
-		----		  
-                    if self.driver and clicker == self.driver then
-			clicker:set_detach() -- destacar			
+	if mobs:feed_tame(self, clicker, 8, true, true) then return end
+	if mobs:protect(self, clicker) then return end
+	if mobs:capture_mob(self, clicker, 30, 50, 80, false, nil) then return end
+	
+	local item_hand = clicker:get_wielded_item():get_name()
+	
+	if self.tamed and self.owner == clicker:get_player_name() and item_hand ~= "" then
+		if not clicker or not clicker:is_player() then return end
+		----	
+		if self.driver and clicker == self.driver then
+			clicker:set_detach()
+			--clicker:set_eye_offset({x=0,y=0,z=0},{x=0,y=0,z=0})
 			self.driver = nil
-		        elseif not self.driver then
-			  clicker:set_attach(self.object, "", {x=0, y=9, z=-2}, {x=0, y=0, z=0}) -- anexar
-			 -- minetest.after(0.2, function()
-         		    --clicker:set_animation({x = 81,  y = 160}, 30, 0)          
-         		 -- end)        
-			 self.driver = clicker
-		    end
-		 ----
-	        end				
-	end,
+		elseif not self.driver then
+			clicker:set_attach(self.object,"",{x=0,y=9,z=-2},{x=0,y=0,z=0}) -- anexar
+			--clicker:set_eye_offset({x=0,y=0,z=0},{x=0,y=0,z=0})
+			self.driver = clicker
+		end
+		----	
+	end
+       end,
 	
 	do_custom = function(self, dtime)
 	if self.driver then
@@ -102,22 +117,25 @@ mobs:register_mob("pixel_animals:ostrich", {
 		end
 		return false
 	end
-end
+    end
 
 	    
 })
 
+if pixel_animals.enable_ostrich_spawn then
 mobs:spawn({
 	name = "pixel_animals:ostrich",
-	nodes = {"default:dry_dirt_with_dry_grass", "default:dirt_with_dry_grass", "default:savanna_grass"},
-	neighbors = {"default:acacia_tree", "default:dry_shrub", "air"},
-	min_light = 10,
-	max_light = 15,
-	chance = 40000,
+	nodes = {"default:dry_dirt_with_dry_grass","mcl_core:dirt_with_grass"},
+	biomes = {"savanna","Savanna"},
+	min_light = 8,
+	--max_light = 14,
+	chance = 8000,
 	min_height = 0,
-	max_height = 100,
+	max_height = 200,
 	day_toggle = true,
-	active_object_count = 2,
+	active_object_count = 3,
+	
 })
+end
 
 mobs:register_egg("pixel_animals:ostrich","Ostrich","Ostrich_egg.png", 0)

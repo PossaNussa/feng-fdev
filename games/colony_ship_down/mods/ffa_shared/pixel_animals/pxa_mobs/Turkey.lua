@@ -1,10 +1,10 @@
 -- sound : https://freesound.org/people/JarredGibb/sounds/233123/
+pixel_animals.enable_turkey_spawn = core.settings:get_bool("enable_turkey_spawn", true)
 
 local turkey_spawns = {
 "default:dirt_with_grass",
 "mcl_core:dirt_with_grass",
-"mcl_mangrove:mangrove_mud_roots",
-"rp_default:tall_grass"
+"rp_default:dirt_with_grass"
 }
 
 mobs:register_mob("pixel_animals:turkey", {
@@ -29,16 +29,15 @@ mobs:register_mob("pixel_animals:turkey", {
 	run_velocity = 3,
 	runaway = true,
 	runaway_from = {"player","pixel_animals:pumba"},
-	drops = {
-		{name = "mobs:chicken_raw", chance = 1, min = 1, max = 1},
-		{name = "mobs:chicken_feather", chance = 1, min = 0, max = 2}
-	},
+	drops = ostrich_drops,
 	water_damage = 1,
 	lava_damage = 5,
 	light_damage = 0,
 	fall_damage = 0,
 	fall_speed = -4,
 	fear_height = 5,
+	view_range = 5,
+	follow = {"farming:seed_wheat","mcl_farming:wheat_seeds","x_farming:seed_rice","crops:tomato_seed"},
 	animation = {
 		speed_normal = 15,
 		stand_start = 1,
@@ -54,9 +53,7 @@ mobs:register_mob("pixel_animals:turkey", {
 		run_end = 109,
 		run_speed = 24,
 	},
-	follow = {"farming:seed_wheat","mcl_farming:wheat_seeds","x_farming:seed_rice","crops:tomato_seed"},
-	view_range = 5,
-
+	
 	on_rightclick = function(self, clicker)
 		if mobs:feed_tame(self, clicker, 16, true, true) then return end
 		if mobs:protect(self, clicker) then return end
@@ -79,10 +76,11 @@ mobs:register_mob("pixel_animals:turkey", {
 	end,	
 })
 
+if pixel_animals.enable_turkey_spawn then
 mobs:spawn({
  name = "pixel_animals:turkey",
  nodes = turkey_spawns,
- neighbors = {"default:aspen_tree","mcl_trees:bark_birch"},
+ biomes = {"BirchForest","BirchForestM","deciduous_forest","Forest"},
  min_light = 14,
  interval = 60,
  chance = 4000,
@@ -91,5 +89,6 @@ mobs:spawn({
  max_height = 200,
  day_toggle = true
 })
+end
 
 mobs:register_egg("pixel_animals:turkey","Turkey","Turkey_egg.png", 0)

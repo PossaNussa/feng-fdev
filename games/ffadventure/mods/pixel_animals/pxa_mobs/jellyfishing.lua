@@ -5,13 +5,17 @@ local fly_w = {
 "mcl_core:water_source",
 }
 
+core.register_alias("pixel_animals:gelatin_Block","pixel_animals:gelatin_block")
+
+pixel_animals.enable_jellyfish_spawn = core.settings:get_bool("enable_jellyfish_spawn", true)
+
 -- Gelatin:
-minetest.register_craftitem("pixel_animals:gelatin", {
+core.register_craftitem("pixel_animals:gelatin", {
 	description = "Gelatin",
 	inventory_image = "gelatin.png"
 })
 
-minetest.register_node("pixel_animals:gelatin_Block", {
+core.register_node("pixel_animals:gelatin_block", {
 	description = "Gelatin Block",
 	tiles = {"gelatin_block.png"},
 	drawtype = "glasslike_framed_optional",
@@ -23,9 +27,9 @@ minetest.register_node("pixel_animals:gelatin_Block", {
         --sounds = 
 })
 
-minetest.register_craft({
+core.register_craft({
     type = "shaped",
-    output = "pixel_animals:gelatin_Block",
+    output = "pixel_animals:gelatin_block",
     recipe = {
         {"pixel_animals:gelatin", "pixel_animals:gelatin","pixel_animals:gelatin"},
         {"pixel_animals:gelatin", "pixel_animals:gelatin","pixel_animals:gelatin"},
@@ -87,13 +91,7 @@ mobs:register_mob("pixel_animals:jellyfish", {
 		walk_end = 72,
 		run_start = 24,
 		run_end = 72,
-		--punch_start = 0,
-		--punch_end = 0,
 	},
-	
-	--on_rightclick = function(self, clicker)
-	  --mobs:capture_mob(self, clicker, 50, 90, 0, true,"pixel_animals:jellyfish")
-	 --end,
 	
         on_flop = function(self)
 	 	self.object:set_acceleration({
@@ -107,17 +105,16 @@ mobs:register_mob("pixel_animals:jellyfish", {
 	end
 })
 
+if pixel_animals.enable_jellyfish_spawn then
 mobs:spawn({
-	name       = "pixel_animals:jellyfish",
-	nodes      = fly_w,
-	-- no neighbors requirement: they float in open water, not next to stone
-	min_light  = 0,
-	max_light  = 14,
-	chance     = 14000,
-	min_height = -80,
+	name = "pixel_animals:jellyfish",
+	nodes = fly_w,
+	neighbors = { "default:stone"},
+	max_light = 7, 
+	chance = 14000,	
 	max_height = 0,
-	min_heat   = 20,  -- temperate to tropical oceans
 })
+end
 
-mobs:register_egg("pixel_animals:jellyfish", "jellyfish", "jellyfish_inv.png", 0)
+mobs:register_egg("pixel_animals:jellyfish", "Jellyfish", "jellyfish_inv.png", 0)
 

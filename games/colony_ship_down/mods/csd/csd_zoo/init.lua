@@ -83,9 +83,17 @@ local function free(pos, water)
 	return def and not def.walkable and def.liquidtype == "none"
 end
 
--- A random spot in the room: in water, mid-air (birds) or on the floor.
-local function spot(r, water, birds)
-	for _ = 1, 20 do
+-- How many nodes tall an animal is (the new pixel elephant is over four).
+local function height_of(name)
+	local def = core.registered_entities[name] or {}
+	local cb = (def.initial_properties and def.initial_properties.collisionbox) or def.collisionbox
+	return cb and math.max(1, math.ceil(cb[5] - cb[2])) or 2
+end
+
+-- A random spot in the room: in water, mid-air (birds) or on the floor with
+-- room for an animal `h` nodes tall.
+local function spot(r, water, birds, h)
+	for _ = 1, 40 do
 		local p = vector.new(math.random(r.minp.x + 1, r.maxp.x - 1), r.minp.y, math.random(r.minp.z + 1, r.maxp.z - 1))
 		if water then
 			p.y = math.random(r.minp.y + 1, r.maxp.y - 1)
@@ -94,10 +102,11 @@ local function spot(r, water, birds)
 			p.y = r.minp.y + math.random(2, 4)
 			if free(p) and free(vector.offset(p, 0, 1, 0)) then return p end
 		else
-			-- room for a big animal: two nodes of headroom
-			if free(p) and free(vector.offset(p, 0, 1, 0)) and free(vector.offset(p, 0, 2, 0)) then
-				return vector.offset(p, 0, 0.2, 0)
+			local ok = true
+			for dy = 0, h do
+				if not free(vector.offset(p, 0, dy, 0)) then ok = false break end
 			end
+			if ok then return vector.offset(p, 0, 0.2, 0) end
 		end
 	end
 end
@@ -111,8 +120,9 @@ function csd_zoo.restock(r, force)
 	for _, a in ipairs(zoo.animals) do
 		local name, want = a[1], a[2]
 		if core.registered_entities[name] then
+			local h = height_of(name)
 			for _ = (counts[name] or 0) + 1, want do
-				local p = spot(r, zoo.water, zoo.birds)
+				local p = spot(r, zoo.water, zoo.birds, h)
 				if p and core.add_entity(p, name) then added = added + 1 end
 			end
 		end

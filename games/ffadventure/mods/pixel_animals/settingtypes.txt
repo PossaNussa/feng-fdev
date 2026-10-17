@@ -1,0 +1,116 @@
+
+#  Enable Leafcutter Anthill 
+leafcutter_anthill (Enable Leafcutter Anthill) bool true
+
+#  Enable Bat Spawn 
+enable_bat_spawn (Enable Bat Spawn) bool true
+
+#  Enable Bear Spawn 
+enable_bear_spawn (Enable Bear Spawn) bool true
+
+#  Enable Capybara Spawn 
+enable_capybara_spawn (Enable Capybara Spawn) bool true
+
+#  Enable Crocodile Spawn 
+enable_crocodile_spawn (Enable Crocodile Spawn) bool true
+
+#  Enable Crow Spawn 
+enable_crow_spawn (Enable Crow Spawn) bool true
+
+#  Enable Elephant Spawn 
+enable_elephant_spawn (Enable Elephant Spawn) bool true
+
+#  Enable Frog Spawn 
+enable_frog_spawn (Enable Frog Spawn) bool true
+
+#  Enable Hedgehogs Spawn 
+enable_hedgehogs_spawn (Enable Hedgehogs Spawn) bool true
+
+#  Enable Hummingbird Spawn 
+enable_hummingbird_spawn (Enable Hummingbird Spawn) bool true
+
+#  Enable Hyenas Spawn 
+enable_hyenas_spawn (Enable Hyenas Spawn) bool true
+
+#  Enable Jellyfish Spawn 
+enable_jellyfish_spawn (Enable Jellyfish Spawn) bool true
+
+#  Enable Marmot Spawn 
+enable_marmot_spawn (Enable Marmot Spawn) bool true
+
+#  Enable Moose Spawn 
+enable_moose_spawn (Enable Moose Spawn) bool true
+
+#  Enable Ostrich Spawn 
+enable_ostrich_spawn (Enable Ostrich Spawn) bool true
+
+#  Enable Raccoon Spawn 
+enable_raccoon_spawn (Enable Raccoon Spawn) bool true
+
+#  Enable Rattlesnake Spawn 
+enable_rattlesnake_spawn (Enable Rattlesnake Spawn) bool true
+
+#  Enable Seagull Spawn 
+enable_seagull_spawn (Enable Seagull Spawn) bool true
+
+#  Enable Seals Spawn 
+enable_seals_spawn (Enable Seals Spawn) bool true
+
+#  Enable Shark Spawn 
+enable_shark_spawn (Enable Shark Spawn) bool true
+
+#  Enable Skunk Spawn 
+enable_skunk_spawn (Enable Skunk Spawn) bool true
+
+#  Enable Squirrels Spawn 
+enable_squirrels_spawn (Enable Squirrels Spawn) bool true
+
+#  Enable Tiger Spawn 
+enable_tiger_spawn (Enable Tiger Spawn) bool true
+
+#  Enable Turkey Spawn 
+enable_turkey_spawn (Enable Turkey Spawn) bool true
+
+#  Enable Vulture Spawn 
+enable_vulture_spawn (Enable Vulture Spawn) bool true
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

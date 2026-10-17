@@ -1,3 +1,5 @@
+pixel_animals.enable_bear_spawn = core.settings:get_bool("enable_bear_spawn", true)
+
 local bear_spawns = { 
 "default:dirt_with_coniferous_litter",
 "mcl_core:podzol" ,
@@ -5,6 +7,14 @@ local bear_spawns = {
 }
 
 local bear_likes = {"mobs:honey","bees:honey_comb","x_farming:honeycomb","mcl_honey:honeycomb"}
+
+local bear_drops = {}
+
+if core.get_modpath("mcl_mobitems")then
+      bear_drops = {name = "mcl_mobitems:leather", chance = 2, min = 1, max = 1}
+   else
+	  bear_drops = {name = "mobs:leather", chance = 2, min = 1, max = 1}
+end
 
 mobs:register_mob("pixel_animals:bear", {
 	type = "monster",
@@ -37,9 +47,7 @@ mobs:register_mob("pixel_animals:bear", {
 	jump_height = 3,
 	stepheight = 2,
 	fall_damage = 1,
-	drops = {
-		{name = "mobs:leather", chance = 2, min = 1, max = 1},
-	},
+	drops = bear_drops,
 	--follow = bear_likes,
 	water_damage = 0,
 	lava_damage = 5,
@@ -62,6 +70,9 @@ mobs:register_mob("pixel_animals:bear", {
 		punch_start = 73, 
 		punch_end =96,
 		--punch_speed = 23, 
+		eating_speed = 10,
+		eating_start = 56,
+		eating_end =  64
 	},
 	-- follow = { },
 	view_range = 15, 
@@ -83,30 +94,31 @@ mobs:register_mob("pixel_animals:bear", {
 		 inv:remove_item("main", fd)
 		 self.eating = true	 
 	         self.object:set_properties({textures = {"Grizzly_Bear_honey.png"}})
-	         self.object:set_animation({x=56, y=64}, 10, 2, true) 
+	         self:set_animation("eating", true)
 	      end
 	   end
 
 	   core.after(10, function()
 	      self.eating = false
 	      self.object:set_properties({textures = {"Grizzly_Bear.png"}})
-	      mobs:set_animation(self, "walk")
+	      self:set_animation("walk", true)
 	   end)
 	end,	
 })
 
+if pixel_animals.enable_bear_spawn then
 mobs:spawn({
 	name = "pixel_animals:bear",
 	nodes = bear_spawns,
-	neighbors = {"default:pine_tree", "default:pine_needles", "group:leaves"},
-	min_light = 6,
-	max_light = 14,
-	chance = 45000,
+	min_light = 8,
+	--max_light = 14,
+	chance = 8000,
+	biomes = {"coniferous_forest","Taiga","MegaTaiga","Oak Forest"},
 	min_height = 0,
-	max_height = 150,
-	active_object_count = 2,
-	day_toggle = true,
+	max_height = 200,
+	
 })
+end
 
 mobs:register_egg("pixel_animals:bear", "Bear", "bear_egg.png", 0)
 

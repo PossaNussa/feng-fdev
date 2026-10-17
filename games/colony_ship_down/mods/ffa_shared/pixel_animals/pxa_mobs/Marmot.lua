@@ -1,8 +1,10 @@
+pixel_animals.enable_marmot_spawn = core.settings:get_bool("enable_marmot_spawn", true)
+
 local marmot_spawns = {
 "default:permafrost",
 "default:permafrost_with_moss",
-"mcl_core:dirt_with_grass",
-"rp_default:tall_grass"
+"mcl_core:podzol",
+"rp_default:dirt_with_grass"
 }
 
 mobs:register_mob("pixel_animals:marmot", {
@@ -11,7 +13,7 @@ mobs:register_mob("pixel_animals:marmot", {
 	--attack_type = "dogfight",
 	--attack_npcs = false,
 	reach = 2,
-        damage = 2,         
+    damage = 2,         
 	pathfinding = true,
 	hp_min = 8,
 	hp_max = 8,
@@ -20,10 +22,8 @@ mobs:register_mob("pixel_animals:marmot", {
 	visual = "mesh",
 	mesh = "marmot.glb",
 	visual_size = {x=8, y=8},
-	--rotate = 180,
 	textures = {
 		{"marmot.png"},
-
 	},
 	makes_footstep_sound = false,
 	sounds = {
@@ -73,17 +73,20 @@ mobs:register_mob("pixel_animals:marmot", {
 	end,				
 })
 
+if pixel_animals.enable_marmot_spawn then
 mobs:spawn({
 	name = "pixel_animals:marmot",
 	nodes = marmot_spawns,
 	min_light = 8,
 	--max_light = 14,
 	chance = 12000,
+	biomes = {"tundra","Taiga","MegaTaiga","Oak Forest"},
 	min_height = 0,
 	max_height = 200,
 	day_toggle = true,
 	active_object_count = 3,	
 })
+end
 
-mobs:register_egg("pixel_animals:marmot", "marmot", "marmot_egg.png", 0)
+mobs:register_egg("pixel_animals:marmot", "Marmot", "marmot_egg.png", 0)
 

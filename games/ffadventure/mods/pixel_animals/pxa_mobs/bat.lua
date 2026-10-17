@@ -1,5 +1,5 @@
 -- SOUND: https://freesound.org/people/Breviceps/sounds/445958/
-local timer = 0
+pixel_animals.enable_bat_spawn = core.settings:get_bool("enable_bat_spawn", true)
 
 mobs:register_mob("pixel_animals:bat", {
 	type = "animal",
@@ -53,6 +53,8 @@ mobs:register_mob("pixel_animals:bat", {
 		walk_end = 9,
 		run_start = 0,
 		run_end = 9,
+		sleeping_start = 20,
+		sleeping_end = 40,
 	},
 	
 	follow = {
@@ -60,26 +62,28 @@ mobs:register_mob("pixel_animals:bat", {
 	},
 	
 	do_custom = function(self, dtime)
+	
         self.timer = self.timer + dtime
-        if self.timer >= 0.5 then
+        
+        if self.timer >= 1 then
         
 	local pos_above = vector.add(self.object:get_pos(), {x = 0, y = 1.1, z = 0})
 	local pos_under = vector.add(self.object:get_pos(), {x = 0, y = -0.5, z = 0})
-        local node_above = minetest.get_node_or_nil(pos_above)
-        local node_under = minetest.get_node_or_nil(pos_under)
+        local node_above = core.get_node_or_nil(pos_above)
+        local node_under = core.get_node_or_nil(pos_under)
         local pos = self.object:get_pos()
       
 	if (node_above and node_above.name ~= "air") and (node_under and node_under.name == "air") then
 
-       		local time_of_day = minetest.get_timeofday()
+       		local time_of_day = core.get_timeofday()
 					
 		     if time_of_day >= 0.25 and time_of_day < 0.75 then 
 			self.state = "sleep"
 				             	
-			minetest.after(0.2, function()
+			core.after(0.2, function()
 			 pos.y =  pos.y -  0.1
                          self.object:set_pos(pos)
-			 self.object:set_animation({x=20, y=40},15, 1, false)
+			 self:set_animation("sleeping", false)
 			 self.object:set_acceleration({x = 0, y = 0, z = 0})
 			 self.object:set_velocity({x = 0, y = 0, z = 0})
 			 self.object:set_properties({selectionbox = {-0.08,0.6,-0.08,0.08,1,0.08}})          
@@ -87,8 +91,8 @@ mobs:register_mob("pixel_animals:bat", {
 
 		            else
 			  self.state = "walk"				
-			  minetest.after(0.1, function()
-			   mobs:set_animation(self, "walk")
+			  core.after(0.1, function()
+			   self:set_animation("walk", true)
 			   self.object:set_properties({selectionbox = {-0.08,0.05,-0.08,0.08,0.5,0.08}})
 			  end)
 			 end
@@ -100,17 +104,17 @@ mobs:register_mob("pixel_animals:bat", {
 })
 
 --========================= SPAWN ==============================================
+if pixel_animals.enable_bat_spawn then
 mobs:spawn({
 	name = "pixel_animals:bat",
-	nodes = {"air"},
-	neighbors = {"group:stone", "group:cracky", "default:stone"},
-	min_light = 0,
-	max_light = 7,
-	chance = 70000,
-	active_object_count = 4,
-	min_height = -100,
-	max_height = 50,
+	nodes = "air",
+	--neighbors = { "group:stone"},
+	max_light = 7, 
+	chance = 80000,
+	active_object_count = 3,
+	max_height = 200,
 })
+end
 
 mobs:register_egg("pixel_animals:bat", "Bat", "bat_egg.png", 0)
 

@@ -1,7 +1,9 @@
 -- sound : https://freesound.org/people/mrbubble110/sounds/70333/
+pixel_animals.enable_hyenas_spawn = core.settings:get_bool("enable_hyenas_spawn", true)
+
 mobs:register_mob("pixel_animals:hyenas", {
 	type = "monster",
-        damage = 5,
+    damage = 5,
 	attack_type = "dogfight",
 	attack_animals = true,
 	pathfinding = true, 
@@ -46,16 +48,18 @@ mobs:register_mob("pixel_animals:hyenas", {
 	view_range = 15, 	
 })
 
+if pixel_animals.enable_hyenas_spawn then
 mobs:spawn({
 	name = "pixel_animals:hyenas",
-	nodes = {"default:dry_dirt_with_dry_grass", "default:savanna_grass", "default:dirt_with_dry_grass"},
-	neighbors = {"default:acacia_tree", "default:dry_shrub", "group:flora"},
-	min_light = 6,
-	max_light = 14,
-	chance = 50000,
+	nodes = {"default:desert_sand","mcl_core:sand","mcl_core:cactus"},
+	--neighbors = {"",""},
+	min_light = 8,
+	--max_light = 14,
+	chance = 8000,
+	biomes = {"Desert","desert"},
 	min_height = 0,
-	max_height = 100,
-	active_object_count = 3,
+	max_height = 200,	
 })
+end
 
-mobs:register_egg("pixel_animals:hyenas", "hyenas", "hyenas_egg.png", 0)
+mobs:register_egg("pixel_animals:hyenas", "Hyenas", "hyenas_egg.png", 0)

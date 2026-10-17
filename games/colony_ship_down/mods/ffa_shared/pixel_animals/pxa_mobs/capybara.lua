@@ -1,9 +1,10 @@
 local capybara_spawns = {
-"default:dirt_with_rainforest_litter",
-"default:dirt_with_grass",
-"mcl_mangrove:mangrove_mud_roots",
-"default:mud"
+"default:dry_dirt_with_dry_grass",
+"mcl_core:dirt_with_grass",
+"rp_default:tall_grass"
 }
+
+pixel_animals.enable_capybara_spawn = core.settings:get_bool("enable_capybara_spawn", true)
 
 mobs:register_mob("pixel_animals:capybara", {
 	--nametag = "capybara",
@@ -65,8 +66,8 @@ mobs:register_mob("pixel_animals:capybara", {
 		"mcl_core:apple",	
 	},
 	view_range = 45,
-	owner = "",
-	order = "",
+	owner = "", 
+	order = "follow",
 	runaway = true ,
 	
 	on_rightclick = function(self, clicker)
@@ -87,21 +88,23 @@ mobs:register_mob("pixel_animals:capybara", {
 				mobs:set_animation(self, "walk")
 
 			end
-		end
+		 end
 	end,
 })
 
+if pixel_animals.enable_capybara_spawn then
 mobs:spawn({
 	name = "pixel_animals:capybara",
 	nodes = capybara_spawns,
-	neighbors = {"default:water_source", "default:river_water_source", "group:water"},
 	min_light = 8,
-	max_light = 14,
-	chance = 35000,
-	min_height = -2,
-	max_height = 50,
+	--max_light = 14,
+	chance = 8000,
+	biomes = {"savanna","Savanna"},
+	min_height = 0,
+	max_height = 200,
 	day_toggle = true,
-	active_object_count = 4,
+	active_object_count = 3,	
 })
+end
 
 mobs:register_egg("pixel_animals:capybara", "Capybara", "capybaraegg.png", 0)

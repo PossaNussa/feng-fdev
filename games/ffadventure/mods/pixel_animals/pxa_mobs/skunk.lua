@@ -1,7 +1,9 @@
+pixel_animals.enable_skunk_spawn = core.settings:get_bool("enable_skunk_spawn", true)
+
 local skunk_spawns = {
 "default:dirt_with_grass",
 "mcl_core:dirt_with_grass",
-"rp_default:tall_grass"
+"rp_default:dirt_with_grass"
 }
 
 mobs:register_mob("pixel_animals:skunk", {
@@ -10,8 +12,8 @@ mobs:register_mob("pixel_animals:skunk", {
 	attack_type = "dogfight",
 	attack_npcs = false,
 	reach = 2,
-        damage = 2, 
-        attack_chance = 98,
+    damage = 2, 
+    attack_chance = 50,
 	pathfinding = true,
 	hp_min = 16,
 	hp_max = 16,
@@ -20,7 +22,6 @@ mobs:register_mob("pixel_animals:skunk", {
 	visual = "mesh",
 	mesh = "Skunk.b3d",
 	visual_size = {x=8, y=8},
-	--rotate = 180,
 	textures = {
 		{"Skunk.png"},
 
@@ -39,8 +40,7 @@ mobs:register_mob("pixel_animals:skunk", {
 	jump_height = 2,
 	stepheight = 1.1, 
 	fall_damage = 1,
-	drops = {--{name = "", chance = 1, min = 0, max = 1},
-	},
+	--drops = {{name = "", chance = 1, min = 0, max = 1}},
 	water_damage = 0,
 	lava_damage = 5,
 	fear_height = 3,
@@ -57,12 +57,8 @@ mobs:register_mob("pixel_animals:skunk", {
 		--stand1_end = 159,
 		stand_start = 1,
 		stand_end = 20,
-		
 	},
-	follow = {
-	  "default:blueberries",
-          "mcl_core:apple",		
-	},
+	follow = {"default:blueberries","mcl_core:apple"},
 	view_range = 45,
 	owner = "", 
 	order = "follow",
@@ -75,18 +71,20 @@ mobs:register_mob("pixel_animals:skunk", {
 	end,				
 })
 
+if pixel_animals.enable_skunk_spawn then
 mobs:spawn({
 	name = "pixel_animals:skunk",
 	nodes = skunk_spawns,
-	neighbors = {"group:tree", "group:leaves", "air"},
-	min_light = 0,
-	max_light = 10,
-	chance = 45000,
+	biomes = {"BirchForest","BirchForestM","deciduous_forest","Forest"},
+	min_light = 8,
+	--max_light = 14,
+	chance = 12000,
 	min_height = 0,
-	max_height = 100,
-	day_toggle = false,
-	active_object_count = 2,
+	max_height = 200,
+	day_toggle = true,
+	active_object_count = 3,	
 })
+end
 
 mobs:register_egg("pixel_animals:skunk", "Skunk", "skunk_egg.png", 0)
 

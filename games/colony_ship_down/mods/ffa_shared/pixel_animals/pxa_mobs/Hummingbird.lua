@@ -1,3 +1,5 @@
+pixel_animals.enable_hummingbird_spawn = core.settings:get_bool("enable_hummingbird_spawn", true)
+
 mobs:register_mob("pixel_animals:hummingbird", {
 	type = "monster",	
 	attack_type = "dogfight",
@@ -77,6 +79,7 @@ mobs:register_mob("pixel_animals:hummingbird", {
 	end,	
 })
 
+if pixel_animals.enable_hummingbird_spawn then
 mobs:spawn({
 	name = "pixel_animals:hummingbird",
 	nodes = {"group:flora"},
@@ -85,6 +88,7 @@ mobs:spawn({
 	min_height = 0,
 	max_height = 2000,
 })
+end
 
-mobs:register_egg("pixel_animals:hummingbird","hummingbird", "hummingbird_egg.png", 0)
+mobs:register_egg("pixel_animals:hummingbird","Hummingbird", "hummingbird_egg.png", 0)
 

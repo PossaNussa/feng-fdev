@@ -1,10 +1,12 @@
+pixel_animals.enable_seagull_spawn = core.settings:get_bool("enable_seagull_spawn", true)
+
 mobs:register_mob("pixel_animals:seagull", {
 	type = "monster",
 	specific_attack = {"pixel_animals:catfish"},
 	-- runaway_from = {" "},
 	attack_type = "dogfight",
-	passive = true,
-	attack_animals = false,
+	passive = false,
+	attack_animals = false, 
 	group_attack = true,	
 	pathfinding = true,
 	reach = 2,
@@ -33,9 +35,7 @@ mobs:register_mob("pixel_animals:seagull", {
 	view_range = 35,
 	replace_rate = 10,
 	replace_what = { },		
-	drops = {
-	    {name = "mobs:chicken_feather", chance = 3, min = 0, max = 1},		
-	},
+	drops = feather_drops,
 	water_damage = 1,
 	lava_damage = 2,
 	light_damage = 0,
@@ -55,6 +55,7 @@ mobs:register_mob("pixel_animals:seagull", {
 	},	
 })
 
+if pixel_animals.enable_seagull_spawn  then
 mobs:spawn({
 	name = "pixel_animals:seagull",
 	nodes = {"default:sand","mcl_core:sand","rp_default:sand"},
@@ -65,6 +66,7 @@ mobs:spawn({
 	min_height = 0,
 	max_height = 20,
 })
+end
 
-mobs:register_egg("pixel_animals:seagull","seagull", "seagull_egg.png", 0)
+mobs:register_egg("pixel_animals:seagull","Seagull", "seagull_egg.png", 0)
 

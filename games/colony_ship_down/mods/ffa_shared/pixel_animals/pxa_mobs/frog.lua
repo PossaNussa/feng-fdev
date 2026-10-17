@@ -14,6 +14,8 @@ local spawn_nodes = {
 "mcl_mangrove:mangrove_roots",
 "rp_default:dirt_with_swamp_grass"}
 
+pixel_animals.enable_frog_spawn = core.settings:get_bool("enable_frog_spawn", true)
+
 mobs:register_mob("pixel_animals:frog", {
 	type = "animal",
 	passive = false,
@@ -74,15 +76,18 @@ mobs:register_mob("pixel_animals:frog", {
 	end,	
 })
 
+if pixel_animals.enable_frog_spawn then
 mobs:spawn({
 	name = "pixel_animals:frog",
 	nodes = spawn_nodes,
 	min_light = 8,
 	--max_light = 14,
 	chance = 8000,
+	biomes = {"rainforest","rainforest_swamp","MangroveSwamp","Swamp Meadow"},
 	min_height = 0,
 	max_height = 200,
 	active_object_count = 3,	
 })
+end
 
 mobs:register_egg("pixel_animals:frog", "Frog", "frogegg.png", 0)

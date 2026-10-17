@@ -6,6 +6,8 @@ local crocodile_spawns = {
 "rp_default:tall_grass"
 }
 
+pixel_animals.enable_crocodile_spawn = core.settings:get_bool("enable_crocodile_spawn", true)
+
 core.register_craftitem("pixel_animals:crocodile_scutes", {
     description = "Crocodile Scutes",
     inventory_image = "crocodile_scutes.png"
@@ -78,17 +80,19 @@ mobs:register_mob("pixel_animals:crocodile", {
 	},	
 })
 
+if pixel_animals.enable_crocodile_spawn then
 mobs:spawn({
 	name = "pixel_animals:crocodile",
-	nodes = crocodile_spawns,
-	neighbors = {"default:water_source", "default:river_water_source", "group:water"},
-	min_light = 5,
+	nodes =crocodile_spawns,
+	min_light = 7,
 	max_light = 14,
-	chance = 55000,
-	min_height = -2,
-	max_height = 10,
-	active_object_count = 2,
+	chance = 2000,
+	biomes = {"rainforest","rainforest_swamp","MangroveSwamp","Swamp Meadow"},
+	min_height = 0,
+	max_height = 5,
+	active_object_count = 3,
 })
+end
 
 mobs:register_egg("pixel_animals:crocodile", "Crocodile", "crocodilegg.png", 0)
 

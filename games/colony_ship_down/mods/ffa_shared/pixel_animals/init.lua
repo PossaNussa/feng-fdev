@@ -22,9 +22,12 @@ dofile(path.."/pxa_mobs/jellyfishing.lua")
 dofile(path.."/pxa_mobs/Marmot.lua")
 dofile(path.."/pxa_mobs/Seagull.lua")
 dofile(path.."/pxa_mobs/Hummingbird.lua")
-
---- /petcall : bring your pets back to you
-dofile(path.."/petcall.lua")
+dofile(path.."/pxa_mobs/rattlesnake.lua")
+dofile(path.."/pxa_mobs/hedgehogs.lua")
+dofile(path.."/pxa_mobs/seals.lua")
+dofile(path.."/pxa_mobs/snails.lua")
+dofile(path.."/pxa_mobs/squirrels.lua")
+dofile(path.."/pxa_mobs/elephant.lua")
 
 ---- Sups: ===========================================
 if not minetest.get_modpath("mobs_mc") and not minetest.get_modpath("animalia") then
@@ -43,9 +46,28 @@ end
 if core.get_modpath("3d_armor") then 
 dofile(path.."/pxa_armors/pxa_mtg_armors.lua")
 end
+
 --- MCL ARMOR
 if core.get_modpath("mcl_armor") then
 dofile(path.."/pxa_armors/pxa_mcl_armors.lua")
 end
+
+-- Hunger NG : ---------------------------------------------
+if core.get_modpath("hunger_ng") ~= nil then
+
+hunger_ng.add_hunger_data('pixel_animals:catfish_raw', {
+   satiates = 1.0,
+})
+
+hunger_ng.add_hunger_data('pixel_animals:catfish_cooked', {
+   satiates = 7.0,
+})
+
+end
+
+
+
+
+
 
 

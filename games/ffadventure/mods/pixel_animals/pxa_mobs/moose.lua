@@ -1,4 +1,6 @@
 -- sound : https://freesound.org/people/mrbubble110/sounds/70333/
+pixel_animals.enable_moose_spawn = core.settings:get_bool("enable_moose_spawn", true)
+
 core.register_craftitem("pixel_animals:antler", {
     description = "Moose Antler",
     inventory_image = "Antler.png"
@@ -90,17 +92,17 @@ mobs:register_mob("pixel_animals:moose", {
 	view_range = 15, 	
 })
 
+if pixel_animals.enable_moose_spawn then
 mobs:spawn({
 	name = "pixel_animals:moose",
-	nodes = {"default:dirt_with_snow", "default:dirt_with_coniferous_litter"},
-	neighbors = {"default:pine_tree", "default:pine_needles"},
-	min_light = 6,
-	max_light = 14,
-	chance = 50000,
+	nodes = {"default:dirt_with_snow","mcl_core:dirt_with_grass"},
+	neighbors = {"mcl_trees:tree_spruce","default:pine_tree"},
+	min_light = 8,
+	--max_light = 14,
+	chance = 8000,
 	min_height = 0,
-	max_height = 120,
-	active_object_count = 2,
-	day_toggle = true,
+	max_height = 200,	
 })
+end
 
 mobs:register_egg("pixel_animals:moose", "Moose", "moose_egg.png", 0)

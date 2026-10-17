@@ -1,4 +1,5 @@
 -- SOUND: https://freesound.org/people/straget/sounds/404687/
+pixel_animals.enable_crow_spawn = core.settings:get_bool("enable_crow_spawn", true)
 
 local crow_neighbors = { 
 "farming:wheat_8",
@@ -9,6 +10,14 @@ local crow_neighbors = {
 "mcl_farming:carrot",
 "mcl_farming:potato"
  }
+
+feather_drops = {}
+
+if core.get_modpath("mcl_mobitems")then
+      feather_drops = {{name = "mcl_mobitems:feather", chance = 2, min = 1, max = 1}}
+   else
+	  feather_drops = {{name = "mobs:chicken_feather", chance = 2, min = 1, max = 1}}
+end
 
 mobs:register_mob("pixel_animals:crow", {
 	type = "animal",
@@ -51,7 +60,7 @@ mobs:register_mob("pixel_animals:crow", {
 		{"mcl_farming:wheat","air",-2},
 		{"rp_farming:wheat", "air",-2},
 	},	
-	drops = {{name = "mobs:chicken_feather", chance = 3, min = 0, max = 1}},
+	drops = feather_drops,
 	water_damage = 1,
 	lava_damage = 2,
 	light_damage = 0,
@@ -74,6 +83,7 @@ mobs:register_mob("pixel_animals:crow", {
 	},
 })
 
+if pixel_animals.enable_crow_spawn then
 mobs:spawn({
 	name = "pixel_animals:crow",
 	nodes = "air",
@@ -84,6 +94,7 @@ mobs:spawn({
 	min_height = 0,
 	max_height = 200,
 })
+end
 
 mobs:register_egg("pixel_animals:crow", "Crow", "crow_egg.png", 0)
 

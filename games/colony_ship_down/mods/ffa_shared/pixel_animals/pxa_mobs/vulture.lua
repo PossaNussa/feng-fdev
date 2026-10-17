@@ -1,3 +1,5 @@
+pixel_animals.enable_vulture_spawn = core.settings:get_bool("enable_vulture_spawn", true)
+
 mobs:register_mob("pixel_animals:vulture", {
 	type = "monster",
 	specific_attack = {"mobs_animal:rat"},
@@ -33,9 +35,7 @@ mobs:register_mob("pixel_animals:vulture", {
 	view_range = 35,
 	replace_rate = 10,
 	replace_what = { },		
-	drops = {
-	    {name = "mobs:chicken_feather", chance = 3, min = 0, max = 1},		
-	},
+	drops = feather_drops,
 	water_damage = 1,
 	lava_damage = 2,
 	light_damage = 0,
@@ -55,18 +55,16 @@ mobs:register_mob("pixel_animals:vulture", {
 	},	
 })
 
+if pixel_animals.enable_vulture_spawn then
 mobs:spawn({
 	name = "pixel_animals:vulture",
-	nodes = {"air"},
-	neighbors = {"default:desert_sand", "default:dry_dirt_with_dry_grass", "bakedclay:orange", "default:desert_stone"},
-	min_light = 10,
-	max_light = 15,
-	chance = 60000,
-	active_object_count = 3,
-	min_height = 5,
-	max_height = 120,
-	day_toggle = true,
+	nodes = {"bakedclay:orange","mcl_colorblocks:hardened_clay"},
+	min_light = 14, 
+	chance = 14000,
+	min_height = 20,
+	max_height = 200,
 })
+end
 
 mobs:register_egg("pixel_animals:vulture", "Vulture", "vulture_egg.png", 0)
 

@@ -1,7 +1,9 @@
 -- sound : https://freesound.org/people/mrbubble110/sounds/70333/
+pixel_animals.enable_tiger_spawn = core.settings:get_bool("enable_tiger_spawn", true)
+
 mobs:register_mob("pixel_animals:tiger", {
 	type = "monster",
-        damage = 5,
+    damage = 5,
 	attack_type = "dogfight",
 	attack_animals = true,
 	pathfinding = true, 
@@ -34,37 +36,27 @@ mobs:register_mob("pixel_animals:tiger", {
 	lava_damage = 5,
 	fear_height = 3,
 	animation = {
-		--speed_normal = 15,
-		--speed_run = 15,
 		stand_start = 1,
 		stand_end = 40,
-		--stand1_start = 100,
-		--stand1_end = 100,
 		walk_start = 60,
 		walk_end = 140,
 		run_start = 160,
 		run_end = 180,
-		--stoodup_speed = 5,
-		--stoodup_start = 1,
-		--stoodup_end = 40,
-		--punch_start = 190, 
-		--punch_end =250,
-		--punch_speed = 23, 
 	},
 	view_range = 15, 	
 })
 
+if pixel_animals.enable_tiger_spawn then
 mobs:spawn({
 	name = "pixel_animals:tiger",
-	nodes = {"default:dirt_with_rainforest_litter"},
-	neighbors = {"default:jungletree", "default:jungleleaves"},
-	min_light = 5,
-	max_light = 14,
-	chance = 95000,
+	nodes = {"default:dirt_with_rainforest_litter","mcl_core:dirt_with_grass"},
+	biomes = {"rainforest","Jungle","BambooJungle","JungleM"},
+	min_light = 8,
+	--max_light = 14,
+	chance = 12000,
 	min_height = 0,
-	max_height = 80,
-	active_object_count = 1,
-	day_toggle = true,
+	max_height = 200,	
 })
+end
 
 mobs:register_egg("pixel_animals:tiger", "Tiger", "tiger_egg.png", 0)
