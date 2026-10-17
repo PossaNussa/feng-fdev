@@ -33,7 +33,14 @@ cp "$HERE/mainmenu/init.lua" "$HERE/mainmenu/csd_menu_bg.png" "$HERE/mainmenu/cs
 cp "$HERE/client.conf" "$PKG/minetest.conf"
 cp "$HERE/README.txt" "$PKG/README.txt"
 for f in LICENSE.txt COPYING.LESSER; do [ -f "$ENGINE/$f" ] && cp "$ENGINE/$f" "$PKG/ENGINE-$f"; done
-mkdir -p "$PKG/worlds" "$PKG/games"   # empty: this build only joins servers
+mkdir -p "$PKG/worlds" "$PKG/games/colony_ship_down"
+# The game itself, so this same download can host (--server) as well as join
+GAME="$(dirname "$HERE")"
+( cd "$GAME" && tar --exclude=./launcher --exclude=./tools -cf - . ) | tar -xf - -C "$PKG/games/colony_ship_down"
+# Double-click / one-command server hosting
+printf '@echo off\r\ncd /d "%%~dp0"\r\nColonyShipDown.exe --server --gameid colony_ship_down --world worlds\\csd --port 30000\r\npause\r\n' > "$PKG/Host Server.bat"
+printf '#!/bin/sh\ncd "$(dirname "$0")"\nexec ./ColonyShipDown --server --gameid colony_ship_down --world worlds/csd --port 30000 "$@"\n' > "$PKG/host-server.sh"
+chmod +x "$PKG/host-server.sh"
 
 ( cd "$OUT" && rm -f ColonyShipDown.zip && (command -v zip >/dev/null && zip -qr ColonyShipDown.zip ColonyShipDown \
 	|| python3 -c "import shutil; shutil.make_archive('ColonyShipDown', 'zip', '.', 'ColonyShipDown')") )

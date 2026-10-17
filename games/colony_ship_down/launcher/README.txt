@@ -22,3 +22,9 @@ is a new program without a paid code-signing certificate. Click
 Controls: WASD move, Space jump, Shift sneak, Ctrl crawl (air ducts!),
 right-click to use things,
 I inventory, T chat, Esc menu. In chat: /job, /tasks, /claim, /music, /particles.
+
+Hosting a server
+----------------
+The game is included, so this same folder can host:
+   ColonyShipDown --server --gameid colony_ship_down --world worlds/csd --port 30000
+(or double-click "Host Server.bat" on Windows / run ./host-server.sh on Linux).
