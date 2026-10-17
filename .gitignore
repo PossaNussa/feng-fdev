@@ -37,3 +37,5 @@ games/ffadventure.zip
 /backups/
 /cache/
 /.claude/
+/lib/sha256/cmake_config.h
+/src/cmake_config_githash.h
