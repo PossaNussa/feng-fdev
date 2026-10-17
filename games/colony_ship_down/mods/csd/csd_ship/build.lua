@@ -105,7 +105,7 @@ function Builder:station(x, y, z, kind, wall_dir, room)
 	else
 		self:set(x, y, z, sk.node, p2)
 	end
-	self.stations[#self.stations + 1] = {pos = self:abs(x, y, z), kind = kind, room = room}
+	self.stations[#self.stations + 1] = {pos = self:abs(x, y, z), kind = kind, room = room, wall_dir = wall_dir}
 end
 
 -- Set after the VoxelManip is written, with on_construct (machines, shafts).
@@ -125,7 +125,8 @@ local CW = L.corridor
 local MAIN_X0 = L.bands[1][2] - 1        -- aft hull wall
 local MAIN_X1 = L.bands[#L.bands][3] + 1 -- fore end of the main hull
 local TOP = L.floor_y(1) + 6             -- deck 1 ceiling
-local ROOF = TOP + 1
+local ROOF = TOP + 2                     -- (deck 1 has a crawlspace too)
+local DH = L.deck_height
 local BOTTOM = -2
 
 local function bow_half_width(x)
@@ -225,6 +226,8 @@ function csd_ship.build_with(b)
 		local y = L.floor_y(deck)
 		b:fill(MAIN_X0 + 1, y - 1, -HW + 1, MAIN_X1 - 1, y - 1, HW - 1, "csd_ship:floor")
 		b:fill(MAIN_X0 + 1, y + 6, -HW + 1, MAIN_X1 - 1, y + 6, HW - 1, "csd_ship:ceiling")
+		-- the crawlspace above the ceiling: solid duct casing, ducts carved later
+		b:fill(MAIN_X0 + 1, y + 7, -HW + 1, MAIN_X1 - 1, y + DH - 2, HW - 1, "csd_ship:duct_casing")
 	end
 
 	-- 3. Bands
@@ -262,7 +265,7 @@ function csd_ship.build_with(b)
 	csd_ship.build_exterior(b)
 	csd_ship.decorate_exterior(b)
 
-	-- 6. Furnish every room
+	-- 6. Furnish every room (then run the air ducts to the vents)
 	for _, r in ipairs(b.rooms) do
 		local deco = csd_ship.decorators[r.kind]
 		if deco then deco(r, b) end
@@ -276,6 +279,7 @@ function csd_ship.build_with(b)
 			end
 		end
 	end
+	csd_ship.build_ducts(b)
 end
 
 -- Rooms on one deck of a band.
@@ -308,17 +312,17 @@ function csd_ship.build_band_rooms(b, deck, bx0, bx1, spec)
 				local len = r[3] or share
 				local rx1 = (i == #list) and bx1 or (x + len - 2)
 				local room = add_room(b, {name = r[1], kind = r[2], deck = deck, side = side,
-					x0 = x, x1 = rx1, z0 = z0, z1 = z1, y = y, corridor_z = wall_z})
+					x0 = x, x1 = rx1, z0 = z0, z1 = z1, y = y, corridor_z = wall_z, zoo = r.zoo})
 				if i < #list then
 					b:fill(rx1 + 1, y, z0, rx1 + 1, y + 5, z1, "csd_ship:wall")
 				end
 				-- Doorways (the cabins decorator makes its own)
-				if r[2] ~= "cabins" then
+				if r[2] ~= "cabins" and not r.sealed then
 					local n = (rx1 - x) > 40 and 2 or 1
 					for k = 1, n do
 						local cx = math.floor(x + (rx1 - x) * k / (n + 1))
 						doorway(b, cx, y, wall_z, 3)
-						if r[2] == "vacant" then
+						if r[2] == "vacant" or (r.zoo and r.zoo.doors) then
 							-- colonists' suites get sliding doors (lockable once claimed)
 							for dx = -1, 1 do
 								csd_ship.place_door(b, cx + dx, y, wall_z, false)
@@ -348,7 +352,7 @@ function csd_ship.build_lift_band(b, deck, bx0, bx1, band_name)
 	add_room(b, {name = S("Lift Lobby @1", band_name:sub(2)), kind = "lift_lobby", deck = deck, side = "N",
 		x0 = bx0 + 1, x1 = bx1, z0 = CW + 2, z1 = HW - 1, y = y, corridor_z = nz, lift_x = cx})
 	-- Shaft: 3x3 column of lift field through every deck slab
-	local top = (deck == 1) and (y + 5) or (y + 7)
+	local top = (deck == 1) and (y + 5) or (y + DH - 1)
 	local bottom = (deck == L.decks) and y or (y - 1)
 	b:fill(cx - 1, bottom, CW + 3, cx + 1, top, CW + 5, "csd_ship:gravlift")
 	b:fill(cx - 2, y - 1, CW + 2, cx + 2, y - 1, CW + 2, "csd_ship:floor_hazard")
@@ -410,6 +414,7 @@ function csd_ship.build_bow(b)
 				local y = L.floor_y(deck)
 				b:fill(x, y - 1, -hw + 1, x, y - 1, hw - 1, "csd_ship:floor")
 				b:fill(x, y + 6, -hw + 1, x, y + 6, hw - 1, "csd_ship:ceiling")
+				b:fill(x, y + 7, -hw + 1, x, y + DH - 2, hw - 1, "csd_ship:duct_casing")
 				-- side windows
 				if x % 3 ~= 0 then
 					b:fill(x, y + 1, hw, x, y + 3, hw, "csd_ship:window")
@@ -454,7 +459,8 @@ function csd_ship.build_exterior(b)
 	end
 	-- Engines: four big nozzles off the stern
 	local ex0, ex1 = L.engines_x[1], L.engines_x[2]
-	for _, c in ipairs({{7, -18}, {7, 18}, {23, -18}, {23, 18}}) do
+	local lo, hi = math.floor(BOTTOM + (ROOF - BOTTOM) * 0.27), math.floor(BOTTOM + (ROOF - BOTTOM) * 0.73)
+	for _, c in ipairs({{lo, -18}, {lo, 18}, {hi, -18}, {hi, 18}}) do
 		local cy, cz = c[1], c[2]
 		for x = ex0, ex1 do
 			local r = 6 + math.floor((x - ex0) / 12)
@@ -513,7 +519,7 @@ function csd_ship.finish_build(b)
 	local rooms = {}
 	for _, r in ipairs(b.rooms) do
 		rooms[#rooms + 1] = {
-			name = r.name, deck = r.deck, kind = r.kind, side = r.side, claimable = r.claimable,
+			name = r.name, deck = r.deck, kind = r.kind, side = r.side, claimable = r.claimable, zoo = r.zoo,
 			minp = b:abs(r.x0, r.y, r.z0), maxp = b:abs(r.x1, r.y + r.h, r.z1),
 		}
 		rooms[#rooms].id = core.pos_to_string(rooms[#rooms].minp)
@@ -523,7 +529,7 @@ function csd_ship.finish_build(b)
 		name = L.name,
 		rooms = rooms,
 		lights = b.lights,
-		center = b:abs(0, 16, 0),
+		center = b:abs(0, math.floor(ROOF / 2), 0),
 		turrets = b.turrets or {},
 		hull_min = b:abs(MAIN_X0, BOTTOM, -HW),
 		hull_max = b:abs(L.bow.x1 + 1, ROOF, HW),

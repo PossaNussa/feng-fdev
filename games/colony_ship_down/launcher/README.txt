@@ -19,5 +19,6 @@ is a new program without a paid code-signing certificate. Click
 "More info" -> "Run anyway". The program is built from public source code
 (Luanti engine, LGPL-2.1) and contains no installers or downloaders.
 
-Controls: WASD move, Space jump, Shift sneak, right-click to use things,
+Controls: WASD move, Space jump, Shift sneak, Ctrl crawl (air ducts!),
+right-click to use things,
 I inventory, T chat, Esc menu. In chat: /job, /tasks, /claim, /music, /particles.

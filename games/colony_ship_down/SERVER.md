@@ -26,3 +26,10 @@ The launcher connects to `45.143.196.182:30000` by default. On that machine:
 
 Players don't need the game installed: the server sends all mods, textures
 and sounds when they join.
+
+## Updating the ship after a layout change
+
+The ship is generated once per world. When an update changes the layout (for
+example the zoo deck and air ducts in csd-v1.0.1), either start a fresh world
+or type `/regenship confirm` as an admin. That rebuilds the whole ship
+volume, so anything builders changed by hand is lost.

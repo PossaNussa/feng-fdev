@@ -339,6 +339,9 @@ core.register_chatcommand("setshipspawn", {
 	end,
 })
 dofile(core.get_modpath("csd_core") .. "/seats.lua")
+if core.global_exists("player_api") then
+	dofile(core.get_modpath("csd_core") .. "/crawl.lua")
+end
 
 ------------------------------------------------------------------------------
 -- Particle preference (decorative particles: star drift, haze, sparks...)

@@ -55,9 +55,11 @@ if farming_enabled then
 			local growth_stage = tonumber(name:sub(-1)) or 1
 			if farming.registered_plants[item_string]
 			or farming.registered_plants[item_name] then
-				def.groups.crop = growth_stage
+				-- only touch crops (re-registering every node is slow and warns)
+				local groups = table.copy(def.groups)
+				groups.crop = growth_stage
+				minetest.override_item(name, {groups = groups})
 			end
-			minetest.register_node(":" .. name, def)
 		end
 	end)
 end

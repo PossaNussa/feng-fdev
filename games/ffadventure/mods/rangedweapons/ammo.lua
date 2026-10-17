@@ -83,6 +83,16 @@ if moveresult.collisions[1].type == "node" then
 
 minetest.check_for_falling(moveresult.collisions[1].node_pos)
 
+-- Nodes can react to being shot: def.on_bullet_hit(pos, node, shooter_name)
+do
+	local hitpos = moveresult.collisions[1].node_pos
+	local hitnode = minetest.get_node(hitpos)
+	local hitdef = minetest.registered_nodes[hitnode.name]
+	if hitdef and hitdef.on_bullet_hit then
+		hitdef.on_bullet_hit(hitpos, hitnode, self.owner)
+	end
+end
+
 
 if use_particles and
 minetest.registered_nodes[minetest.get_node(moveresult.collisions[1].node_pos).name]  and

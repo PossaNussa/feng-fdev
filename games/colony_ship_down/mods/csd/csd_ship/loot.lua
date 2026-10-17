@@ -21,9 +21,14 @@ core.register_on_mods_loaded(function()
 	-- Food: anything edible from the galley mods.
 	for name, def in pairs(core.registered_items) do
 		local mod = name:match("^(.-):")
-		if (mod == "farming" or mod == "pizza" or mod == "pie" or mod == "sandwiches" or mod == "waffles")
+		if (mod == "farming" or mod == "x_farming" or mod == "pizza" or mod == "pie" or mod == "sandwiches" or mod == "waffles")
 				and def.on_use and def.type == "craft" then
 			table.insert(pools.food, {name, 4, 1})
+		end
+		-- seeds for the hydroponics beds (and anyone's own planters)
+		if (mod == "farming" or mod == "x_farming") and name:find(":seed_") then
+			table.insert(pools.essentials, {name, 5, 0.5})
+			table.insert(pools.food, {name, 4, 0.3})
 		end
 	end
 	for _, it in ipairs({"default:steel_ingot", "default:copper_ingot", "default:tin_ingot", "default:paper",
@@ -52,6 +57,9 @@ core.register_on_mods_loaded(function()
 	add("tools", "csd_tasks:hull_patch", 1, 1)
 	add("food", "csd_tasks:ration", 2, 2)
 	add("tools", "wateringcan:wateringcan_empty", 1, 1)
+	add("tools", "csd_ship:bulb", 3, 4)
+	add("tools", "csd_robots:repair_kit", 1, 1)
+	add("essentials", "csd_ship:bulb", 2, 2)
 	-- Crafting essentials: wood (no trees grow aboard), metals, basics
 	for _, it in ipairs({"default:wood", "default:pine_wood", "default:acacia_wood", "default:aspen_wood", "default:junglewood"}) do
 		add("essentials", it, 12, 3)

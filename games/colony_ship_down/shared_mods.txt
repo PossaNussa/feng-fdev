@@ -80,6 +80,8 @@ pizza
 pie
 sandwiches
 waffles
+x_farming
+bucket
 
 # --- machinery & electronics (csd_create builds on steamified)
 steamified
@@ -112,3 +114,11 @@ game_commands
 playtimes
 heal
 warps
+
+# --- zoological deck (natural spawning is off: csd_zoo keeps the habitats stocked)
+creaturemob
+mobs
+pixel_animals
+creatura
+animalia
+animalworld-main

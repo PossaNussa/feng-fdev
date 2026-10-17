@@ -214,3 +214,44 @@ if core.global_exists("signs_lib") then
 		use_texture_alpha = "clip",
 	})
 end
+
+-- Zoo habitat fronts: clear glass from floor to ceiling.
+core.register_node("csd_ship:habitat_glass", {
+	description = S("Habitat Glass"),
+	drawtype = "glasslike",
+	tiles = {"csd_ship_habitat_glass.png"},
+	use_texture_alpha = "blend",
+	paramtype = "light",
+	sunlight_propagates = true,
+	groups = {cracky = 1, csd_ship = 1},
+	sounds = glass_sounds,
+	is_ground_content = false,
+})
+
+-- Grow lamp bar over the hydroponics beds. Bright enough for crops to grow
+-- right under it; not pointable, so you can reach the plants through it.
+core.register_node("csd_ship:grow_lamp", {
+	description = S("Grow Lamp"),
+	drawtype = "nodebox",
+	node_box = {type = "fixed", fixed = {{-0.5, 0.38, -0.12, 0.5, 0.5, 0.12}}},
+	tiles = {"csd_ship_wall_dark.png", "csd_ship_light_strip.png^[colorize:#e070ff:140", "csd_ship_wall_dark.png"},
+	paramtype = "light",
+	light_source = 14,
+	light_colour = "#e070ff",
+	sunlight_propagates = true,
+	walkable = false,
+	pointable = false,
+	groups = {cracky = 3, csd_ship = 1},
+	is_ground_content = false,
+})
+
+core.register_node("csd_ship:aquarium_lamp", {
+	description = S("Aquarium Lamp"),
+	tiles = {"csd_ship_light.png^[colorize:#60e0ff:90", "default_sand.png", "default_sand.png"},
+	paramtype = "light",
+	light_source = 14,
+	light_colour = "#70e8ff",
+	groups = {cracky = 3, csd_ship = 1},
+	sounds = glass_sounds,
+	is_ground_content = false,
+})

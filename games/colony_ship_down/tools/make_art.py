@@ -978,7 +978,108 @@ def robot_textures():
         save(por.resize((64, 128), Image.NEAREST), M, "csd_robots_portrait_%d.png" % i)
 
 
+# =============================================================================
+# Broken lights, ducts, zoo (added later; `make_art.py extras` makes only these)
+# =============================================================================
+
+def crack(img, seed, col=(20, 20, 24, 255)):
+    rnd = random.Random(seed)
+    d = ImageDraw.Draw(img)
+    for _ in range(3):
+        x, y = 8, 8
+        for _ in range(6):
+            nx, ny = x + rnd.randint(-3, 3), y + rnd.randint(-3, 3)
+            d.line([x, y, nx, ny], fill=col)
+            x, y = nx, ny
+    return img
+
+
+def extra_textures():
+    M = "csd_ship"
+    # Shot-out lights: dark, cracked, a scorch in the middle
+    img = Image.new("RGBA", (16, 16), (90, 94, 102, 255))
+    d = ImageDraw.Draw(img)
+    d.rectangle([2, 2, 13, 13], fill=(46, 44, 42, 255))
+    d.ellipse([5, 5, 10, 10], fill=(24, 22, 20, 255))
+    save(crack(img, 71, (150, 150, 160, 255)), M, "csd_ship_light_broken.png")
+    st = Image.new("RGBA", (16, 16), (60, 66, 78, 255))
+    ImageDraw.Draw(st).rectangle([0, 6, 15, 9], fill=(40, 38, 36, 255))
+    for x in (3, 4, 10, 11, 12):
+        st.putpixel((x, 7), (150, 150, 160, 255))
+    save(st, M, "csd_ship_light_strip_broken.png")
+    # Replacement bulb (item)
+    b = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(b)
+    d.ellipse([3, 1, 12, 10], fill=(235, 244, 255, 230), outline=(160, 190, 220, 255))
+    d.rectangle([5, 10, 10, 13], fill=(150, 156, 166, 255))
+    d.line([5, 11, 10, 11], fill=(100, 104, 112, 255))
+    d.rectangle([6, 14, 9, 15], fill=(90, 90, 96, 255))
+    d.line([7, 4, 7, 8], fill=(255, 220, 140, 255))
+    d.line([8, 4, 8, 8], fill=(255, 220, 140, 255))
+    save(b, M, "csd_ship_bulb.png")
+
+    # Ducts: the casing that fills the crawlspace, the inside of a duct, a
+    # see-through grate (floor of a duct over a room, and wall/ceiling vents)
+    save(panel((58, 62, 70), 5, border=(40, 42, 48), seed=81), M, "csd_ship_duct_casing.png")
+    duct = panel((128, 134, 144), 6, seed=82)
+    d = ImageDraw.Draw(duct)
+    for y in (0, 8):
+        d.line([0, y, 15, y], fill=(96, 100, 110, 255))
+    for x in (3, 12):
+        for y in (2, 10):
+            duct.putpixel((x, y), (170, 176, 186, 255))
+    save(duct, M, "csd_ship_duct.png")
+    grate = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(grate)
+    d.rectangle([0, 0, 15, 15], outline=(80, 86, 96, 255))
+    for x in range(2, 15, 3):
+        d.line([x, 1, x, 14], fill=(110, 116, 128, 255))
+    d.line([1, 7, 14, 7], fill=(90, 96, 108, 255))
+    save(grate, M, "csd_ship_duct_grate.png")
+    hatch = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(hatch)
+    d.rectangle([0, 0, 15, 15], outline=(200, 160, 40, 255))
+    d.rectangle([1, 1, 14, 14], outline=(40, 40, 40, 255))
+    for y in range(3, 14, 3):
+        d.line([2, y, 13, y], fill=(120, 126, 136, 255))
+    save(hatch, M, "csd_ship_hatch.png")
+    # Exposed air pipe running up walls / across ceilings
+    pipe = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    for x in range(16):
+        k = 0.65 + 0.35 * math.sin(math.pi * x / 15)
+        for y in range(16):
+            c = (150, 156, 166) if (y % 8) not in (0, 1) else (110, 114, 124)
+            pipe.putpixel((x, y), shade(c, k))
+    save(pipe, M, "csd_ship_air_pipe.png")
+    vent = Image.new("RGBA", (16, 16), (70, 76, 88, 255))
+    d = ImageDraw.Draw(vent)
+    d.rectangle([0, 0, 15, 15], outline=(46, 50, 60, 255))
+    for y in range(2, 14, 2):
+        d.line([2, y, 13, y], fill=(24, 26, 30, 255))
+    save(vent, M, "csd_ship_ceiling_vent.png")
+    # Habitat glass: clear with a faint frame
+    hg = Image.new("RGBA", (16, 16), (180, 220, 240, 22))
+    d = ImageDraw.Draw(hg)
+    d.line([3, 12, 6, 9], fill=(255, 255, 255, 70))
+    d.line([9, 6, 10, 5], fill=(255, 255, 255, 60))
+    save(hg, M, "csd_ship_habitat_glass.png")
+
+    # Robot repair: sparks overlay for a disabled robot is reused from csd_ship
+    M = "csd_robots"
+    kit = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(kit)
+    d.rectangle([1, 5, 14, 14], fill=(200, 60, 40, 255), outline=(120, 30, 20, 255))
+    d.rectangle([5, 2, 10, 5], outline=(120, 30, 20, 255))
+    d.rectangle([6, 8, 9, 13], fill=(240, 240, 240, 255))
+    d.rectangle([4, 9, 11, 12], fill=(240, 240, 240, 255))
+    save(kit, M, "csd_robots_repair_kit.png")
+
+
 if __name__ == "__main__":
+    import sys
+    if sys.argv[1:] == ["extras"]:
+        extra_textures()
+        raise SystemExit
     ship_textures()
     task_textures()
     event_textures()
@@ -986,5 +1087,6 @@ if __name__ == "__main__":
     misc_textures()
     eva_textures()
     robot_textures()
+    extra_textures()
     sounds()
     print("art done")

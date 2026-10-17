@@ -10,7 +10,7 @@
 
 csd_ship = {}
 csd_ship.S = core.get_translator("csd_ship")
-csd_ship.LAYOUT_VERSION = 1
+csd_ship.LAYOUT_VERSION = 2
 
 local S = csd_ship.S
 local storage = core.get_mod_storage()
@@ -25,6 +25,7 @@ dofile(path .. "/layout.lua")
 dofile(path .. "/build.lua")
 dofile(path .. "/exterior.lua")
 dofile(path .. "/decor.lua")
+dofile(path .. "/ducts.lua")
 
 ------------------------------------------------------------------------------
 -- Ship data (rooms, lights) saved after generation
@@ -75,7 +76,7 @@ function csd_ship.deck_at(pos)
 	local rel = pos.y - L.origin.y
 	for deck = 1, L.decks do
 		local y = L.floor_y(deck)
-		if rel >= y - 1 and rel < y + 7 then return deck end
+		if rel >= y - 1 and rel < y + L.deck_height - 1 then return deck end
 	end
 	return nil
 end
@@ -324,3 +325,4 @@ dofile(path .. "/claims.lua")
 dofile(path .. "/loot.lua")
 dofile(path .. "/effects.lua")
 dofile(path .. "/stars.lua")
+dofile(path .. "/breakage.lua")

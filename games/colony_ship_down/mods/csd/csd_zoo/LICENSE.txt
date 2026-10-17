@@ -1,0 +1,6 @@
+csd_zoo code: same licence as the rest of Colony Ship Down.
+
+Salmon model (csd_zoo_salmon.b3d) and textures (csd_zoo_salmon*.png) come from
+VoxeLibre / MineClone2 (mobs_mc, mcl_fishing), by way of the zombies mod:
+CC BY-SA 3.0 / CC BY-SA 4.0 (Pixel Perfection), credit to the VoxeLibre
+contributors. The salmon mob definition is adapted from the zombies mod.

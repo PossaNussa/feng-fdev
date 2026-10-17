@@ -228,9 +228,9 @@ D.observation = function(r, b)
 	-- Skylights
 	for x = r.x0 + 2, r.x1 - 2 do
 		for z = r.z0 + 2, r.z1 - 2 do
-			if x % 4 ~= 0 and z % 4 ~= 0 and b:is(x, r.y + r.h + 2, z, "csd_ship:hull") then
-				b:set(x, r.y + r.h + 1, z, "csd_ship:window")
-				b:set(x, r.y + r.h + 2, z, "csd_ship:window")
+			-- through the ceiling, the duct crawlspace and the roof
+			if x % 4 ~= 0 and z % 4 ~= 0 and b:is(x, r.y + r.h + 3, z, "csd_ship:hull") then
+				for dy = 1, 3 do b:set(x, r.y + r.h + dy, z, "csd_ship:window") end
 			end
 		end
 	end
@@ -509,14 +509,57 @@ D.life_support = function(r, b)
 	end
 end
 
+-- Every crop the farming mods can grow on soil: {first stage node, stages}.
+local crop_list
+local function crops()
+	if crop_list then return crop_list end
+	local stages = {}
+	for name, def in pairs(core.registered_nodes) do
+		local mod, base, n = name:match("^([%w_]+):([%w_]-)_(%d+)$")
+		if (mod == "farming" or mod == "x_farming") and def.drawtype == "plantlike"
+				and ((def.groups or {}).growing or (def.groups or {}).plant)
+				and not base:find("wart") and not base:find("seed") then
+			local k = mod .. ":" .. base
+			stages[k] = math.max(stages[k] or 0, tonumber(n))
+		end
+	end
+	crop_list = {}
+	for k, n in pairs(stages) do
+		if n >= 2 and core.registered_nodes[k .. "_1"] then crop_list[#crop_list + 1] = {k, n} end
+	end
+	table.sort(crop_list, function(p, q) return p[1] < q[1] end)
+	return crop_list
+end
+csd_ship.crops = crops
+
+-- Hydroponics: real soil beds of everything the farming mods grow, irrigation
+-- channels between them and grow lamps overhead; the planter stations stand
+-- in the aisles.
 D.hydroponics = function(r, b)
 	wall_material(b, r, "csd_ship:wall_hydro")
 	floor_material(b, r, "csd_ship:floor_grate")
-	for x = r.x0 + 4, r.x1 - 4, 5 do
-		for z = r.z0 + 3, r.z1 - 3, 6 do
-			b:station(x, r.y, z, "planter", nil, r.name)
-			b:set(x + 1, r.y, z, "csd_ship:plant_pot")
-			b:set(x + 1, r.y + 1, z, "csd_ship:plant")
+	local list = crops()
+	local soil = pick("farming:soil_wet")
+	local water = pick("default:water_source")
+	local step = r.side == "S" and -1 or 1
+	local zf, zb = front_z(r) + 2 * step, back_z(r) - 2 * step
+	local row, bed = 0, 0
+	for z = zf, zb, step do
+		local m = row % 6
+		row = row + 1
+		if m == 0 then
+			for x = r.x0 + 5, r.x1 - 4, 9 do b:station(x, r.y, z, "planter", nil, r.name) end
+		elseif m == 3 then
+			if water then b:fill(r.x0 + 3, r.y - 1, z, r.x1 - 3, r.y - 1, z, water) end
+		elseif soil and #list > 0 then
+			bed = bed + 1
+			for x = r.x0 + 3, r.x1 - 3 do
+				-- each bed is planted in blocks of one crop, a few metres long
+				local c = list[((bed * 7 + math.floor((x - r.x0) / 6)) % #list) + 1]
+				b:set(x, r.y - 1, z, soil)
+				b:late_node(x, r.y, z, c[1] .. "_" .. math.random(1, c[2]))
+				b:set(x, r.y + 1, z, "csd_ship:grow_lamp")
+			end
 		end
 	end
 	b:station(r.x1 - 2, r.y + 1, back_z(r), "o2_panel", toward_back(r), r.name)
@@ -525,7 +568,7 @@ D.hydroponics = function(r, b)
 		b:set(x, r.y + 1, back_z(r), "csd_ship:water_tap", core.dir_to_facedir(toward_back(r)))
 	end
 	-- Irrigation: a turbine line along the front, gearboxes lifting the drive
-	-- to sprinklers that spray the planters.
+	-- to sprinklers that spray the beds.
 	if has_create then
 		local z = front_z(r) + (r.side == "S" and -1 or 1)
 		local x = r.x0 + 2
@@ -676,4 +719,132 @@ D.vacant = function(r, b)
 	floor_material(b, r, "csd_ship:floor_carpet")
 	if not r.bow and r.side ~= "full" then csd_ship.windows(b, r, 4) end
 	b:station(r.x0, r.y + 1, math.floor((r.z0 + r.z1) / 2), "air_vent", vector.new(-1, 0, 0), r.name)
+end
+
+-- Zoo deck ---------------------------------------------------------------------
+-- Habitats are sealed behind floor-to-ceiling glass on the corridor side
+-- (the layout marks them sealed, so they get no doorway); csd_zoo keeps them
+-- stocked with the animals listed in the layout.
+
+local function glass_front(b, r, h)
+	local wz = r.corridor_z
+	if not wz then return end
+	for x = r.x0, r.x1 do
+		for y = r.y, r.y + (h or 4) do
+			if not b:is(x, y, wz, "csd_ship:door") then b:set(x, y, wz, "csd_ship:habitat_glass") end
+		end
+	end
+end
+
+local function tree(b, x, y, z, trunk, leaves, h, wide)
+	for dy = 0, h - 1 do b:set(x, y + dy, z, trunk) end
+	local top = y + h
+	for dx = -2, 2 do
+		for dz = -2, 2 do
+			for dy = -1, 1 do
+				local far = math.abs(dx) + math.abs(dz)
+				if (wide and dy >= 0 and far <= 3) or (not wide and far + math.abs(dy) <= 2) then
+					local px, py, pz = x + dx, top + dy, z + dz
+					if b:is(px, py, pz, "air") then b:set(px, py, pz, leaves) end
+				end
+			end
+		end
+	end
+end
+
+local BIOMES = {
+	jungle = {floor = "default:dirt_with_rainforest_litter", trunk = "default:jungletree", leaves = "default:jungleleaves",
+		plants = {"default:junglegrass", "default:fern_1", "default:fern_2", "default:fern_3"}, rock = "default:mossycobble"},
+	savanna = {floor = "default:dry_dirt_with_dry_grass", trunk = "default:acacia_tree", leaves = "default:acacia_leaves", wide = true,
+		plants = {"default:dry_grass_1", "default:dry_grass_2", "default:dry_grass_3", "default:dry_grass_4", "default:dry_grass_5"},
+		rock = "default:desert_stone"},
+	forest = {floor = "default:dirt_with_grass", trunk = "default:tree", leaves = "default:leaves",
+		plants = {"default:grass_1", "default:grass_2", "default:grass_3", "default:grass_4", "default:fern_1"}, rock = "default:mossycobble"},
+	farm = {floor = "default:dirt_with_grass",
+		plants = {"default:grass_1", "default:grass_2", "default:grass_3"}},
+}
+
+D.habitat = function(r, b)
+	local zoo = r.zoo or {}
+	local biome = BIOMES[zoo.biome] or BIOMES.forest
+	local rnd = PcgRandom(r.x0 * 31 + r.deck)
+	floor_material(b, r, pick(biome.floor) or "csd_ship:floor")
+	if not zoo.doors then glass_front(b, r) end
+	-- a pond in the floor slab
+	if zoo.pond then
+		local cx, cz = math.floor((r.x0 + r.x1) / 2) + 8, math.floor((r.z0 + r.z1) / 2)
+		for dx = -6, 6 do
+			for dz = -4, 4 do
+				if (dx * dx) / 36 + (dz * dz) / 16 <= 1 then b:set(cx + dx, r.y - 1, cz + dz, "default:water_source") end
+			end
+		end
+	end
+	-- trees around the edges, plants everywhere else
+	if biome.trunk then
+		for x = r.x0 + 3, r.x1 - 3, 9 do
+			local z = (rnd:next(0, 1) == 0) and (r.z0 + 3) or (r.z1 - 3)
+			if b:is(x, r.y - 1, z, biome.floor) then
+				tree(b, x, r.y, z, biome.trunk, biome.leaves, biome.wide and 4 or 3, biome.wide)
+			end
+		end
+	end
+	for x = r.x0, r.x1 do
+		for z = r.z0, r.z1 do
+			if b:is(x, r.y, z, "air") and b:is(x, r.y - 1, z, biome.floor) then
+				local k = rnd:next(1, 100)
+				if k <= 30 then
+					b:set(x, r.y, z, biome.plants[rnd:next(1, #biome.plants)])
+				elseif k <= 31 and biome.rock then
+					b:set(x, r.y, z, biome.rock)
+				end
+			end
+		end
+	end
+	if zoo.biome == "farm" then
+		-- hay bales and a water trough
+		for x = r.x0 + 2, r.x1 - 2, 7 do
+			b:set(x, r.y, r.z0 + 1, "farming:straw")
+			b:set(x + 1, r.y, r.z0 + 1, "farming:straw")
+		end
+		local tz = back_z(r) - (r.side == "S" and -2 or 2)
+		b:fill(r.x0 + 4, r.y - 1, tz, r.x0 + 9, r.y - 1, tz, "default:water_source")
+		plant(b, r.x1 - 1, r.y, back_z(r))
+	end
+end
+
+D.aquarium = function(r, b)
+	glass_front(b, r, 5)
+	floor_material(b, r, "default:sand")
+	local rnd = PcgRandom(r.x0 * 17)
+	b:fill(r.x0, r.y, r.z0, r.x1, r.y + r.h, r.z1, "default:water_source")
+	local corals = {"default:coral_green", "default:coral_pink", "default:coral_cyan"}
+	for x = r.x0, r.x1 do
+		for z = r.z0, r.z1 do
+			local k = rnd:next(1, 100)
+			if k <= 12 then
+				b:set(x, r.y - 1, z, "default:sand_with_kelp", 16 * rnd:next(2, 5)) -- param2 = kelp height
+			elseif k <= 18 then
+				b:set(x, r.y - 1, z, corals[rnd:next(1, #corals)])
+			elseif k <= 20 then
+				b:set(x, r.y - 1, z, pick("default:coral_brown", "default:coral_orange") or "default:sand")
+			elseif k <= 22 then
+				b:fill(x, r.y, z, x, r.y + rnd:next(0, 2), z, "default:coral_skeleton")
+			end
+		end
+	end
+	-- lamps set into the sand, so the tank glows from below
+	for x = r.x0 + 2, r.x1 - 2, 5 do
+		for z = r.z0 + 2, r.z1 - 2, 5 do
+			b:set(x, r.y - 1, z, "csd_ship:aquarium_lamp")
+		end
+	end
+end
+
+D.zoo_feed = function(r, b)
+	wall_material(b, r, "csd_ship:wall_hydro")
+	crates(b, r, 5)
+	for x = r.x0 + 2, r.x1 - 2, 4 do
+		b:fill(x, r.y, back_z(r), x + 1, r.y + 1, back_z(r), "farming:straw")
+	end
+	on_side_wall(b, r, "air_vent", "fore", math.floor((r.z0 + r.z1) / 2), true)
 end

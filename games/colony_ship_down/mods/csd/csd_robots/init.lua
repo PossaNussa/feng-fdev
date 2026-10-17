@@ -271,6 +271,42 @@ end)
 local SPEED = 1.1
 local ANIM = player_api.registered_models["character.b3d"].animations
 
+------------------------------------------------------------------------------
+-- Health: guns (and fists) damage robots. At 0 HP a robot shuts down where it
+-- stands, sparking, until someone patches it up (right-click with a Robot
+-- Repair Kit, scrap metal or a steel ingot) - or it reboots itself after a
+-- long while.
+------------------------------------------------------------------------------
+
+local MAX_HP = 40
+local REBOOT_TIME = 15 * 60
+local REPAIRS = {
+	["csd_robots:repair_kit"] = MAX_HP,
+	["csd_tasks:scrap_metal"] = 10,
+	["default:steel_ingot"] = 10,
+}
+
+core.register_craftitem("csd_robots:repair_kit", {
+	description = S("Robot Repair Kit") .. "\n" .. core.colorize("#9aa7c0", S("Right-click a damaged robot to fix it")),
+	inventory_image = "csd_robots_repair_kit.png",
+})
+core.register_craft({
+	output = "csd_robots:repair_kit",
+	recipe = {
+		{"csd_tasks:scrap_metal", "default:copper_ingot", "csd_tasks:scrap_metal"},
+		{"", "csd_tasks:scrap_metal", ""},
+	},
+})
+
+local function robot_sparks(pos, amount)
+	core.add_particlespawner({
+		amount = amount, time = 0.5, pos = {min = vector.offset(pos, -0.3, 0.3, -0.3), max = vector.offset(pos, 0.3, 1.4, 0.3)},
+		vel = {min = vector.new(-2, 0, -2), max = vector.new(2, 3, 2)}, acc = vector.new(0, -9, 0),
+		exptime = {min = 0.3, max = 0.8}, size = {min = 0.5, max = 1.2}, glow = 14,
+		texture = "csd_ship_spark.png",
+	})
+end
+
 local function corridor_range(deck)
 	-- Stay out of the two-deck reactor hall (no corridor floor on deck 3 there).
 	local lo = (deck == 3) and -158 or -198
@@ -291,6 +327,8 @@ core.register_entity("csd_robots:robot", {
 		self._id = data.id or "b0b"
 		self._deck = data.deck or 2
 		self._z = data.z or 0
+		self._hp = data.hp or MAX_HP
+		self._down_since = data.down
 		local def = csd_robots.by_id[self._id] or csd_robots.crew[1]
 		self.object:set_properties({textures = {"csd_robots_skin_" .. def.skin .. ".png"}})
 		self.object:set_nametag_attributes({text = def.name, color = "#9fe8ff"})
@@ -300,9 +338,10 @@ core.register_entity("csd_robots:robot", {
 		self._target = nil
 		self._pause = math.random() * 4
 		self._greeted = {}
+		if self._hp <= 0 or self._down_since then self:shut_down(true) end
 	end,
 	get_staticdata = function(self)
-		return core.serialize({id = self._id, deck = self._deck, z = self._z})
+		return core.serialize({id = self._id, deck = self._deck, z = self._z, hp = self._hp, down = self._down_since})
 	end,
 	set_anim = function(self, anim)
 		if self._anim ~= anim then
@@ -310,7 +349,39 @@ core.register_entity("csd_robots:robot", {
 			self.object:set_animation(ANIM[anim], anim == "walk" and 20 or 30, 0, true)
 		end
 	end,
-	on_punch = function(self, puncher)
+	shut_down = function(self, quiet)
+		if not quiet then self._hp = 0 end
+		self._down_since = self._down_since or os.time()
+		self._target = nil
+		self.object:set_velocity({x = 0, y = 0, z = 0})
+		self.object:set_animation(ANIM.lay, 30, 0, true)
+		self._anim = "lay"
+		self.object:set_nametag_attributes({text = csd_robots.by_id[self._id].name .. " " .. S("(OFFLINE)"), color = "#ff6040"})
+		if not quiet then
+			robot_sparks(self.object:get_pos(), 60)
+			core.sound_play("csd_events_impact", {pos = self.object:get_pos(), gain = 0.6, pitch = 1.4, max_hear_distance = 20}, true)
+		end
+	end,
+	boot_up = function(self)
+		self._hp = MAX_HP
+		self._down_since = nil
+		self._anim = nil
+		self._pause = 2
+		self.object:set_nametag_attributes({text = csd_robots.by_id[self._id].name, color = "#9fe8ff"})
+		say(self, S("Rebooting... Systems nominal. Thank you!"))
+	end,
+	on_punch = function(self, puncher, _, tool_capabilities)
+		if self._down_since then return true end
+		local dmg = 0
+		for _, v in pairs(tool_capabilities and tool_capabilities.damage_groups or {}) do
+			if type(v) == "number" then dmg = dmg + v end
+		end
+		self._hp = self._hp - math.max(1, math.floor(dmg + 0.5))
+		robot_sparks(self.object:get_pos(), 8)
+		if self._hp <= 0 then
+			self:shut_down()
+			return true
+		end
 		if puncher and puncher:is_player() then
 			local def = csd_robots.by_id[self._id]
 			say(self, pick(def.ow))
@@ -318,10 +389,35 @@ core.register_entity("csd_robots:robot", {
 			self.object:add_velocity({x = dir.x * 2, y = 2.5, z = dir.z * 2})
 			self._pause = 2
 		end
-		return true -- no damage
+		return true -- damage is our own HP, not the engine's
 	end,
 	on_rightclick = function(self, clicker)
 		if not clicker or not clicker:is_player() then return end
+		local stack = clicker:get_wielded_item()
+		local heal = REPAIRS[stack:get_name()]
+		if heal and self._hp < MAX_HP then
+			local was_down = self._down_since ~= nil
+			self._hp = math.min(MAX_HP, math.max(self._hp, 0) + heal)
+			if not core.is_creative_enabled(clicker:get_player_name()) then
+				stack:take_item()
+				clicker:set_wielded_item(stack)
+			end
+			core.sound_play("csd_tasks_click", {pos = self.object:get_pos(), gain = 0.6}, true)
+			if was_down and self._hp >= MAX_HP / 2 then
+				self:boot_up()
+			elseif was_down then
+				core.chat_send_player(clicker:get_player_name(),
+					S("Repairs: @1/@2. It needs @3 more to reboot.", self._hp, MAX_HP, MAX_HP / 2 - self._hp))
+			else
+				say(self, S("Repairs: @1/@2. Much better.", self._hp, MAX_HP))
+			end
+			return
+		end
+		if self._down_since then
+			core.chat_send_player(clicker:get_player_name(),
+				S("This robot is offline. Fix it with a Robot Repair Kit, scrap metal or steel ingots."))
+			return
+		end
 		self._pause = 30
 		self.object:set_yaw(core.dir_to_yaw(vector.direction(self.object:get_pos(), clicker:get_pos())))
 		self:set_anim("stand")
@@ -331,6 +427,12 @@ core.register_entity("csd_robots:robot", {
 		local obj = self.object
 		local pos = obj:get_pos()
 		local vel = obj:get_velocity()
+		if self._down_since then
+			obj:set_velocity({x = 0, y = vel.y, z = 0})
+			if math.random() < dtime * 0.4 then robot_sparks(pos, 5) end
+			if self._down_since and os.time() - self._down_since > REBOOT_TIME then self:boot_up() end
+			return
+		end
 		if self._speech_until and core.get_us_time() > self._speech_until then
 			self._speech_until = nil
 			obj:set_nametag_attributes({text = csd_robots.by_id[self._id].name, color = "#9fe8ff"})

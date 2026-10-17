@@ -66,15 +66,16 @@ Settings (minetest.conf): `csd_tasks_per_player` (5),
 `mods/csd/` holds the game's own mods. They are written against the Minetest Game
 API, so they also load in ffadventure.
 
-- **csd_core**: building rules (the ship can't be damaged), the `builder` privilege, jobs, chat tags, real seats, spawn
+- **csd_core**: building rules (the ship can't be damaged), the `builder` privilege, jobs, chat tags, real seats, spawn, crawling (hold Aux1 - Ctrl in the launcher; automatic under low ceilings)
 - **csd_space**: vacuum mapgen (a drowning `csd_space:vacuum` node), starfield sky, low gravity, rescue drone
 - **csd_tasks**: 7 ship systems, 17 station kinds, mini-games, task lists, HUD, awards
 - **csd_events**: reactor meltdown, O2 depletion, power failure, comms blackout, hull breach, asteroid storm,
   burst pipe (floods a room with finite water via dynamic_liquid until the valve is shut)
-- **csd_ship**: building palette, data-driven layout, generator, room decorators, room HUD, ship lighting,
+- **csd_ship**: building palette, data-driven layout, generator, room decorators, room HUD, ship lighting, air ducts in the crawlspace above every deck (hatches in the maintenance closets, pipes to every vent), shoot-out lights (fix with a Replacement Bulb, a new light or a Mese lamp), hydroponics soil beds with every farming / x_farming crop under grow lamps,
   room claims, loot crates, visible system effects (flicker, wilt, static, sparks, haze), star drift, exterior
 - **csd_eva**: wearable spacesuit (3d_armor) and suit lockers
-- **csd_robots**: the robot crew (patrols, reactions, dialogue, skins for players via skinsdb)
+- **csd_robots**: the robot crew (patrols, reactions, dialogue, skins for players via skinsdb); guns knock them offline, a Robot Repair Kit / scrap metal / steel ingots fix them (they also reboot themselves after 15 min)
+- **csd_zoo**: the zoological deck (deck 5): sealed glass habitats (big cats, elephants, aviary, aquarium, grasslands) and a petting zoo, kept stocked from animalia, pixel_animals and animalworld (wild spawning is off); `/zoo restock`
 - **csd_audio**: room-aware soundtrack, ambience loops, sound effects
 - **csd_create**: Create-style machines on steamified's stress/RPM network (hand crank, reactor turbine, encased fan, flywheel, speedometer/stressometer, mechanical press + depot, mechanical pump, irrigation sprinkler, emergency capacitor task)
 
