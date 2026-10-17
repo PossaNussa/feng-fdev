@@ -39,3 +39,8 @@ games/ffadventure.zip
 /.claude/
 /lib/sha256/cmake_config.h
 /src/cmake_config_githash.h
+
+# Colony Ship Down content that looks like build output: .obj 3D models and a
+# mod's own build/ folder are part of the game.
+!games/colony_ship_down/**/*.obj
+!games/colony_ship_down/**/build/

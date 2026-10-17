@@ -108,13 +108,19 @@ local waypoints = {} -- player name -> hud id
 
 local KEY_ROOMS = {
 	S("Arrivals Lounge"), S("Medbay"), S("Mess Hall"), S("Hydroponics"), S("Reactor Room"),
-	S("Bridge"), S("Shuttle & EVA Bay"), S("Machine Shop"), S("Observation Deck"), S("Electrical"),
+	S("Bridge"), S("Shuttle Bay"), S("Machine Shop"), S("Observation Deck"), S("Electrical"),
+	S("Aquarium"), S("Petting Zoo"),
 }
+
+-- Room names are translatable strings from csd_ship, ours are from
+-- csd_robots: compare the plain English text.
+local function plain(s) return core.get_translated_string("en", s) end
 
 local function find_room(name)
 	local data = has_ship and csd_ship.get_ship_data()
+	local want = plain(name)
 	for _, r in ipairs(data and data.rooms or {}) do
-		if r.name == name then return r end
+		if plain(r.name) == want then return r end
 	end
 end
 

@@ -141,7 +141,7 @@ minetest.register_on_mods_loaded(function()
     local crop_names = {}
     local crop_map = {}
     for crop, foodblock in pairs(crop_to_foodblock) do
-        if minetest.registered_nodes[crop] then
+        if minetest.registered_nodes[crop] and minetest.registered_nodes[foodblock] then
             table.insert(crop_names, crop)
             crop_map[crop] = foodblock
         else

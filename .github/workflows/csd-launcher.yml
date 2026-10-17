@@ -71,7 +71,10 @@ jobs:
             libogg-dev libvorbis-dev libcurl4-openssl-dev libgmp-dev gettext
       - name: Build engine
         run: |
-          cmake -S engine -B build -G Ninja -DRUN_IN_PLACE=TRUE -DCMAKE_BUILD_TYPE=Release -DBUILD_SERVER=FALSE
+          # no optional database backends: the game uses sqlite, and these would
+          # need extra libraries installed on the player's / host's machine
+          cmake -S engine -B build -G Ninja -DRUN_IN_PLACE=TRUE -DCMAKE_BUILD_TYPE=Release -DBUILD_SERVER=FALSE \
+            -DENABLE_POSTGRESQL=OFF -DENABLE_LEVELDB=OFF -DENABLE_REDIS=OFF -DENABLE_SPATIAL=OFF
           cmake --build build -j"$(nproc)"
           strip engine/bin/luanti || true
       - name: Package

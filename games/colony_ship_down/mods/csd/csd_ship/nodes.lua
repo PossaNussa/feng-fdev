@@ -237,7 +237,7 @@ core.register_node("csd_ship:grow_lamp", {
 	tiles = {"csd_ship_wall_dark.png", "csd_ship_light_strip.png^[colorize:#e070ff:140", "csd_ship_wall_dark.png"},
 	paramtype = "light",
 	light_source = 14,
-	light_colour = "#e070ff",
+	light_colour = "#f2e6ff", -- pale: the engine tints through walls, strong colours stain neighbours
 	sunlight_propagates = true,
 	walkable = false,
 	pointable = false,
